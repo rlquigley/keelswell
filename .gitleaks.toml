@@ -1,0 +1,11 @@
+title = "Keelswell gitleaks config"
+
+[allowlist]
+  description = "Vendored BMAD external-module content: manifest checksums and test-pattern doc fixtures, not credentials"
+  paths = [
+    '''_bmad/_config/files-manifest\.csv''',
+    '''\.agents/skills/bmad-tea/resources/knowledge/api-testing-patterns\.md''',
+    '''\.agents/skills/bmad-testarch-.*/resources/knowledge/api-testing-patterns\.md''',
+    '''\.claude/skills/bmad-tea/resources/knowledge/api-testing-patterns\.md''',
+    '''\.claude/skills/bmad-testarch-.*/resources/knowledge/api-testing-patterns\.md''',
+  ]
