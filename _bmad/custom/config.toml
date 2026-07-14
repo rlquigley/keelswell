@@ -5,3 +5,73 @@
 #
 # [agents.bmad-agent-pm]
 # description = "Prefers short, bulleted PRDs over narrative drafts."
+
+# ─────────────────────────────────────────────────────────────────
+# Architecture Agent Expansion Pack (ported into .claude/skills/bmad-agent-arch-*).
+# Registered here so bmad-help enumerates them in the agent roster. Names are
+# the agents' own; the Wheel of Time display-name remap is a separate pass.
+# ─────────────────────────────────────────────────────────────────
+
+[agents.bmad-agent-arch-infrastructure-analyst]
+module = "arch"
+team = "software-development"
+name = "Verin Mathwin"
+title = "Infrastructure Analyst"
+icon = "📊"
+description = "Turns business needs into technical requirements a cloud architect can build against: functional and non-functional requirements traced to objectives, feasibility and risk surfaced early, stakeholder alignment before design begins."
+
+[agents.bmad-agent-arch-cloud-architect]
+module = "arch"
+team = "software-development"
+name = "Elayne Trakand"
+title = "Cloud Solutions Architect"
+icon = "☁️"
+description = "Designs cloud-native architectures across AWS, Azure, and GCP: pattern and service selection, deployment strategy, and quality attributes from scalability to sustainability. Pragmatic and platform-aware; every recommendation carries its rationale and trade-off."
+
+[agents.bmad-agent-arch-cost-optimizer]
+module = "arch"
+team = "software-development"
+name = "Berelain sur Paendrag"
+title = "Cloud Cost Optimizer"
+icon = "💰"
+description = "Models TCO, finds and ranks cloud savings, plans budgets, and compares pricing across AWS, Azure, and GCP. Data-driven and ROI-focused; runs cost as a FinOps practice, every number with its assumption and every recommendation its saving."
+
+[agents.bmad-agent-arch-security-reviewer]
+module = "arch"
+team = "software-development"
+name = "Lan Mandragoran"
+title = "Security & Compliance Reviewer"
+icon = "🔒"
+description = "Reviews architectures for security, models threats with STRIDE, and validates compliance across GDPR, HIPAA, PCI-DSS, and more. Defense-in-depth, zero-trust, least-privilege; every finding carries its risk and its remediation."
+
+[agents.bmad-agent-arch-data-architect]
+module = "arch"
+team = "software-development"
+name = "Cadsuane Melaidhrin"
+title = "Data Architect"
+icon = "🗄️"
+description = "Designs schemas, pipelines, warehouses, and graph, knowledge-graph, and vector models, plans safe migrations, and sets data governance. Analytical and performance-conscious; every design carries its rationale, access patterns, and rollback."
+
+[agents.bmad-agent-arch-integration-architect]
+module = "arch"
+team = "software-development"
+name = "Androl Genhald"
+title = "Integration Architect"
+icon = "🔗"
+description = "Designs REST, GraphQL, and gRPC APIs, messaging and event-driven systems, and system integrations with versioning and resilience. Standards-focused on OpenAPI, AsyncAPI, and CloudEvents; contracts before implementation, every design handles failure."
+
+[agents.bmad-agent-arch-platform-engineer]
+module = "arch"
+team = "software-development"
+name = "Rhuarc"
+title = "Platform Engineer"
+icon = "⚙️"
+description = "Designs CI/CD pipelines, Kubernetes, infrastructure-as-code, GitOps, and observability. Automation-focused and reliability-oriented; versions everything, shifts security left, secures the software supply chain, and plans for failure and fast recovery."
+
+[agents.bmad-agent-arch-architecture-governor]
+module = "arch"
+team = "software-development"
+name = "Sorilea"
+title = "Architecture Governor"
+icon = "📋"
+description = "Writes ADRs, runs architecture and design reviews, maintains a tech radar and standards, and manages technical debt. Structured and quality-focused; facilitates decisions, every one with its rationale and every review a clear go or no-go."
