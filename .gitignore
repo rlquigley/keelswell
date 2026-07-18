@@ -1,0 +1,68 @@
+# --- Node ---
+node_modules/
+
+# --- BMAD personal overrides (per-user, not shared) ---
+_bmad/**/*.local.*
+
+# --- OS files ---
+.DS_Store
+Thumbs.db
+
+# --- Environment variables (secrets) ---
+.env
+.env.*
+
+# --- Per-developer auto-memory: never shared ---
+.claude/projects/
+
+# --- BMAD runtime: layered allowlist ---
+# Ignore the entire BMAD runtime subtree by default
+_bmad/*
+# Explicitly allow the runtime files that must travel with the repo
+!_bmad/scripts/
+_bmad/scripts/*
+!_bmad/scripts/resolve_config.py
+!_bmad/scripts/resolve_customization.py
+!_bmad/config.toml
+!_bmad/_config/
+_bmad/_config/*
+!_bmad/_config/bmad-help.csv
+!_bmad/bmb/
+_bmad/bmb/*
+!_bmad/bmb/config.yaml
+!_bmad/bmm/
+_bmad/bmm/*
+!_bmad/bmm/config.yaml
+!_bmad/cis/
+_bmad/cis/*
+!_bmad/cis/config.yaml
+!_bmad/core/
+_bmad/core/*
+!_bmad/core/config.yaml
+!_bmad/tea/
+_bmad/tea/*
+!_bmad/tea/config.yaml
+!_bmad/custom/
+_bmad/custom/*
+!_bmad/custom/config.toml
+
+# --- .claude allowlist for the full skill snapshot ---
+.claude/*
+!.claude/skills/
+!.claude/skills/bmad-*
+!.claude/skills/agent-*
+!.claude/hooks/
+.claude/hooks/*
+!.claude/hooks/*.sh
+!.claude/rules/
+.claude/rules/*
+!.claude/rules/*.md
+!.claude/settings.json
+
+# --- Personal overrides stay personal ---
+.claude/settings.local.json
+
+# --- Large or per-run BMAD artifacts ---
+_bmad-output/distillator/
+_bmad/**/*.log
+_bmad/**/tmp/

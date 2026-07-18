@@ -1,0 +1,33 @@
+# HANDOFF
+Last updated: {init_timestamp}
+This file is the cross-session breadcrumb. /bmad-wrap writes it at session
+end; /bmad-status-wave and /bmad-resume-wave read it at session start. Do not
+edit by hand mid-session; if a hand-edit is unavoidable, commit it explicitly
+and update the Last updated timestamp.
+
+## Current State
+| Field  | Value |
+|--------|-------|
+| Stage  | n/a   |
+| Wave   | n/a   |
+| Step   | n/a   |
+| Status | green |
+Stage: Stage A through Stage I, or n/a before any stage starts.
+Wave: the in-flight wave identifier, or n/a between waves.
+Step: the step within the current skill, or n/a between invocations.
+Status: green (proceeding normally) / yellow (warning; review before
+resuming) / red (blocked; do not resume without addressing Blocked-On --
+/bmad-resume-wave refuses on red without an explicit override).
+
+## Key Design Decisions Since Last Handoff
+- (none yet) -- one sentence per decision, pointing at the artifact where the
+  rationale lives.
+
+## Blocked-On
+- (none) -- each item names the blocker, the artifact that surfaced it, and
+  the next planned skill that needs it resolved. Any item here moves Status
+  off green.
+
+## Next Session Proposal
+(written by /bmad-wrap at session end; forward-looking: what should happen
+next, not what happened.)

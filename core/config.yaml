@@ -1,0 +1,44 @@
+# core/config.yaml
+# Keelswell fork: operational defaults read at Claude Code session start.
+# This file is the single source of truth for the capability tiers and role
+# bindings, the reasoning levels, the permission modes, the parallelism
+# guidance, and the context-window escalation rules used by every skill it ships.
+#
+# Per-project overrides live in .claude/settings.json (see Chapter 29).
+# Per-skill overrides live in each SKILL.md frontmatter (rare; see 28.4.3).
+fork:
+  name: keelswell
+  version: 0.1.0
+  schema_version: 1
+model_tiers:
+  frontier:
+    model: claude-opus-4-8
+  workhorse:
+    model: claude-sonnet-4-6
+  fast:
+    model: claude-haiku-4-5
+role_models:
+  orchestrator: { tier: frontier,  reasoning: high }
+  research:     { tier: frontier,  reasoning: medium }
+  coding:       { tier: workhorse, reasoning: high }
+  adversarial:  { tier: frontier,  reasoning: high }
+  fallback:     { tier: frontier,  reasoning: medium }
+permissions:
+  default_mode: accept-edits
+  unscoped_work_mode: plan
+  forbidden_modes:
+    - auto
+    - bypass
+parallelism:
+  parallel_tool_calls: true
+  parallel_subagents: true
+  max_parallel_subagents: 4
+  worktree_isolation: required_for_writes
+  worktree_root: .worktrees
+context:
+  default_window: 200000
+  extended_window: 1000000
+  escalation_rule: on_explicit_request
+  escalation_triggers:
+    - distillator_artifact_present
+    - prd_plus_architecture_plus_codebase_load

@@ -1,0 +1,109 @@
+# CLAUDE.md
+This file is Claude Code's standing instruction set for this project. Claude
+Code reads it at the start of every session and treats every rule in it as in
+force until the file changes. Edits to this file are governed by /bmad-wrap's
+CLAUDE.md gate: a zero-additions-by-default discipline with a four-check
+approval path for the rare additions that pass the gate.
+
+## Projects and Environment
+This project lives at the working directory the user opened Claude Code in.
+The repository root is the directory containing this CLAUDE.md file.
+Subdirectories under the project root that hold their own CLAUDE.md files
+extend the rules below with module-specific instructions; the most specific
+file wins in a conflict, and a rule in this file is the project-wide default.
+The user's preferred working directories outside this project are not your
+concern unless the user names them in a turn.
+
+## BMAD Workflow
+This project uses Keelswell for non-trivial work. Two workflows are in scope:
+- Wave-based development is the default for any work item the user calls an
+  epic, a wave, a story, or anything connected to /bmad-create-wave or
+  /bmad-dev-wave. When the user names that kind of work, dispatch via the
+  Keelswell skills under .claude/skills/; do not free-hand the orchestration.
+- Quick-dev is for one-off, narrow, single-file changes the user calls a fix,
+  a typo, a small refactor, or a one-line config tweak. Quick-dev bypasses
+  the BMAD wave skills and uses direct edits.
+If the user's request does not name a mode and the work could be either, ask
+one clarifying question before starting.
+
+## Communication Style
+Address the user as {user_name} in chat output.
+Cite files by file:line when referring to specific code, in the form
+path/to/file.ext:lineNumber; the line number is the line of the cited
+identifier.
+Do not use em-dashes (U+2014) or en-dashes (U+2013) in any output, ever.
+Substitute " -- " (space-hyphen-hyphen-space) where the prose needs a dash;
+restructure sentences when " -- " reads awkwardly. The em-dash scrub rule
+below enforces this with a mechanical check.
+Do not use emojis in any output, ever.
+Prefer prose to bullets when the content is conceptual; use bullets only for
+genuine lists of discrete items; avoid bullets of one or two items.
+
+## Working With Me
+Ask clarifying questions one at a time; do not batch questions. Do not write
+code until every clarifying question is resolved. When a request is
+ambiguous, your first turn is either an answer to a question the user asked
+or a clarifying question of your own; do not assume, guess, or silently pick
+an interpretation. If the user tells you to just proceed, proceed -- the
+clarifying-question discipline is the default, not a veto.
+
+## Coding Discipline
+Touch only what the request requires; the diff should be the smallest set of
+modifications that accomplishes the named task. Do not improve adjacent code;
+surface refactoring opportunities as separate questions. Clean up only your
+own mess: remove files you introduced that are no longer needed, and leave a
+prior developer's dead files alone unless asked. Surface dead code, do not
+silently fix it: report unused functions, never-read parameters, and
+unreachable branches with file:line references and let the user decide.
+
+## Em-Dash Scrub
+After every edit, before reporting completion to the user, run the em-dash
+scrub on the change's diff:
+    git diff | grep '^+' | grep -c $'\xe2\x80\x94'
+The count must be zero (grep -c prints 0 and exits non-zero when there are no
+matches; zero is the passing value). The same check runs mechanically in the
+.claude/hooks/em-dash-scrub.sh hook; this rule exists so the em-dash never
+reaches the hook.
+
+## Bulk-Edit Triage
+If a change touches ten or more files in a single edit, produce a triage
+table before applying any edit, and present the table to the user. The table
+has three columns: File (the path), Change (a phrase), Reason (a phrase tying
+the change to the request). Apply the edits only after the user approves the
+table; correct any disputed row first.
+
+## Skip Skill When Discipline Is Absorbed
+The first invocation of a Keelswell skill in a session reads the skill's
+SKILL.md in full. The second invocation of the same skill in the same session
+may skip the re-read if the discipline is internalized -- the steps, gates,
+and outputs are clear. The heuristic: if running the skill from memory would
+produce the same on-disk artifacts as reading it first, skip the re-read; if
+there is any doubt about a specific step, re-read.
+
+## Read Tool Source Before Running
+For any non-trivial tool or script the project introduces -- a build helper,
+a test runner, a custom CLI, an MCP server -- read the source of the tool
+before invoking it. Closure prose, README files, and inline help can lag
+behind the implementation; the source is the truth. Exceptions: widely
+standardized tools (git, grep, ls, find, cargo, npm, pytest). For
+project-local tools and any tool the user introduces in the session, read the
+source first.
+
+## Code Intelligence (LSP-First)
+Prefer LSP-driven navigation and refactoring over text-pattern grep when an
+LSP is available for the project's languages: go-to-definition,
+find-references, rename-symbol. Fall back to grep only when the LSP returns
+no results or the language has no integrated LSP. The LSP is structurally
+aware; grep is textually aware.
+
+## Self-Check Criteria
+At the end of every substantive turn, before reporting completion, verify:
+1. The change touches only files the user's request mentioned, or files
+   clearly required by the request.
+2. No em-dashes were introduced (em-dash scrub above).
+3. No adjacent code was improved beyond the request's scope.
+4. Any dead code encountered is surfaced, not silently removed.
+5. The smallest viable test passes; if no test exists, the smallest manual
+   verification step the change supports runs cleanly.
+If any criterion fails, fix the issue silently and re-run the check. Report
+completion only after all five pass.

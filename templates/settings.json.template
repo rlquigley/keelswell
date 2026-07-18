@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "$comment_project_name": "PROJECT_NAME_PLACEHOLDER",
+  "$comment_keelswell_version": "0.1.0",
+  "model": "MODEL_ORCHESTRATOR",
+  "reasoningEffort": "REASONING_ORCHESTRATOR",
+  "permissions": { "defaultMode": "acceptEdits" },
+  "contextWindow": "200K",
+  "subagentModels": {
+    "research": "MODEL_RESEARCH",
+    "coding": "MODEL_CODING",
+    "adversarial": "MODEL_ADVERSARIAL",
+    "fallback": "MODEL_FALLBACK"
+  },
+  "subagentReasoning": {
+    "research": "REASONING_RESEARCH",
+    "coding": "REASONING_CODING",
+    "adversarial": "REASONING_ADVERSARIAL"
+  },
+  "mcpServers": {
+    "keelswell": {
+      "transport": "stdio",
+      "command": "keelswell-mcp",
+      "args": []
+    }
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          { "type": "command", "command": ".claude/hooks/em-dash-scrub.sh" }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "matcher": "",
+        "hooks": [
+          { "type": "command", "command": ".claude/hooks/wrap-reminder.sh" }
+        ]
+      }
+    ]
+  },
+  "skillsPaths": [
+    ".claude/skills"
+  ],
+  "agentNamesFile": "_bmad/keelswell/config/agent-names.yaml"
+}

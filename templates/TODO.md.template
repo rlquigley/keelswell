@@ -1,0 +1,28 @@
+# TODO
+Last updated: {init_timestamp}
+This file is the project's priority-bucketed running task list. It is read by
+humans at session start and reconciled by /bmad-wrap at session end. Move
+items from Open to Closed when their PR merges; /bmad-wrap automates the move
+when it detects a matching merged PR.
+
+## Open
+### P0 -- Block release; fix now
+- [ ] (no P0 items)
+### P1 -- Block this epic; fix before close
+- [ ] (no P1 items)
+### P2 -- Fix this quarter
+- [ ] (no P2 items)
+### P3 -- Nice to have; backlog
+- [ ] (no P3 items)
+
+## Closed
+(no closed items yet)
+
+## Bucket guidance
+- P0 and P1 items must include an owner-or-agent annotation in square
+  brackets. Example: - [ ] Fix auth token refresh race [Egwene]
+- P2 and P3 items may omit the annotation.
+- Closed items are grouped under a YYYY-MM-DD date heading and include a PR
+  reference:
+  ### 2026-04-12
+  - [x] (description) [PR #42]
