@@ -1,0 +1,32 @@
+{
+  "name": "keelswell",
+  "owner": { "name": "Ryan Quigley" },
+  "license": "MIT",
+  "homepage": "https://github.com/rlquigley/keelswell",
+  "repository": "https://github.com/rlquigley/keelswell",
+  "keywords": ["bmad", "keelswell", "wheel-of-time", "fork"],
+  "plugins": [
+    {
+      "name": "keelswell",
+      "source": "./",
+      "description": "Keelswell fork: the pre-merged 23-agent base layer with Wheel of Time names, expansion-pack architecture agents, six custom agents, and the seven wave-development skills.",
+      "version": "0.1.0",
+      "author": { "name": "Ryan Quigley" },
+      "skills": [
+        "skills/bmad-create-wave",
+        "skills/bmad-dev-wave",
+        "skills/bmad-resume-wave",
+        "skills/bmad-status-wave",
+        "skills/bmad-merge-wave",
+        "skills/bmad-close-epic",
+        "skills/bmad-wrap",
+        "skills/agent-tam-althor",
+        "skills/agent-tuon",
+        "skills/agent-setalle-anan",
+        "skills/agent-hurin",
+        "skills/agent-gareth-bryne",
+        "skills/agent-damer-flinn"
+      ]
+    }
+  ]
+}
