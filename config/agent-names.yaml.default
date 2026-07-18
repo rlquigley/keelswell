@@ -92,3 +92,12 @@ agents:
   - role: custom-ml
     bmad_default: ML/AI Engineer
     display_name: Damer Flinn
+  - role: custom-billing
+    bmad_default: Monetization / Billing
+    display_name: Bayle Domon
+  - role: custom-appsec
+    bmad_default: Application Security
+    display_name: Juilin Sandar
+  - role: custom-performance
+    bmad_default: Performance / Capacity
+    display_name: Jain Farstrider

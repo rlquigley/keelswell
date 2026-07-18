@@ -1,0 +1,4 @@
+# Format: skill-name,description,category
+agent-bayle-domon,Monetization and billing: pricing tiers subscription states dunning reconciliation revenue metrics,agent
+agent-juilin-sandar,Application security: threat models OWASP review dependency audit abuse cases,agent
+agent-jain-farstrider,Performance and capacity: burst load models latency budgets cache sizing autoscaling load shedding,agent

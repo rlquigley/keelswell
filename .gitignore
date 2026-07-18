@@ -48,6 +48,7 @@ _bmad/tea/*
 !_bmad/custom/
 _bmad/custom/*
 !_bmad/custom/config.toml
+!_bmad/custom/module-help.csv
 
 # --- .claude allowlist for the full skill snapshot ---
 .claude/*

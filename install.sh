@@ -57,7 +57,7 @@ if [ -n "$CUSTOM_SOURCE" ] && [ ! -d "$CUSTOM_SOURCE" ]; then
   git ls-remote "$CUSTOM_SOURCE" >/dev/null 2>&1 || { echo "custom source unreachable: $CUSTOM_SOURCE"; exit 5; }
 fi
 
-echo "Keelswell fork installer v0.1.0"
+echo "Keelswell fork installer v0.2.0"
 cd "$FORK_ROOT"
 
 phase1_preflight() {
@@ -105,7 +105,7 @@ phase2_mapping() {
     run "cp '$defaults' '$mapping'"
     echo "  Copying $defaults to $mapping ... done"
   elif [ "$RENAME" -eq 1 ] && [ -f "$mapping" ]; then
-    echo "  --rename set; walking 29 agents against the existing mapping."
+    echo "  --rename set; walking $(grep -c '^  - role:' "$mapping") agents against the existing mapping."
     interactive_prompt "$mapping"
   else
     read -r -p "  Use default names (Y/n): " reply; reply=${reply:-Y}
@@ -121,7 +121,7 @@ phase2_mapping() {
 
 interactive_prompt() {
   local source_file="$1" target="config/agent-names.yaml" tmp; tmp=$(mktemp)
-  echo "  Walking 29 agents. Press Enter to keep the current name, or type a new one."
+  echo "  Walking $(grep -c '^  - role:' "$source_file") agents. Press Enter to keep the current name, or type a new one."
   python3 - "$source_file" <<'PY' > "$tmp.in"
 import sys, yaml
 for a in yaml.safe_load(open(sys.argv[1]))["agents"]:
@@ -251,7 +251,7 @@ phase6_validation() {
   echo "[6/6] Validation ..."
   [ "$DRY_RUN" -eq 1 ] && { echo "  DRY-RUN: skipped"; return; }
   validate_agent_names config/agent-names.yaml
-  echo "  agent-names.yaml: valid YAML, 29 unique display_names ... ok"
+  echo "  agent-names.yaml: valid YAML, $(grep -c '^  - role:' config/agent-names.yaml) unique display_names ... ok"
   if grep -rl '\${AGENT:[a-z-]*}' skills agents 2>/dev/null; then
     echo "  ERROR: leftover agent tokens in skills/ or agents/"; exit 7
   fi
