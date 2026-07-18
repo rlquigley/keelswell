@@ -25,7 +25,28 @@
         "skills/agent-setalle-anan",
         "skills/agent-hurin",
         "skills/agent-gareth-bryne",
-        "skills/agent-damer-flinn"
+        "skills/agent-damer-flinn",
+        "skills/bmad-agent-analyst",
+        "skills/bmad-agent-pm",
+        "skills/bmad-agent-architect",
+        "skills/bmad-agent-dev",
+        "skills/bmad-agent-ux-designer",
+        "skills/bmad-agent-tech-writer",
+        "skills/bmad-cis-agent-brainstorming-coach",
+        "skills/bmad-cis-agent-design-thinking-coach",
+        "skills/bmad-cis-agent-innovation-strategist",
+        "skills/bmad-cis-agent-creative-problem-solver",
+        "skills/bmad-cis-agent-storyteller",
+        "skills/bmad-cis-agent-presentation-master",
+        "skills/bmad-tea",
+        "skills/bmad-agent-arch-infrastructure-analyst",
+        "skills/bmad-agent-arch-cloud-architect",
+        "skills/bmad-agent-arch-cost-optimizer",
+        "skills/bmad-agent-arch-security-reviewer",
+        "skills/bmad-agent-arch-data-architect",
+        "skills/bmad-agent-arch-integration-architect",
+        "skills/bmad-agent-arch-platform-engineer",
+        "skills/bmad-agent-arch-architecture-governor"
       ]
     }
   ]
