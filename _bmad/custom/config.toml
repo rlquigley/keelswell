@@ -7,6 +7,18 @@
 # description = "Prefers short, bulleted PRDs over narrative drafts."
 
 # ─────────────────────────────────────────────────────────────────
+# Keelswell overlay top-level keys (must precede any [table] -- errata B8).
+# ─────────────────────────────────────────────────────────────────
+devLoadAlwaysFiles = ["docs/architecture.md", "docs/project-context.md"]
+expansionPacks = [
+  "cloud-architecture",
+  "data-architecture",
+  "integration-patterns",
+  "platform-engineering",
+  "architecture-governance",
+]
+
+# ─────────────────────────────────────────────────────────────────
 # Architecture Agent Expansion Pack (ported into .claude/skills/bmad-agent-arch-*).
 # Registered here so bmad-help enumerates them in the agent roster. Names are
 # the agents' own; the Wheel of Time display-name remap is a separate pass.
@@ -75,3 +87,45 @@ name = "Sorilea"
 title = "Architecture Governor"
 icon = "📋"
 description = "Writes ADRs, runs architecture and design reviews, maintains a tech radar and standards, and manages technical debt. Structured and quality-focused; facilitates decisions, every one with its rationale and every review a clear go or no-go."
+
+# ─────────────────────────────────────────────────────────────────
+# Vanilla BMAD core (preserved from upstream)
+# ─────────────────────────────────────────────────────────────────
+[architecture]
+architectureFile = "docs/architecture.md"
+infrastructureFile = "docs/architecture.md"
+
+# -- Cloud Infrastructure pack contributions --
+[requirements]            # Verin
+requirementsFile = "docs/requirements.md"
+
+[costAnalysis]            # Berelain
+costAnalysisFile = "docs/cost-analysis.md"
+
+[security]                # Lan
+securityAssessmentFile = "docs/security-assessment.md"
+
+# -- Data Architecture pack contributions --
+[dataArchitecture]        # Cadsuane
+erdFile = "docs/data-architecture.md"
+dataDictionaryFile = "docs/data-dictionary.md"
+pipelineSpecFile = "docs/data-pipeline.md"
+
+# -- API Integration pack contributions --
+[integration]             # Androl
+apiSpecFile = "docs/integration.md"
+eventSchemaFile = "docs/event-schemas.md"
+
+# -- Platform Engineering pack contributions --
+[platform]                # Rhuarc
+pipelineFile = "docs/platform.md"
+kubernetesFile = "docs/kubernetes.md"
+iacFile = "docs/infrastructure-as-code.md"
+
+# -- Governance pack contributions --
+[governance]              # Sorilea
+governanceFile = "docs/governance.md"
+adrDirectory = "docs/architecture/decisions/"
+techRadarFile = "docs/architecture/tech-radar.md"
+standardsDirectory = "docs/architecture/standards/"
+reviewsDirectory = "docs/architecture/reviews/"
