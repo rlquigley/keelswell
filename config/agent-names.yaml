@@ -1,0 +1,94 @@
+version: 1
+agents:
+  # Core BMAD (8 agents)
+  - role: core-bmad-master
+    bmad_default: BMad Master
+    display_name: Rand al'Thor
+  - role: bmm-analyst
+    bmad_default: Analyst (Mary)
+    display_name: Moiraine Damodred
+  - role: bmm-pm
+    bmad_default: PM (John)
+    display_name: Egwene al'Vere
+  - role: bmm-architect
+    bmad_default: Architect (Winston)
+    display_name: Perrin Aybara
+  - role: bmm-dev
+    bmad_default: Developer (Amelia)
+    display_name: Mat Cauthon
+  - role: bmm-ux-designer
+    bmad_default: UX Designer (Sally)
+    display_name: Min Farshaw
+  - role: bmm-tech-writer
+    bmad_default: Tech Writer (Paige)
+    display_name: Loial
+  - role: bmm-qa
+    bmad_default: Quinn QA
+    display_name: Aviendha
+  # Architecture Expansion Pack (8 agents)
+  - role: arch-infrastructure-analyst
+    bmad_default: Infra Analyst (Alex)
+    display_name: Verin Mathwin
+  - role: arch-cloud-architect
+    bmad_default: Cloud Architect (Morgan)
+    display_name: Elayne Trakand
+  - role: arch-data-architect
+    bmad_default: Data Architect (Casey)
+    display_name: Cadsuane Melaidhrin
+  - role: arch-integration-architect
+    bmad_default: Integration Architect (River)
+    display_name: Androl Genhald
+  - role: arch-platform-engineer
+    bmad_default: Platform Engineer (Sam)
+    display_name: Rhuarc
+  - role: arch-cost-optimizer
+    bmad_default: Cost Optimizer (Taylor)
+    display_name: Berelain sur Paendrag
+  - role: arch-security-reviewer
+    bmad_default: Security Reviewer (Jordan)
+    display_name: Lan Mandragoran
+  - role: arch-architecture-governor
+    bmad_default: Architecture Governor (Quinn)
+    display_name: Sorilea
+  # CIS (6 agents)
+  - role: cis-brainstorming-coach
+    bmad_default: Carson (Brainstorming Coach)
+    display_name: Siuan Sanche
+  - role: cis-design-thinking-coach
+    bmad_default: Maya (Design Thinking Coach)
+    display_name: Nynaeve al'Meara
+  - role: cis-innovation-strategist
+    bmad_default: Victor (Innovation Strategist)
+    display_name: Logain Ablar
+  - role: cis-creative-problem-solver
+    bmad_default: Dr. Quinn (Creative Problem Solver)
+    display_name: Birgitte Silverbow
+  - role: cis-storyteller
+    bmad_default: Sophia (Storyteller)
+    display_name: Thom Merrilin
+  - role: cis-presentation-master
+    bmad_default: Caravaggio (Presentation Master)
+    display_name: Morgase Trakand
+  # TEA (1 agent)
+  - role: tea-murat
+    bmad_default: Murat (TEA)
+    display_name: Galad Damodred
+  # Custom (6 agents)
+  - role: custom-sre
+    bmad_default: SRE / DevOps
+    display_name: Tam al'Thor
+  - role: custom-growth
+    bmad_default: Growth Strategist
+    display_name: Tuon
+  - role: custom-accessibility
+    bmad_default: Accessibility
+    display_name: Setalle Anan
+  - role: custom-analytics
+    bmad_default: Analytics / BI
+    display_name: Hurin
+  - role: custom-legal
+    bmad_default: Legal Advisor
+    display_name: Gareth Bryne
+  - role: custom-ml
+    bmad_default: ML/AI Engineer
+    display_name: Damer Flinn

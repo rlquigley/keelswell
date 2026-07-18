@@ -30,6 +30,9 @@ _bmad/_config/*
 !_bmad/bmb/
 _bmad/bmb/*
 !_bmad/bmb/config.yaml
+!_bmad/bmad-loop/
+_bmad/bmad-loop/*
+!_bmad/bmad-loop/config.yaml
 !_bmad/bmm/
 _bmad/bmm/*
 !_bmad/bmm/config.yaml
