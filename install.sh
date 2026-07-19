@@ -164,9 +164,9 @@ PY
 phase4_upstream() {
   echo "[4/6] Running upstream BMAD plugin install ..."
   local dir="${TARGET_PROJECT:-.}" src="${CUSTOM_SOURCE:-$FORK_ROOT}"
-  echo "  npx bmad-method install --directory $dir --custom-source $src --tools claude-code --yes"
+  echo "  npx bmad-method install --directory $dir --custom-source $src --tools claude-code --modules bmm,cis,tea,bmb --yes"
   if [ "$DRY_RUN" -eq 1 ]; then echo "  DRY-RUN: skipped"; return; fi
-  if npx bmad-method install --directory "$dir" --custom-source "$src" --tools claude-code --yes; then
+  if npx bmad-method install --directory "$dir" --custom-source "$src" --tools claude-code --modules bmm,cis,tea,bmb --yes; then
     echo "Upstream install: ok (exit code 0)"
   else
     echo "  WARNING: upstream install exited non-zero (non-fatal pre-publish; see Phase 7 of the quickstart)"
