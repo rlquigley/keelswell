@@ -129,3 +129,46 @@ adrDirectory = "docs/architecture/decisions/"
 techRadarFile = "docs/architecture/tech-radar.md"
 standardsDirectory = "docs/architecture/standards/"
 reviewsDirectory = "docs/architecture/reviews/"
+
+# --- Keelswell roster pins (F-5): resolved display names for the 13
+# vanilla persona agents; overrides the installer-owned _bmad/config.toml
+# per its own custom-overlay contract. ---
+
+[agents.bmad-agent-analyst]
+name = "Moiraine Damodred"
+
+[agents.bmad-agent-pm]
+name = "Egwene al'Vere"
+
+[agents.bmad-agent-architect]
+name = "Perrin Aybara"
+
+[agents.bmad-agent-dev]
+name = "Mat Cauthon"
+
+[agents.bmad-agent-ux-designer]
+name = "Min Farshaw"
+
+[agents.bmad-agent-tech-writer]
+name = "Loial"
+
+[agents.bmad-cis-agent-brainstorming-coach]
+name = "Siuan Sanche"
+
+[agents.bmad-cis-agent-design-thinking-coach]
+name = "Nynaeve al'Meara"
+
+[agents.bmad-cis-agent-innovation-strategist]
+name = "Logain Ablar"
+
+[agents.bmad-cis-agent-creative-problem-solver]
+name = "Birgitte Silverbow"
+
+[agents.bmad-cis-agent-storyteller]
+name = "Thom Merrilin"
+
+[agents.bmad-cis-agent-presentation-master]
+name = "Morgase Trakand"
+
+[agents.bmad-tea]
+name = "Galad Damodred"
