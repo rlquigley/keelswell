@@ -57,7 +57,7 @@ if [ -n "$CUSTOM_SOURCE" ] && [ ! -d "$CUSTOM_SOURCE" ]; then
   git ls-remote "$CUSTOM_SOURCE" >/dev/null 2>&1 || { echo "custom source unreachable: $CUSTOM_SOURCE"; exit 5; }
 fi
 
-echo "Keelswell fork installer v0.3.0"
+echo "Keelswell fork installer v0.4.0"
 cd "$FORK_ROOT"
 
 phase1_preflight() {

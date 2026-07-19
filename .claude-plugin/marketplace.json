@@ -10,7 +10,7 @@
       "name": "keelswell",
       "source": "./",
       "description": "Keelswell fork: the pre-merged 23-agent base layer with Wheel of Time names, expansion-pack architecture agents, nine custom agents, and the seven wave-development skills.",
-      "version": "0.3.0",
+      "version": "0.4.0",
       "author": { "name": "Ryan Quigley" },
       "skills": [
         "skills/bmad-create-wave",
@@ -22,6 +22,7 @@
         "skills/bmad-wrap",
         "skills/bmad-master",
         "skills/bmad-agent-qa",
+        "skills/bmad-retrospective",
         "skills/agent-tam-althor",
         "skills/agent-tuon",
         "skills/agent-setalle-anan",

@@ -1,6 +1,31 @@
 # Changelog
 All notable changes to Keelswell. Format: Keep a Changelog; versioning: semver.
 
+## [0.4.0] - 2026-07-19
+### Added
+- module.yaml: the keelswell custom-module descriptor. Kills the
+  installer's "could not locate module.yaml" warnings, records the real
+  module version in installed manifests (closes F-9), scopes install
+  answers correctly, and writes descriptor blocks for the 19 fork-only
+  agents (8 arch, 9 custom, bmad-master, bmad-agent-qa) into
+  _bmad/config.toml under their Wheel of Time names -- party-mode and
+  the help catalog can now see the full roster. Deliberately does NOT
+  redeclare the 13 upstream-declared vanilla agents: the installer
+  emits duplicate [agents.*] tables for cross-module redeclarations,
+  corrupting config.toml (scratch-verified); their WoT names remain
+  pinned by the _bmad/custom/config.toml overlay.
+- bmad-retrospective shipped via marketplace.json + skills/ mirror (39
+  -> 40 entries), so the fork's Mat Cauthon recast survives upstream
+  refreshes (custom-module skills win over the upstream package for the
+  same skill id).
+- docs/upstream-refresh-runbook.md: closes F-6. Root cause of the
+  .agents/ deletion (IDE-list reconciliation wiping a deselected
+  platform's shared target_dir), proof the tripwire is disarmed
+  (manifest now records claude-code only; scratch refresh left all
+  1051 files untouched), the three refresh clobber classes with
+  restoration steps, and the documented F-10 limitation
+  (--modules bmm,cis,tea,bmb for full-function fresh installs).
+
 ## [0.3.0] - 2026-07-19
 ### Fixed
 - F-5 closed: all 13 vanilla persona agents (6 BMM, 6 CIS, TEA) now carry
