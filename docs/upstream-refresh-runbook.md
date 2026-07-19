@@ -91,9 +91,20 @@ Residual nuance for fresh installs into OTHER projects: the vanilla 13
 agents' descriptor blocks come from the upstream module.yaml files
 (upstream names), because the fork's _bmad/custom/config.toml overlay
 pins do not travel with a marketplace install and the upstream
-duplicate-emission bug blocks redeclaring those agents in keelswell's
-module.yaml. The skills themselves still greet under Wheel of Time
-names (the fork's marketplace copies win); only registry consumers
-(party-mode rosters, help displays) see the upstream name. Cosmetic;
-fix by copying the fork's roster-pin blocks into the target project's
-_bmad/custom/config.toml.
+duplicate-emission bug (filed: bmad-method#2606) blocks redeclaring
+those agents in keelswell's module.yaml. The skills themselves still
+greet under Wheel of Time names (the fork's marketplace copies win);
+only registry consumers (party-mode rosters, help displays) see the
+upstream name. Cosmetic; fix by copying the fork's roster-pin blocks
+into the target project's _bmad/custom/config.toml.
+
+## Git-URL installs: pin the release tag
+
+Use `--custom-source https://github.com/rlquigley/keelswell@vX.Y.Z`.
+The pin makes installs deterministic (clone-cache channel "pinned" plus
+the resolved SHA). The persisted manifest.yaml still records
+"version: main" for git-URL sources regardless -- a field mismatch in
+the installer's getModuleVersionInfo (reads cloneRef, parser stores the
+ref in version; filed: bmad-method#2607). Local-path sources record the
+real version correctly. Cosmetic either way; the install-time display
+line is always right.
