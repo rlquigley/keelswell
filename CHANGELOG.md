@@ -1,6 +1,25 @@
 # Changelog
 All notable changes to Keelswell. Format: Keep a Changelog; versioning: semver.
 
+## [0.4.1] - 2026-07-19
+### Fixed
+- README install command now carries --modules bmm,cis,tea,bmb
+  (scratch-verified: all four module config.yaml files created, 97
+  skills, valid config.toml -- closes F-10 for documented installs).
+- .agents/ tree aligned in place: the 13 vanilla persona skills and
+  bmad-retrospective copies (28 files, each verified byte-identical to
+  their v0.2.0 baselines first) now carry the v0.3.0/v0.4.0 Wheel of
+  Time content. TEA knowledge-base author attributions untouched. The
+  tree remains unmanaged by the installer, per the refresh runbook.
+- bmad-agent-qa and bmad-master customize.toml fallback identities
+  aligned to their carried personas (Aviendha, Rand al'Thor).
+- _bmad/custom/module-help.csv backfilled with the 6 pre-existing
+  custom agents (now lists all 9).
+- Runbook: F-10 section updated; logged the fresh-install descriptor
+  nuance (vanilla 13 registry blocks show upstream names in OTHER
+  projects because overlay pins do not travel with marketplace
+  installs; skills themselves still greet under Wheel of Time names).
+
 ## [0.4.0] - 2026-07-19
 ### Added
 - module.yaml: the keelswell custom-module descriptor. Kills the

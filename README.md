@@ -5,7 +5,7 @@ names with install-time override), the Architecture Agent Expansion Pack, and
 seven wave-based development skills (/bmad-create-wave ... /bmad-wrap).
 
 Install into a project:
-    npx bmad-method install --directory . --custom-source https://github.com/rlquigley/keelswell --tools claude-code --yes
+    npx bmad-method install --directory . --custom-source https://github.com/rlquigley/keelswell --tools claude-code --modules bmm,cis,tea,bmb --yes
 Note: this repository is PRIVATE. Installing machines need read access
 (collaborator) plus configured git authentication -- SSH key or token.
 First-time fork setup: ./install.sh --use-defaults --yes --user-name "<you>"

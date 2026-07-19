@@ -1,4 +1,10 @@
 # Format: skill-name,description,category
+agent-tam-althor,SRE/DevOps: incident triage runbooks SLOs error budgets chaos engineering post-incident reviews,agent
+agent-tuon,Growth strategy: acquisition funnels retention pricing tiers content marketing,agent
+agent-setalle-anan,Accessibility: WCAG 2.2 audits ARIA review color contrast keyboard navigation screen readers,agent
+agent-hurin,Analytics and BI: dimensional models KPIs dashboard specs BI tooling reporting queries,agent
+agent-gareth-bryne,Legal advisory: legal risk compliance documentation breach notification terms of service jurisdiction,agent
+agent-damer-flinn,ML/AI engineering: model architectures feature engineering training pipelines evaluation retraining explainability,agent
 agent-bayle-domon,Monetization and billing: pricing tiers subscription states dunning reconciliation revenue metrics,agent
 agent-juilin-sandar,Application security: threat models OWASP review dependency audit abuse cases,agent
 agent-jain-farstrider,Performance and capacity: burst load models latency budgets cache sizing autoscaling load shedding,agent

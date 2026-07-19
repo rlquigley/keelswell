@@ -76,11 +76,24 @@ refresh). `config.yaml` files reset `user_name`/timestamps and derive
    agent (expects its WoT persona).
 6. Diff-review, commit, merge.
 
-## Known limitation (F-10, open)
+## Known limitation (F-10, closed for documented installs)
 
 A minimal fresh install (`--tools claude-code`, no `--modules`) installs
 only core + keelswell: the bmm/cis/tea/bmb module config.yaml files do
-not exist, so vanilla agents' Step 5 config loads degrade. For
-full-function fresh installs, add `--modules bmm,cis,tea,bmb` to the
-install command. module.yaml cannot fix this (those configs belong to
-modules the user did not install).
+not exist, so vanilla agents' Step 5 config loads degrade. The
+documented install command (README) therefore carries
+`--modules bmm,cis,tea,bmb` -- scratch-verified to produce all four
+module config.yaml files, 97 skills, and a valid config.toml.
+module.yaml cannot provide those configs itself (they belong to modules
+the user did or did not install).
+
+Residual nuance for fresh installs into OTHER projects: the vanilla 13
+agents' descriptor blocks come from the upstream module.yaml files
+(upstream names), because the fork's _bmad/custom/config.toml overlay
+pins do not travel with a marketplace install and the upstream
+duplicate-emission bug blocks redeclaring those agents in keelswell's
+module.yaml. The skills themselves still greet under Wheel of Time
+names (the fork's marketplace copies win); only registry consumers
+(party-mode rosters, help displays) see the upstream name. Cosmetic;
+fix by copying the fork's roster-pin blocks into the target project's
+_bmad/custom/config.toml.
