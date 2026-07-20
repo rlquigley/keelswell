@@ -1,6 +1,30 @@
 # Changelog
 All notable changes to Keelswell. Format: Keep a Changelog; versioning: semver.
 
+## [0.5.0] - 2026-07-20
+### Changed
+- The nine custom agents' skill ids renamed from persona form to role
+  form: agent-tam-althor -> agent-sre, agent-tuon -> agent-growth,
+  agent-setalle-anan -> agent-accessibility, agent-hurin ->
+  agent-analytics, agent-gareth-bryne -> agent-legal,
+  agent-damer-flinn -> agent-ml, agent-bayle-domon -> agent-billing,
+  agent-juilin-sandar -> agent-appsec, agent-jain-farstrider ->
+  agent-performance. Aligns the custom nine with the
+  bmad-agent-<role> convention and the config/agent-names.yaml roster
+  keys, so the skill picker reads by role. Personas are unchanged in
+  descriptions and activation (talk-to-<persona> routing intact).
+  Touched both skill trees, the agents/ sources, module.yaml,
+  marketplace.json, and _bmad/custom/module-help.csv (30 files,
+  count-asserted). Downstream installs keep the persona-named skill
+  dirs until their next refresh -- prune per
+  docs/upstream-refresh-runbook.md (verify installer merge behavior
+  at refresh time).
+
+### Fixed
+- install.sh phase4_upstream now carries --modules bmm,cis,tea,bmb,
+  aligning the live installer with the README install command (R1
+  follow-up; quickstart v8 Appendix C).
+
 ## [0.4.1] - 2026-07-19
 ### Fixed
 - README install command now carries --modules bmm,cis,tea,bmb
