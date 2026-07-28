@@ -4,8 +4,9 @@ description: >
   Session-end triage. Triages session learnings into auto-memory (CLAUDE.md
   edits are rare and hard-capped), checks active plans, reconciles TODO.md
   and HANDOFF.md, checks for unpushed commits, confirms the wrap, and
-  proposes the next session's work. Run at the end of every working session,
-  whether or not a wave was active.
+  proposes next-session options with one tagged recommended, generating a
+  copy-pasteable kickoff prompt from the user's selection. Run at the end
+  of every working session, whether or not a wave was active.
 when-to-use: |
   At the end of every working session. A finished wave needs its learnings
   captured; an unfinished wave needs a handoff the next session can resume
@@ -26,7 +27,7 @@ output-locations:
 exit-codes:
   - 0: wrap complete (findings or no findings -- findings are the product)
   - 1: the triage report itself could not be written (disk full, permission)
-version: 1.0.0
+version: 1.1.0
 ---
 
 # bmad-wrap
@@ -45,16 +46,38 @@ version: 1.0.0
    today's date heading; refresh the Last updated line.
 4. Reconcile HANDOFF.md: rewrite the Current State table (Stage, Wave, Step,
    Status traffic light), Key Design Decisions Since Last Handoff,
-   Blocked-On, and the forward-looking Next Session Proposal.
+   Blocked-On, and the forward-looking Next Session Proposal -- an
+   options list with one recommended, the user's selection, and the
+   kickoff prompt generated from it (see The Next Session Proposal).
 5. Check for unpushed commits (`git log @{u}..` per branch); report them.
-6. Confirm the wrap is complete; write the triage report; propose the next
-   session's work.
+6. Confirm the wrap is complete; write the triage report; restate the
+   selected option, ending with the kickoff prompt block.
 
 ## The Contradiction Scan (step 1 support)
 Before proposing any CLAUDE.md edit, scan existing CLAUDE.md for any rule the
 edit would supersede or undermine, over the --scope window; on any hit,
 resolve the contradiction first or route the learning to auto-memory. Cap
 the surfaced list at the top 20 contradictions.
+
+## The Next Session Proposal (step 4 support)
+The proposal is a selection dialogue, not a single suggestion:
+1. Draft two to four candidate options for the next session's work,
+   drawn from step 2's findings (in-flight waves, closure-pending
+   epics, blocked items) and open TODO.md entries. Each option is one
+   or two lines: the work, and why it is a candidate now.
+2. Tag exactly one option "(recommended)", with a one-line reason.
+3. Present the list and wait for the user to select an option.
+4. Generate the kickoff prompt from the selected option: exactly one
+   fenced code block, a copy-pasteable first message for the next
+   session. It must be self-contained -- name the skill or command to
+   invoke, the target (wave, story, epic, or standalone task), the
+   branch, and the key file paths -- and must not depend on the
+   wrapped session's context to make sense.
+Step 4 then writes the full options list, the selection, and the
+kickoff prompt block into HANDOFF.md's Next Session Proposal; step 6
+repeats the block verbatim at the end of the triage report and in the
+wrap confirmation, so the prompt is at hand both at wrap time and when
+the next session opens HANDOFF.md.
 
 ## Report
 Exactly one file per invocation: _bmad-output/session-wrap/<ts>/triage.md,
@@ -68,4 +91,6 @@ fresh inputs.
   everything to auto-memory.
 - No active waves: steps 2's wave portion is a clean no-op.
 - /bmad-status-wave output malformed: degrade to direct probes; note it.
+- User does not select an option: the recommended option is treated as
+  selected; the report notes the default was taken.
 - Disk full or output directory unwritable: exit 1 (the only error exit).
