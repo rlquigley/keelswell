@@ -3,10 +3,11 @@ name: bmad-wrap
 description: >
   Session-end triage. Triages session learnings into auto-memory (CLAUDE.md
   edits are rare and hard-capped), checks active plans, reconciles TODO.md
-  and HANDOFF.md, checks for unpushed commits, confirms the wrap, and
-  proposes next-session options with one tagged recommended, generating a
-  copy-pasteable kickoff prompt from the user's selection. Run at the end
-  of every working session, whether or not a wave was active.
+  and HANDOFF.md, checks for unpushed commits, confirms the wrap, proposes
+  next-session options with one tagged recommended, generating a
+  copy-pasteable kickoff prompt from the user's selection, and ends by
+  naming the session (32 characters max) from a session summary. Run at
+  the end of every working session, whether or not a wave was active.
 when-to-use: |
   At the end of every working session. A finished wave needs its learnings
   captured; an unfinished wave needs a handoff the next session can resume
@@ -27,7 +28,7 @@ output-locations:
 exit-codes:
   - 0: wrap complete (findings or no findings -- findings are the product)
   - 1: the triage report itself could not be written (disk full, permission)
-version: 1.1.0
+version: 1.2.0
 ---
 
 # bmad-wrap
@@ -51,7 +52,8 @@ version: 1.1.0
    kickoff prompt generated from it (see The Next Session Proposal).
 5. Check for unpushed commits (`git log @{u}..` per branch); report them.
 6. Confirm the wrap is complete; write the triage report; restate the
-   selected option, ending with the kickoff prompt block.
+   selected option with its kickoff prompt block; end by naming the
+   session (see The Session Name).
 
 ## The Contradiction Scan (step 1 support)
 Before proposing any CLAUDE.md edit, scan existing CLAUDE.md for any rule the
@@ -75,9 +77,17 @@ The proposal is a selection dialogue, not a single suggestion:
    wrapped session's context to make sense.
 Step 4 then writes the full options list, the selection, and the
 kickoff prompt block into HANDOFF.md's Next Session Proposal; step 6
-repeats the block verbatim at the end of the triage report and in the
-wrap confirmation, so the prompt is at hand both at wrap time and when
-the next session opens HANDOFF.md.
+repeats the block verbatim in the triage report and in the wrap
+confirmation, so the prompt is at hand both at wrap time and when the
+next session opens HANDOFF.md.
+
+## The Session Name (step 6 support)
+The wrap's final act is naming the session. Write a one-or-two-sentence
+summary of what the session actually did, then derive the session name
+from that summary: at most 32 characters, ASCII. The cap is hard --
+count before emitting. The summary and name close the triage report,
+and the name is the last line of the wrap confirmation, ready to use
+as the session title.
 
 ## Report
 Exactly one file per invocation: _bmad-output/session-wrap/<ts>/triage.md,
