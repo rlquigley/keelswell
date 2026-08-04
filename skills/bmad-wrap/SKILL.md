@@ -5,9 +5,10 @@ description: >
   edits are rare and hard-capped), checks active plans, reconciles TODO.md
   and HANDOFF.md, checks for unpushed commits, confirms the wrap, proposes
   next-session options with one tagged recommended, generating a
-  copy-pasteable kickoff prompt from the user's selection, and ends by
-  naming the session (32 characters max) from a session summary. Run at
-  the end of every working session, whether or not a wave was active.
+  copy-pasteable kickoff prompt and suggested run mode (auto, accept
+  edits, plan, manual) from the user's selection, and ends by naming
+  the session (32 characters max) from a session summary. Run at the
+  end of every working session, whether or not a wave was active.
 when-to-use: |
   At the end of every working session. A finished wave needs its learnings
   captured; an unfinished wave needs a handoff the next session can resume
@@ -28,7 +29,7 @@ output-locations:
 exit-codes:
   - 0: wrap complete (findings or no findings -- findings are the product)
   - 1: the triage report itself could not be written (disk full, permission)
-version: 1.2.0
+version: 1.3.0
 ---
 
 # bmad-wrap
@@ -49,11 +50,12 @@ version: 1.2.0
    Status traffic light), Key Design Decisions Since Last Handoff,
    Blocked-On, and the forward-looking Next Session Proposal -- an
    options list with one recommended, the user's selection, and the
-   kickoff prompt generated from it (see The Next Session Proposal).
+   kickoff prompt and run-mode suggestion generated from it (see The
+   Next Session Proposal).
 5. Check for unpushed commits (`git log @{u}..` per branch); report them.
 6. Confirm the wrap is complete; write the triage report; restate the
-   selected option with its kickoff prompt block; end by naming the
-   session (see The Session Name).
+   selected option with its kickoff prompt block and run-mode line;
+   end by naming the session (see The Session Name).
 
 ## The Contradiction Scan (step 1 support)
 Before proposing any CLAUDE.md edit, scan existing CLAUDE.md for any rule the
@@ -75,11 +77,17 @@ The proposal is a selection dialogue, not a single suggestion:
    invoke, the target (wave, story, epic, or standalone task), the
    branch, and the key file paths -- and must not depend on the
    wrapped session's context to make sense.
-Step 4 then writes the full options list, the selection, and the
-kickoff prompt block into HANDOFF.md's Next Session Proposal; step 6
-repeats the block verbatim in the triage report and in the wrap
-confirmation, so the prompt is at hand both at wrap time and when the
-next session opens HANDOFF.md.
+5. With the prompt, suggest the mode to run it in -- auto, accept
+   edits, plan, or manual -- matched to the selected work: plan for
+   unscoped or design-heavy work, accept edits for well-specified
+   implementation, auto for mechanical low-risk work, manual when the
+   work is risky or destructive. One line directly below the prompt
+   block: the mode, and why.
+Step 4 then writes the full options list, the selection, the kickoff
+prompt block, and the run-mode line into HANDOFF.md's Next Session
+Proposal; step 6 repeats the block and mode line verbatim in the
+triage report and in the wrap confirmation, so the prompt is at hand
+both at wrap time and when the next session opens HANDOFF.md.
 
 ## The Session Name (step 6 support)
 The wrap's final act is naming the session. Write a one-or-two-sentence
