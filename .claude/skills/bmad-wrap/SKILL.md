@@ -3,7 +3,8 @@ name: bmad-wrap
 description: >
   Session-end triage. Triages session learnings into auto-memory (CLAUDE.md
   edits are rare and hard-capped), checks active plans, reconciles TODO.md
-  and HANDOFF.md, checks for unpushed commits, confirms the wrap, proposes
+  and HANDOFF.md, checks for unpushed commits and opens the working
+  branch's missing PR (on confirmation), confirms the wrap, proposes
   next-session options with one tagged recommended, generating a
   copy-pasteable kickoff prompt and suggested run mode (auto, accept
   edits, plan, manual) from the user's selection, and ends by naming
@@ -18,7 +19,10 @@ allowed-tools:
   - Glob
   - Grep
   - Bash          # read-only allow-list: git status, git log, git diff,
-                  # git branch, date -- no mutating git commands, ever
+                  # git branch, date, gh pr list. Sole exception, gated
+                  # on the user's step-6 confirmation: git push of the
+                  # working branch + gh pr create (step 5). No other
+                  # mutating git commands, ever.
   - Write         # writable surface: _bmad-output/session-wrap/** ONLY;
                   # CLAUDE.md is readable but NOT on any writable path
 inputs:
@@ -29,7 +33,7 @@ output-locations:
 exit-codes:
   - 0: wrap complete (findings or no findings -- findings are the product)
   - 1: the triage report itself could not be written (disk full, permission)
-version: 1.3.0
+version: 1.4.0
 ---
 
 # bmad-wrap
@@ -44,15 +48,23 @@ version: 1.3.0
    to auto-memory.
 2. Check active plans and in-flight waves (via /bmad-status-wave's probe
    set); surface closure-pending epics.
-3. Reconcile TODO.md: move items whose PRs merged from Open to Closed under
-   today's date heading; refresh the Last updated line.
+3. Reconcile TODO.md: remove items whose PRs merged, so TODO.md holds
+   open items only; list each removal in the triage report under a
+   Closed heading; refresh the Last updated line. Closure history
+   lives in the triage reports and TODO.md's git history, never as a
+   growing section of TODO.md itself.
 4. Reconcile HANDOFF.md: rewrite the Current State table (Stage, Wave, Step,
    Status traffic light), Key Design Decisions Since Last Handoff,
    Blocked-On, and the forward-looking Next Session Proposal -- an
    options list with one recommended, the user's selection, and the
    kickoff prompt and run-mode suggestion generated from it (see The
    Next Session Proposal).
-5. Check for unpushed commits (`git log @{u}..` per branch); report them.
+5. Check for unpushed commits (`git log @{u}..` per branch); report
+   them. Then check the working branch for an open PR (`gh pr list
+   --head <branch>`): if the branch has commits main lacks and no
+   open PR, propose creating one; on the user's confirmation at step
+   6, push the branch and open the PR. Never push or open a PR
+   without that confirmation.
 6. Confirm the wrap is complete; write the triage report; restate the
    selected option with its kickoff prompt block and run-mode line;
    end by naming the session (see The Session Name).
@@ -74,9 +86,11 @@ The proposal is a selection dialogue, not a single suggestion:
 4. Generate the kickoff prompt from the selected option: exactly one
    fenced code block, a copy-pasteable first message for the next
    session. It must be self-contained -- name the skill or command to
-   invoke, the target (wave, story, epic, or standalone task), the
-   branch, and the key file paths -- and must not depend on the
-   wrapped session's context to make sense.
+   invoke, the target (wave, story, epic, or standalone task), and the
+   key file paths -- and must not depend on the wrapped session's
+   context to make sense. The prompt always instructs the session to
+   create a new branch (named for the work) and work in it, never
+   directly on main.
 5. With the prompt, suggest the mode to run it in -- auto, accept
    edits, plan, or manual -- matched to the selected work: plan for
    unscoped or design-heavy work, accept edits for well-specified
@@ -111,4 +125,6 @@ fresh inputs.
 - /bmad-status-wave output malformed: degrade to direct probes; note it.
 - User does not select an option: the recommended option is treated as
   selected; the report notes the default was taken.
+- No remote or gh unavailable at step 5: report the PR gap and print
+  the would-be commands; never fail the wrap over it.
 - Disk full or output directory unwritable: exit 1 (the only error exit).
