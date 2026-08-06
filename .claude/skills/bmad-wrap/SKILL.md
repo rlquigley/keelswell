@@ -3,14 +3,15 @@ name: bmad-wrap
 description: >
   Session-end triage. Triages session learnings into auto-memory (CLAUDE.md
   edits are rare and hard-capped), checks active plans, reconciles TODO.md
-  and HANDOFF.md, checks for unpushed commits, opens the working
-  branch's missing PR (on confirmation) or halts until an existing
-  open PR is merged and validated, confirms the wrap, proposes
-  next-session options with one tagged recommended, generating a
-  copy-pasteable kickoff prompt and suggested run mode (auto, accept
-  edits, plan, manual) from the user's selection, and ends by naming
-  the session (32 characters max) from a session summary. Run at the
-  end of every working session, whether or not a wave was active.
+  and HANDOFF.md, confirms the wrap, proposes next-session options
+  with one tagged recommended, generating a copy-pasteable kickoff
+  prompt and suggested run mode (auto, accept edits, plan, manual)
+  from the user's selection, names the session (32 characters max)
+  from a session summary, and ends with the PR closeout: the
+  reconciled TODO.md and HANDOFF.md are committed to ride the working
+  branch's PR, opened on confirmation if missing, or held on until an
+  existing open PR is merged and validated. Run at the end of every
+  working session, whether or not a wave was active.
 when-to-use: |
   At the end of every working session. A finished wave needs its learnings
   captured; an unfinished wave needs a handoff the next session can resume
@@ -21,11 +22,13 @@ allowed-tools:
   - Grep
   - Bash          # read-only allow-list: git status, git log, git diff,
                   # git branch, date, gh pr list / view. Sole exception,
-                  # gated on the user's step-6 confirmation: git push of
-                  # the working branch + gh pr create (step 5). No other
+                  # gated on the user's step-5 confirmation: step 6's
+                  # git add/commit of TODO.md + HANDOFF.md, git push of
+                  # the working branch, and gh pr create. No other
                   # mutating git commands, ever.
-  - Write         # writable surface: _bmad-output/session-wrap/** ONLY;
-                  # CLAUDE.md is readable but NOT on any writable path
+  - Write         # writable surface: _bmad-output/session-wrap/**,
+                  # TODO.md, HANDOFF.md; CLAUDE.md is readable but NOT
+                  # on any writable path
 inputs:
   - --scope=session|day|since=<git-ref>   # contradiction-scan window;
                                           # default session
@@ -34,7 +37,7 @@ output-locations:
 exit-codes:
   - 0: wrap complete (findings or no findings -- findings are the product)
   - 1: the triage report itself could not be written (disk full, permission)
-version: 1.5.0
+version: 1.6.0
 ---
 
 # bmad-wrap
@@ -49,33 +52,38 @@ version: 1.5.0
    to auto-memory.
 2. Check active plans and in-flight waves (via /bmad-status-wave's probe
    set); surface closure-pending epics.
-3. Reconcile TODO.md: remove items whose PRs merged, so TODO.md holds
-   open items only; list each removal in the triage report under a
-   Closed heading; refresh the Last updated line. Closure history
-   lives in the triage reports and TODO.md's git history, never as a
-   growing section of TODO.md itself.
+3. Reconcile TODO.md: remove items whose PRs merged AND items the
+   working branch's PR completes (their closure rides the PR that
+   completes them, per step 6), so TODO.md holds open items only;
+   list each removal in the triage report under a Closed heading;
+   refresh the Last updated line. Closure history lives in the triage
+   reports and TODO.md's git history, never as a growing section of
+   TODO.md itself.
 4. Reconcile HANDOFF.md: rewrite the Current State table (Stage, Wave, Step,
    Status traffic light), Key Design Decisions Since Last Handoff,
    Blocked-On, and the forward-looking Next Session Proposal -- an
    options list with one recommended, the user's selection, and the
    kickoff prompt and run-mode suggestion generated from it (see The
    Next Session Proposal).
-5. Check for unpushed commits (`git log @{u}..` per branch); report
-   them. Then check the working branch's PR state (`gh pr list
-   --head <branch> --state all`):
-   - No PR at all, and the branch has commits main lacks: propose
-     creating one; on the user's confirmation at step 6, push the
-     branch and open the PR. Never push or open a PR without that
-     confirmation.
-   - PR open, not merged: halt and ask the user to merge it. When
-     the user reports it merged, validate with gh (state MERGED); on
-     a failed validation, say so and ask again -- never proceed on
-     an unvalidated claim. Once validated, re-apply step 3 to items
-     the merge closed, then resume the wrap.
-   - PR merged: nothing to open; note it in the report.
-6. Confirm the wrap is complete; write the triage report; restate the
-   selected option with its kickoff prompt block and run-mode line;
-   end by naming the session (see The Session Name).
+5. Confirm the wrap; write the triage report; restate the selected
+   option with its kickoff prompt block and run-mode line; name the
+   session (see The Session Name). This confirmation is also the
+   gate for step 6's commit, push, and PR creation.
+6. PR closeout, always last. Check unpushed commits (`git log
+   @{u}..` per branch) and the working branch's PR state (`gh pr
+   list --head <branch> --state all`), then:
+   - No PR: commit the reconciled TODO.md and HANDOFF.md on the
+     working branch, push, and open the PR (gated on step 5's
+     confirmation) -- the PR carries the session's work and the
+     bookkeeping together.
+   - PR open, not merged: commit TODO.md and HANDOFF.md on the
+     branch and push (same gate) so the PR picks them up; halt and
+     ask the user to merge. When the user reports it merged,
+     validate with gh (state MERGED); on a failed validation, say so
+     and ask again -- never proceed on an unvalidated claim.
+   - PR already merged before the wrap: nothing to open; the
+     TODO/HANDOFF updates have no open PR to ride -- report them
+     uncommitted and leave the decision to the user.
 
 ## The Contradiction Scan (step 1 support)
 Before proposing any CLAUDE.md edit, scan existing CLAUDE.md for any rule the
@@ -107,12 +115,12 @@ The proposal is a selection dialogue, not a single suggestion:
    block: the mode, and why.
 Step 4 then writes the full options list, the selection, the kickoff
 prompt block, and the run-mode line into HANDOFF.md's Next Session
-Proposal; step 6 repeats the block and mode line verbatim in the
+Proposal; step 5 repeats the block and mode line verbatim in the
 triage report and in the wrap confirmation, so the prompt is at hand
 both at wrap time and when the next session opens HANDOFF.md.
 
-## The Session Name (step 6 support)
-The wrap's final act is naming the session. Write a one-or-two-sentence
+## The Session Name (step 5 support)
+Step 5 ends by naming the session. Write a one-or-two-sentence
 summary of what the session actually did, then derive the session name
 from that summary: at most 32 characters, ASCII. The cap is hard --
 count before emitting. The summary and name close the triage report,
@@ -133,8 +141,13 @@ fresh inputs.
 - /bmad-status-wave output malformed: degrade to direct probes; note it.
 - User does not select an option: the recommended option is treated as
   selected; the report notes the default was taken.
-- No remote or gh unavailable at step 5: report the PR gap and print
+- No remote or gh unavailable at step 6: report the PR gap and print
   the would-be commands; never fail the wrap over it.
-- User declines to merge at step 5: proceed; record the open PR under
-  HANDOFF.md's Blocked-On and in the report.
+- User declines to merge at step 6: proceed; record the open PR in
+  the report and under HANDOFF.md's Blocked-On (a follow-up commit
+  riding the same open PR, same gate).
+- Session ran directly on main (no working branch): skip step 6's
+  commit and PR entirely; report the reconciled files as uncommitted
+  and note the kickoff prompt's new-branch rule exists to prevent
+  this.
 - Disk full or output directory unwritable: exit 1 (the only error exit).
