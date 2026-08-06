@@ -3,8 +3,9 @@ name: bmad-wrap
 description: >
   Session-end triage. Triages session learnings into auto-memory (CLAUDE.md
   edits are rare and hard-capped), checks active plans, reconciles TODO.md
-  and HANDOFF.md, checks for unpushed commits and opens the working
-  branch's missing PR (on confirmation), confirms the wrap, proposes
+  and HANDOFF.md, checks for unpushed commits, opens the working
+  branch's missing PR (on confirmation) or halts until an existing
+  open PR is merged and validated, confirms the wrap, proposes
   next-session options with one tagged recommended, generating a
   copy-pasteable kickoff prompt and suggested run mode (auto, accept
   edits, plan, manual) from the user's selection, and ends by naming
@@ -19,9 +20,9 @@ allowed-tools:
   - Glob
   - Grep
   - Bash          # read-only allow-list: git status, git log, git diff,
-                  # git branch, date, gh pr list. Sole exception, gated
-                  # on the user's step-6 confirmation: git push of the
-                  # working branch + gh pr create (step 5). No other
+                  # git branch, date, gh pr list / view. Sole exception,
+                  # gated on the user's step-6 confirmation: git push of
+                  # the working branch + gh pr create (step 5). No other
                   # mutating git commands, ever.
   - Write         # writable surface: _bmad-output/session-wrap/** ONLY;
                   # CLAUDE.md is readable but NOT on any writable path
@@ -33,7 +34,7 @@ output-locations:
 exit-codes:
   - 0: wrap complete (findings or no findings -- findings are the product)
   - 1: the triage report itself could not be written (disk full, permission)
-version: 1.4.0
+version: 1.5.0
 ---
 
 # bmad-wrap
@@ -60,11 +61,18 @@ version: 1.4.0
    kickoff prompt and run-mode suggestion generated from it (see The
    Next Session Proposal).
 5. Check for unpushed commits (`git log @{u}..` per branch); report
-   them. Then check the working branch for an open PR (`gh pr list
-   --head <branch>`): if the branch has commits main lacks and no
-   open PR, propose creating one; on the user's confirmation at step
-   6, push the branch and open the PR. Never push or open a PR
-   without that confirmation.
+   them. Then check the working branch's PR state (`gh pr list
+   --head <branch> --state all`):
+   - No PR at all, and the branch has commits main lacks: propose
+     creating one; on the user's confirmation at step 6, push the
+     branch and open the PR. Never push or open a PR without that
+     confirmation.
+   - PR open, not merged: halt and ask the user to merge it. When
+     the user reports it merged, validate with gh (state MERGED); on
+     a failed validation, say so and ask again -- never proceed on
+     an unvalidated claim. Once validated, re-apply step 3 to items
+     the merge closed, then resume the wrap.
+   - PR merged: nothing to open; note it in the report.
 6. Confirm the wrap is complete; write the triage report; restate the
    selected option with its kickoff prompt block and run-mode line;
    end by naming the session (see The Session Name).
@@ -127,4 +135,6 @@ fresh inputs.
   selected; the report notes the default was taken.
 - No remote or gh unavailable at step 5: report the PR gap and print
   the would-be commands; never fail the wrap over it.
+- User declines to merge at step 5: proceed; record the open PR under
+  HANDOFF.md's Blocked-On and in the report.
 - Disk full or output directory unwritable: exit 1 (the only error exit).
