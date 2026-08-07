@@ -7,7 +7,7 @@ bmad_builder_output_folder: "{project-root}/skills"
 bmad_builder_reports: "{project-root}/skills/reports"
 
 # Core Configuration Values
-user_name: Ryanquigley
+user_name: RQ
 project_name: keelswell
 communication_language: English
 document_output_language: English
