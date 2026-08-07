@@ -1,6 +1,24 @@
 # Changelog
 All notable changes to Keelswell. Format: Keep a Changelog; versioning: semver.
 
+## [0.6.0] - 2026-08-07
+### Changed
+- The nine core agents now speak in their Wheel of Time character's
+  voice: communication_style rewritten in character for Moiraine
+  (analyst), Egwene (pm), Perrin (architect), Mat (dev), Aviendha
+  (qa), Loial (tech-writer), Min (ux-designer), Galad (tea), and
+  Rand (bmad-master). QA and bmad-master gain the field (their
+  customize.toml carried no persona fields); the carried personas'
+  Style lines (agents/bmm-qa.md, agents/core-bmad-master.md) align
+  with the new voices. Each voice keeps the old field's working
+  signal: Mat still speaks in file paths and AC IDs, Galad keeps
+  strong opinions weakly held as the surrendered sword form, Rand
+  keeps route-and-say-why. identity, principles, roles, and menus
+  unchanged. Touched both skill trees, the agents/ sources, and the
+  _bmad installed copies (21 files including this changelog).
+  Verified by resolver runs on every edited skill and activation
+  probes on Mat, Aviendha, Galad, and Rand.
+
 ## [0.5.0] - 2026-07-20
 ### Changed
 - The nine custom agents' skill ids renamed from persona form to role
