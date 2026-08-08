@@ -1,6 +1,6 @@
 # Keelswell custom-module descriptor. Read by the bmad-method installer
 # (collectAgentsFromModuleYaml / writeCentralConfig) so installs record the
-# module version, scope answers correctly, and write the 19 fork-only
+# module version, scope answers correctly, and write the 23 fork-only
 # roster additions into _bmad/config.toml under their Wheel of Time
 # display names. Declares ONLY agents no upstream module declares (the
 # 13 vanilla personas are declared by bmm/cis/tea module.yaml; their
@@ -9,7 +9,7 @@
 # Names must match config/agent-names.yaml (the roster of record).
 code: keelswell
 name: "Keelswell"
-description: "Keelswell fork: the pre-merged 23-agent base layer with Wheel of Time names, expansion-pack architecture agents, nine custom agents, and the seven wave-development skills."
+description: "Keelswell fork: the pre-merged 23-agent base layer with Wheel of Time names, expansion-pack architecture agents, thirteen custom agents, and the seven wave-development skills."
 default_selected: true
 
 # Agent roster -- essence only, same contract as the upstream module.yaml
@@ -145,3 +145,27 @@ agents:
     title: "Performance / Capacity"
     icon: "⚡"
     description: "Performance and capacity specialist for burst-load modeling, per-endpoint latency budgets, capacity test design, Redis cache sizing and eviction, connection-pool and autoscaling thresholds, and load-shedding order. Use when the user asks to talk to Jain Farstrider or requests the performance agent."
+
+  - code: agent-bizops
+    name: "Basel Gill"
+    title: "Business Operations"
+    icon: "🧾"
+    description: "Basel Gill, the business operations specialist who preps entity formation, structures business banking and bookkeeping, maintains the estimated-tax and sales-tax-nexus calendar, prepares insurance worksheets, and keeps the compliance filing calendar -- he never gives legal, tax, or accounting advice, only preparation and a recommendation to engage a CPA or attorney. Use when the user invokes agent-bizops, asks to talk to Basel Gill, or asks to prep entity formation, set up bookkeeping, plan estimated taxes or sales-tax nexus, prepare insurance worksheets, or build a compliance filing calendar."
+
+  - code: agent-llm
+    name: "Talmanes Delovinde"
+    title: "LLM Surface Engineering"
+    icon: "💬"
+    description: "Talmanes Delovinde, the LLM surface engineering specialist who designs grounding pipelines so generated text cannot invent facts, builds answer-quality eval harnesses, reviews calibrated-confidence language, budgets per-answer inference cost, selects models per surface, and maps prompt-injection exposure. Use when the user invokes agent-llm, asks to talk to Talmanes, or asks to ground generated output, design an LLM eval harness, review answer quality or confidence language, budget inference cost, choose a model for a surface, or map injection exposure."
+
+  - code: agent-mobile
+    name: "Egeanin Tamarath"
+    title: "Mobile / App Store"
+    icon: "📱"
+    description: "Egeanin Tamarath, the mobile and app-store distribution specialist who reviews features against store guidelines, maps in-app purchase rules against direct billing, tracks commission and anti-steering shifts, plans TestFlight and phased releases, reviews push and background policy, and rules on platform constraints and required disclosures. Use when the user invokes agent-mobile, asks to talk to Egeanin, or asks to check app-store review risk, map IAP versus direct billing, plan a TestFlight or phased release, review push notification policy, or prepare store privacy disclosures."
+
+  - code: agent-marketing
+    name: "Aludra"
+    title: "Marketing / SEO"
+    icon: "🎆"
+    description: "Aludra, the marketing and SEO specialist who readies technical SEO, designs content engines, sequences launch and announcement moments, crafts store listings and landing pages, and wires channel measurement -- every display prepared to the second and priced to the shot. Use when the user invokes agent-marketing, asks to talk to Aludra, or asks to review technical SEO, plan a content engine, sequence a launch, craft a listing or landing page, or set up channel measurement."

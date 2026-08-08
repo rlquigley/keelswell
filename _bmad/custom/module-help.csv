@@ -8,3 +8,7 @@ agent-ml,ML/AI engineering: model architectures feature engineering training pip
 agent-billing,Monetization and billing: pricing tiers subscription states dunning reconciliation revenue metrics,agent
 agent-appsec,Application security: threat models OWASP review dependency audit abuse cases,agent
 agent-performance,Performance and capacity: burst load models latency budgets cache sizing autoscaling load shedding,agent
+agent-bizops,Business operations: entity formation prep bookkeeping tax calendar sales-tax nexus insurance compliance filings,agent
+agent-llm,LLM surfaces: grounding pipelines eval harnesses calibrated language inference cost budgets injection exposure,agent
+agent-mobile,Mobile and app store: guideline review IAP vs direct billing release plans push policy disclosures terms watch,agent
+agent-marketing,Marketing and SEO: technical SEO content engines launch sequencing listings landing pages measurement,agent

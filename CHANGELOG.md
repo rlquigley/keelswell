@@ -1,6 +1,28 @@
 # Changelog
 All notable changes to Keelswell. Format: Keep a Changelog; versioning: semver.
 
+## [0.7.0] - 2026-08-07
+### Added
+- Four custom agents (slate v3), from the 2026-08-07 bench-gap review
+  of the ffbapp PRD: agent-bizops (Basel Gill, business operations --
+  entity formation prep, bookkeeping, tax calendar and nexus,
+  insurance worksheets, compliance calendar; preparation only, never
+  professional advice, every artifact closes by naming the CPA,
+  attorney, or broker who signs off), agent-llm (Talmanes Delovinde,
+  LLM surface engineering -- grounding pipelines, eval harnesses,
+  calibrated language, per-answer inference cost, injection exposure),
+  agent-mobile (Egeanin Tamarath, mobile and app-store distribution --
+  guideline review, IAP vs direct billing, release passage plans,
+  push and disclosure policy, terms watch), and agent-marketing
+  (Aludra, marketing and SEO -- technical SEO readiness, content
+  engines, launch sequencing, listing and landing craft, measurement
+  hooks). Custom roster 9 -> 13, full roster 32 -> 36. Touched both
+  skill trees, the agents/ sources, module.yaml, marketplace.json,
+  config/agent-names.yaml, _bmad/custom/module-help.csv, and the
+  README roster line. marketplace.json plugin version and the README
+  install pin bumped 0.4.1 -> 0.7.0 (both had gone stale at 0.4.1
+  through the 0.5.0 and 0.6.0 releases).
+
 ## [0.6.0] - 2026-08-07
 ### Changed
 - The nine core agents now speak in their Wheel of Time character's
