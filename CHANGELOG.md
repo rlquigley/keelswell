@@ -1,6 +1,20 @@
 # Changelog
 All notable changes to Keelswell. Format: Keep a Changelog; versioning: semver.
 
+## [0.7.1] - 2026-08-07
+### Fixed
+- Min Farshaw's voice did not come through on activation: hers was the
+  only core-agent communication_style with no character anchor (no
+  world-role, no lore vocabulary; "viewing" read as a generic research
+  term), so the agent played a generic terse persona -- reproduced by
+  activation probe. Voice amended keeping the original's three beats
+  (anti-court plainness, observed-vs-inferred discipline, tease then
+  truth) and adding anchors: tavern-corner people-watcher, coat and
+  breeches among silk gowns, viewings reported images-first with
+  meaning labeled unknown. Probe re-verified in character. skills/
+  and .agents/skills/ copies updated; isi and ffbapp instance trees
+  updated in place.
+
 ## [0.7.0] - 2026-08-07
 ### Added
 - Four custom agents (slate v3), from the 2026-08-07 bench-gap review
