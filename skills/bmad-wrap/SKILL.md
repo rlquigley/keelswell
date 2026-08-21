@@ -5,9 +5,9 @@ description: >
   edits are rare and hard-capped), checks active plans, reconciles TODO.md
   and HANDOFF.md, confirms the wrap, proposes next-session options
   with one tagged recommended, generating a copy-pasteable kickoff
-  prompt, suggested run mode (auto, accept edits, plan, manual), and
-  suggested model from the user's selection, names the session (32
-  characters max)
+  prompt, suggested run mode (auto, accept edits, plan, manual),
+  model, and effort level (low, medium, high, extra, ultracode) from
+  the user's selection, names the session (32 characters max)
   from a session summary, and ends with the PR closeout: the
   reconciled TODO.md and HANDOFF.md are committed to ride the working
   branch's PR, opened on confirmation if missing, or held on until an
@@ -38,7 +38,7 @@ output-locations:
 exit-codes:
   - 0: wrap complete (findings or no findings -- findings are the product)
   - 1: the triage report itself could not be written (disk full, permission)
-version: 1.7.0
+version: 1.8.0
 ---
 
 # bmad-wrap
@@ -64,12 +64,13 @@ version: 1.7.0
    Status traffic light), Key Design Decisions Since Last Handoff,
    Blocked-On, and the forward-looking Next Session Proposal -- an
    options list with one recommended, the user's selection, and the
-   kickoff prompt and run-mode and model suggestions generated from
-   it (see The Next Session Proposal).
+   kickoff prompt and run-mode, model, and effort suggestions
+   generated from it (see The Next Session Proposal).
 5. Confirm the wrap; write the triage report; restate the selected
-   option with its kickoff prompt block and run-mode and model lines;
-   name the session (see The Session Name). This confirmation is also
-   the gate for step 6's commit, push, and PR creation.
+   option with its kickoff prompt block and run-mode, model, and
+   effort lines; name the session (see The Session Name). This
+   confirmation is also the gate for step 6's commit, push, and PR
+   creation.
 6. PR closeout, always last. Check unpushed commits (`git log
    @{u}..` per branch) and the working branch's PR state (`gh pr
    list --head <branch> --state all`), then:
@@ -115,13 +116,21 @@ The proposal is a selection dialogue, not a single suggestion:
    work is risky or destructive. Suggest the model the same way --
    e.g. fable or opus for design-heavy, ambiguous, or high-risk work,
    sonnet for well-specified implementation, haiku for mechanical
-   low-risk work; name whatever tiers are current. Two lines directly
-   below the prompt block: the mode, and why; the model, and why.
+   low-risk work; name whatever tiers are current. Suggest the effort
+   level too -- low, medium, high, extra, or ultracode -- scaled to
+   how much the work has to be reasoned through rather than typed:
+   low for mechanical edits, medium for routine implementation, high
+   for design or debugging, extra for the hardest single-session
+   problems, ultracode only when the work genuinely wants multi-agent
+   orchestration (it is opt-in and costly; never suggest it by
+   default). Three lines directly below the prompt block: the mode,
+   and why; the model, and why; the effort level, and why.
 Step 4 then writes the full options list, the selection, the kickoff
-prompt block, and the run-mode and model lines into HANDOFF.md's Next
-Session Proposal; step 5 repeats the block and both lines verbatim in
-the triage report and in the wrap confirmation, so the prompt is at
-hand both at wrap time and when the next session opens HANDOFF.md.
+prompt block, and the run-mode, model, and effort lines into
+HANDOFF.md's Next Session Proposal; step 5 repeats the block and all
+three lines verbatim in the triage report and in the wrap
+confirmation, so the prompt is at hand both at wrap time and when the
+next session opens HANDOFF.md.
 
 ## The Session Name (step 5 support)
 Step 5 ends by naming the session. Write a one-or-two-sentence
