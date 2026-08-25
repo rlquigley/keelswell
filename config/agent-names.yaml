@@ -73,7 +73,7 @@ agents:
   - role: tea-murat
     bmad_default: Murat (TEA)
     display_name: Galad Damodred
-  # Custom (13 agents)
+  # Custom (15 agents)
   - role: custom-sre
     bmad_default: SRE / DevOps
     display_name: Tam al'Thor
@@ -113,3 +113,9 @@ agents:
   - role: custom-marketing
     bmad_default: Marketing / SEO
     display_name: Aludra
+  - role: custom-web-designer
+    bmad_default: Web Designer
+    display_name: Leane Sharif
+  - role: custom-design-critic
+    bmad_default: Design Critic
+    display_name: Tarna Feir

@@ -1,6 +1,43 @@
 # Changelog
 All notable changes to Keelswell. Format: Keep a Changelog; versioning: semver.
 
+## [0.8.0] - 2026-08-24
+### Added
+- Two custom agents forming a design maker/critic pair, deliberately
+  split so neither grades its own work: agent-web-designer (Leane
+  Sharif, web design -- visual system lock as a hard gate, design
+  canvases via the `design` skill, published page artifacts via
+  `artifact-design`, chart and dashboard work via `dataviz`, real
+  front-end implementation, and a browser verification loop at 375,
+  768, and 1280 in both light and dark) and agent-design-critic
+  (Tarna Feir, design critique -- adversarial responsive and theme
+  sweeps, design-system conformance measured value against expected,
+  craft review of states and typographic detail, hierarchy and
+  first-impression read, and a single go/no-go ship verdict with a
+  blocking list). Custom roster 13 -> 15, full roster 36 -> 38.
+- Leane is the first custom agent with source-edit authority; every
+  other custom agent is advisory under folder dominion. The deviation
+  is deliberate and stated in her operating rules: visual craft is a
+  pixel-level loop that dies if each two-line change has to be handed
+  off as a diff. Her authority is bounded to the presentation layer
+  (styles, tokens, markup and class names, static assets,
+  presentational components), never data fetching, state, routing, or
+  business rules, and never a new dependency without asking. Tarna
+  holds the opposite constraint -- she cannot edit anything, which is
+  what keeps her verdict worth having.
+- Pipeline the pair is built for: Leane locks the visual system and
+  stops for approval, Leane builds, Tarna sweeps and ranks defects,
+  Leane burns the list down, Setalle Anan gates WCAG conformance.
+  Both agents route accessibility to Setalle and page performance to
+  Jain Farstrider rather than issuing parallel verdicts.
+- Touched the `skills/` and `.claude/skills/` trees, the `agents/`
+  sources, module.yaml (roster plus the fork-only count in its header
+  comment, 23 -> 25), marketplace.json, config/agent-names.yaml,
+  _bmad/custom/module-help.csv, and the README roster line.
+  marketplace.json plugin version and the README install pin bumped
+  0.7.0 -> 0.8.0. The `.agents/skills/` tree carries only bmad-*
+  skills and was left alone, matching the existing custom agents.
+
 ## [0.7.1] - 2026-08-07
 ### Fixed
 - Min Farshaw's voice did not come through on activation: hers was the

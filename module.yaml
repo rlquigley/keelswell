@@ -1,6 +1,6 @@
 # Keelswell custom-module descriptor. Read by the bmad-method installer
 # (collectAgentsFromModuleYaml / writeCentralConfig) so installs record the
-# module version, scope answers correctly, and write the 23 fork-only
+# module version, scope answers correctly, and write the 25 fork-only
 # roster additions into _bmad/config.toml under their Wheel of Time
 # display names. Declares ONLY agents no upstream module declares (the
 # 13 vanilla personas are declared by bmm/cis/tea module.yaml; their
@@ -9,7 +9,7 @@
 # Names must match config/agent-names.yaml (the roster of record).
 code: keelswell
 name: "Keelswell"
-description: "Keelswell fork: the pre-merged 23-agent base layer with Wheel of Time names, expansion-pack architecture agents, thirteen custom agents, and the seven wave-development skills."
+description: "Keelswell fork: the pre-merged 23-agent base layer with Wheel of Time names, expansion-pack architecture agents, fifteen custom agents, and the seven wave-development skills."
 default_selected: true
 
 # Agent roster -- essence only, same contract as the upstream module.yaml
@@ -169,3 +169,15 @@ agents:
     title: "Marketing / SEO"
     icon: "🎆"
     description: "Aludra, the marketing and SEO specialist who readies technical SEO, designs content engines, sequences launch and announcement moments, crafts store listings and landing pages, and wires channel measurement -- every display prepared to the second and priced to the shot. Use when the user invokes agent-marketing, asks to talk to Aludra, or asks to review technical SEO, plan a content engine, sequence a launch, craft a listing or landing page, or set up channel measurement."
+
+  - code: agent-web-designer
+    name: "Leane Sharif"
+    title: "Web Designer"
+    icon: "🎨"
+    description: "Leane Sharif, the web designer who locks a visual system before drawing anything, produces design canvases and published artifacts, builds the result in real front-end source, and verifies every change in a live browser at three breakpoints in both themes. Use when the user invokes agent-web-designer, asks to talk to Leane, or asks to design a website or landing page, build a design system or visual language, produce a mockup, comp, or design canvas, restyle or polish a UI, or make a site look professional."
+
+  - code: agent-design-critic
+    name: "Tarna Feir"
+    title: "Design Critic"
+    icon: "🔍"
+    description: "Tarna Feir, the design critic who reviews a running interface adversarially in a live browser at three breakpoints in both themes, measures it against the project's visual system, and returns a ranked defect list with the measured value beside the expected one -- she never edits, so her verdict stays independent. Use when the user invokes agent-design-critic, asks to talk to Tarna, or asks to review or critique a design, run a responsive or dark-mode sweep, audit design-system conformance, check visual craft or polish, or get a ship verdict on a UI."
