@@ -1,11 +1,11 @@
 # Keelswell
 A production-grade fork of the BMAD Method, operated entirely in Claude Code:
-23 merged base agents plus 13 custom agents (36 total, Wheel of Time display
+23 merged base agents plus 15 custom agents (38 total, Wheel of Time display
 names with install-time override), the Architecture Agent Expansion Pack, and
 seven wave-based development skills (/bmad-create-wave ... /bmad-wrap).
 
 Install into a project:
-    npx bmad-method install --directory . --custom-source https://github.com/rlquigley/keelswell@v0.7.0 --tools claude-code --modules bmm,cis,tea,bmb --yes
+    npx bmad-method install --directory . --custom-source https://github.com/rlquigley/keelswell@v0.8.0 --tools claude-code --modules bmm,cis,tea,bmb --yes
 
 The @tag pin installs the named release (clone cache records channel
 "pinned" plus the resolved SHA). Known upstream cosmetic: the persisted
