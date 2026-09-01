@@ -38,10 +38,26 @@ output-locations:
 exit-codes:
   - 0: wrap complete (findings or no findings -- findings are the product)
   - 1: the triage report itself could not be written (disk full, permission)
-version: 1.8.0
+version: 1.9.0
 ---
 
 # bmad-wrap
+
+## Preflight: confirm the working tree
+
+Before step 3 touches TODO.md or HANDOFF.md, and again before step 6 commits,
+run `git rev-parse --show-toplevel` and `git branch --show-current`. Compare
+the toplevel against the directory this session has actually been reading
+and writing project files in. A worktree recycled or removed mid-session
+(the session's original worktree gone, a new one created, or the invocation
+silently landed back in the main checkout) is the single most common way a
+wrap goes wrong: it reads or writes the right file at the wrong checkout, and
+the resulting edit or commit lands on the wrong branch entirely. If the
+toplevel or branch does not match what the session expects, stop and
+reconcile before writing anything -- copy in-memory edits to the correct
+worktree, or re-derive them there, rather than committing from the wrong
+one. Never assume the shell's cwd carried over correctly; re-verify it right
+before each write, not once at the start.
 
 ## The Six-Step Workflow
 1. Triage session learnings. Default destination is auto-memory
@@ -53,12 +69,12 @@ version: 1.8.0
    to auto-memory.
 2. Check active plans and in-flight waves (via /bmad-status-wave's probe
    set); surface closure-pending epics.
-3. Reconcile TODO.md: remove items whose PRs merged AND items the
-   working branch's PR completes (their closure rides the PR that
-   completes them, per step 6), so TODO.md holds open items only;
-   list each removal in the triage report under a Closed heading;
-   refresh the Last updated line. Closure history lives in the triage
-   reports and TODO.md's git history, never as a growing section of
+3. Reconcile TODO.md: re-run the Preflight check first. Remove items whose
+   PRs merged AND items the working branch's PR completes (their closure
+   rides the PR that completes them, per step 6), so TODO.md holds open
+   items only; list each removal in the triage report under a Closed
+   heading; refresh the Last updated line. Closure history lives in the
+   triage reports and TODO.md's git history, never as a growing section of
    TODO.md itself.
 4. Reconcile HANDOFF.md: rewrite the Current State table (Stage, Wave, Step,
    Status traffic light), Key Design Decisions Since Last Handoff,
@@ -71,7 +87,9 @@ version: 1.8.0
    effort lines; name the session (see The Session Name). This
    confirmation is also the gate for step 6's commit, push, and PR
    creation.
-6. PR closeout, always last. Check unpushed commits (`git log
+6. PR closeout, always last. Re-run the Preflight check first -- committing
+   from the wrong worktree here silently lands the reconciled files on the
+   wrong branch. Check unpushed commits (`git log
    @{u}..` per branch) and the working branch's PR state (`gh pr
    list --head <branch> --state all`), then:
    - No PR: commit the reconciled TODO.md and HANDOFF.md on the
@@ -163,4 +181,8 @@ fresh inputs.
   commit and PR entirely; report the reconciled files as uncommitted
   and note the kickoff prompt's new-branch rule exists to prevent
   this.
+- Preflight toplevel/branch mismatch at step 3 or step 6: stop before
+  writing; reconcile the edits into the correct worktree first. Do not
+  write or commit from a checkout other than the one the session has
+  been working in.
 - Disk full or output directory unwritable: exit 1 (the only error exit).
