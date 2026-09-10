@@ -16,7 +16,7 @@ allowed-tools:
   - Glob
   - Bash
 output-locations: []
-version: 1.0.0
+version: 1.1.0
 ---
 
 # bmad-status-wave
@@ -48,9 +48,22 @@ tooling parses positionally):
 ## Cross-Wave Consistency Checks
 Surface, do not fix: a branch with no worktree; a worktree on the wrong
 branch; a merged PR whose worktree still exists (cleanup pending ->
-/bmad-merge-wave); duplicate story IDs across waves; an epic whose waves are
-all cleaned up but which has no closure record (closure-pending ->
+/bmad-merge-wave); duplicate story IDs across waves; an epic every one of
+whose waves has merged but which has no closure record (closure-pending ->
 /bmad-close-epic).
+
+Closure-pending is the one check something now acts on. This skill still
+only reports it, but /bmad-dev-wave 1.1.0's preflight refuses to open a wave
+while it holds (settled-decisions register row 51). So a closure-pending row
+here is a blocker on the next wave, not an untidy note, and the dashboard
+should be read that way.
+
+That is also why this check tests **merged** rather than cleaned up, which
+is a correction: cleanup lags a session, because a session cannot remove the
+worktree it runs in. Under the older cleaned-up reading an epic whose waves
+had merged but not yet been swept showed clean here and would still be
+refused by the gate, so the dashboard would have disagreed with the tool
+enforcing it.
 
 ## Error Handling
 - waves.md missing: clean refusal naming the path and /bmad-create-wave.
@@ -58,3 +71,10 @@ all cleaned up but which has no closure record (closure-pending ->
 - Stale worktree directory (not registered with git): flag it.
 - Treat HANDOFF.md-derived step as a hint, not ground truth; the worktree's
   actual state wins.
+
+## Version history
+- 1.1.0 (2026-09-10, founder ruling, settled-decisions register row 51):
+  the closure-pending check tests every wave merged rather than every wave
+  cleaned up, so it agrees with the /bmad-dev-wave preflight that now
+  refuses on it, and the check is labelled as enforced rather than advisory.
+  Still read-only: this skill reports, the gate acts.
