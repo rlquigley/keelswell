@@ -6,7 +6,8 @@ description: >
   requirements), and the retrospective -- into a single gate. Operates on a
   docs-only branch (no production code changes), writes a consolidated
   SUMMARY plus four detail reports, feeds retrospective lessons into
-  project-context.md, opens a pull request, and halts before merge.
+  project-context.md, opens a pull request, and halts before merge. Refuses
+  an epic any of whose waves landed without an adversarial review record.
 when-to-use: |
   After every wave of the epic has been through /bmad-dev-wave and
   /bmad-merge-wave, and before starting the next epic -- including when
@@ -30,7 +31,7 @@ output-locations:
   - _bmad-output/epic-closure/epic-<N>/retrospective.md
   - a docs-only branch pushed to origin, and a pull request against main
   - every existing story file of the epic set to Status: done
-version: 1.1.0
+version: 1.2.0
 ---
 
 # bmad-close-epic
@@ -38,8 +39,9 @@ version: 1.1.0
 ## The Six-Step Closure Workflow
 1. Preflight: the epic block exists in waves.md and lists at least one wave;
    every wave of the epic is merged AND cleaned up; every story of the epic
-   has landed. Any failure: refuse -- partial closures produce misleading
-   records. What counts as proof for the second and third conditions is below.
+   has landed; and every wave of the epic carries a review record. Any
+   failure: refuse -- partial closures produce misleading records. What counts
+   as proof for the second, third and fourth conditions is below.
 2. Create the docs-only closure branch off main. No production code changes
    are permitted on it.
 3. Run the four sub-skills in order -- code-review, testarch-trace,
@@ -80,6 +82,29 @@ acceptance criteria live in the epics document, which is the source the
 traceability pass reads in either case. Refuse for a story whose wave never
 merged, never for a story whose file was never written.
 
+**A wave carries a review record** when `docs/wave-<id>/review-party.md`
+exists, or when `docs/wave-<id>/api-surface.md` carries a "Party-review
+amendments" section. The first is canonical and is what /bmad-dev-wave 1.1.0
+writes; the second is the recognized alternative waves 2B, 5C and 5D used,
+and it is a real reachable record, so it counts. A record whose findings live
+only in a commit message does not count, which is the whole point.
+
+Required by settled-decisions register row 51 (RQ, 2026-09-10). The evidence
+that earned it: waves 4A, 4B, 5A and 5B produced no such file, and in both
+Epic 4 and Epic 5 those are exactly the waves carrying the acceptance clauses
+nothing asserts, while wave 5A's own CRITICAL finding is discoverable only by
+reading a commit message.
+
+**The requirement is prospective, from 2026-09-10.** A wave whose pull
+request merged before that date and carries no record is recorded in the
+closure's own code-review pass as a pre-rule gap, with its severity argued
+there, and never refused. Applying the rule backwards would block closures
+over waves that landed before it existed, which buys no safety. The known
+instances at ruling time are waves 1A, 3C, 4A, 4B, 5A, 5B and 6A; of those
+only **wave 6A** belongs to an epic still open, so Epic 6's closure is the
+one that will meet this and should expect to record it rather than refuse.
+Refuse only a wave that merged after the ruling date with no record.
+
 ## Story status is this skill's to set
 
 `bmad-dev-story` ends a story at `review` and no other skill writes `done`, so
@@ -104,12 +129,26 @@ five files on the same branch.
 - Some wave not cleaned up: name it, and name which check failed (pull request
   unmerged, pull request open, or worktree still carrying the branch); run
   /bmad-merge-wave first.
+- Some wave merged after 2026-09-10 with no review record: name the wave and
+  both accepted locations. There is no flag; the remedy is to write the
+  record, which means the review has to have happened. A wave that merged
+  before that date is recorded as a pre-rule gap, not refused.
 - Epic has zero waves: refuse (planning error or typo).
 - Closure branch already exists: refuse; delete or rename it explicitly.
 - Main diverged since the waves merged: refuse; reconcile main first. Local
   main merely behind origin is not divergence: fast-forward and continue.
 
 ## Version history
+- 1.2.0 (2026-09-10, founder ruling, settled-decisions register row 51):
+  preflight adds a fourth condition, that every wave of the epic carries a
+  review record at `docs/wave-<id>/review-party.md` or as a "Party-review
+  amendments" section in its api-surface pin. Prospective from the ruling
+  date, so a wave that merged earlier is recorded as a pre-rule gap rather
+  than refused; wave 6A is the one such wave in an epic still open. The
+  companion half of the row lives in /bmad-dev-wave 1.1.0, whose step 1 now
+  refuses to open a wave while an earlier epic is closure-pending -- the
+  state this skill's own absence created when Epic 4's gate was skipped and a
+  wave 4B correctness defect survived four later waves.
 - 1.1.0 (2026-08-24, founder ruling at the Epic 1 closure): preflight proves
   cleanup from live pull-request and worktree state instead of an archived
   checkpoint file, which /bmad-merge-wave never wrote here; a story with no
