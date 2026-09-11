@@ -26,8 +26,16 @@ All notable changes to Keelswell. Format: Keep a Changelog; versioning: semver.
   Skill-local `scripts/` is upstream's own convention
   (bmad-party-mode/scripts/) and survives a refresh, unlike `_bmad/scripts/`
   (runbook class D). Twelve stdlib unittest cases ship beside it in
-  `scripts/tests/`. This is the change that moves the fork across
-  Macedo's T4, the harness membership test the plan opens on.
+  `scripts/tests/`. What this does and does not buy against Macedo's T4, the
+  harness membership test the plan opens on: the *verdict* is now deterministic
+  -- which waves carry records, and which side of the rule date they landed on,
+  are computed rather than judged, so the agent can no longer reason its way to
+  "this gap is acceptable". The *invocation* is not. Three links in the chain
+  are still prose: invoking the skill, running the script inside step 1, and
+  obeying a non-zero exit. The fork ships two hooks (PostToolUse em-dash scrub,
+  SessionEnd wrap reminder) and no PreToolUse anywhere, so nothing denies a
+  tool call. Calling T4 satisfied would overstate it until a hook forces the
+  invocation; that is Phase 4's job.
 - `__pycache__/` and `*.pyc` ignored in .gitignore and
   templates/.gitignore.template, now that the fork ships runnable Python.
 
