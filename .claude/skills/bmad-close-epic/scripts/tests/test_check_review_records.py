@@ -39,6 +39,19 @@ class Project:
         git(self.root, "config", "user.email", "t@example.com")
         git(self.root, "config", "user.name", "t")
 
+    def land_via_merge(self, wave, committed, merged, record=None):
+        """Land a wave on a side branch at `committed`, merge it at `merged`.
+
+        The shape every real wave has: docs written on the wave's own branch,
+        visible on the closing branch only once the merge lands. The two dates
+        differ, and a wave can straddle the rule date between them.
+        """
+        git(self.root, "checkout", "-q", "-b", f"wave-{wave.lower()}")
+        self.land(wave, committed, record=record)
+        git(self.root, "checkout", "-q", "-")
+        git(self.root, "merge", "-q", "--no-ff", "-m", f"Merge wave {wave}",
+            f"wave-{wave.lower()}", when=merged)
+
     def land(self, wave, when, record=None):
         """Add docs/wave-<id>/ at `when`, optionally carrying a record."""
         d = self.root / "docs" / f"wave-{wave.lower()}"
@@ -103,6 +116,26 @@ class TestGate(unittest.TestCase):
         self.p.land("7A", "2026-09-10T00:00:01Z")
         self.p.land("7B", "2026-09-10T01:00:00Z", record="canonical")
         self.assertEqual(self.p.run(7)[0], 1)
+
+    def test_a_wave_is_dated_by_its_merge_not_its_branch_commit(self):
+        """The straddle: committed before the rule, merged after it.
+
+        Measured in a real instance at a 35-hour lag, with the two dates on
+        opposite sides of the rule date. Dating by the branch commit passes
+        this wave as pre-rule when its merge says refuse.
+        """
+        self.p.land("7A", "2026-09-01T09:00:00Z", record="canonical")
+        self.p.land_via_merge("7B", "2026-09-09T03:00:00Z", "2026-09-10T14:42:00Z")
+        code, out, err = self.p.run(7)
+        self.assertEqual(code, 1, "a wave merged after the rule date must refuse")
+        self.assertIn("2026-09-10", out)
+
+    def test_a_wave_merged_before_the_rule_is_still_a_gap(self):
+        self.p.land("7A", "2026-09-01T09:00:00Z", record="canonical")
+        self.p.land_via_merge("7B", "2026-09-05T03:00:00Z", "2026-09-06T14:00:00Z")
+        code, _, err = self.p.run(7)
+        self.assertEqual(code, 0)
+        self.assertIn("Pre-rule gaps", err)
 
     def test_a_wave_that_never_landed_cannot_be_dated(self):
         self.p.land("7A", "2026-09-01T09:00:00Z", record="canonical")

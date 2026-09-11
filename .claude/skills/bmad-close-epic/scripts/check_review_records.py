@@ -21,9 +21,12 @@ carries no record is a pre-rule gap: reported, argued in the closure's own
 code-review pass, never refused. Applying the rule backwards would block
 closures over waves that predate it and buys no safety.
 
-Landing dates come from git, not from GitHub: the first commit that added
-anything under docs/wave-<id>/ is when that wave's docs reached this branch,
-which for a merged wave is its merge. The wave map's "Branch suffix" column
+Landing dates come from git, not from GitHub: find the commit that added
+anything under docs/wave-<id>/, then the merge that brought it to this branch,
+and take the merge's date. Not the commit's own -- a wave's docs are written
+on its branch and can predate its merge by up to two days, and a wave whose
+commit and merge straddle the rule date would otherwise pass as pre-rule when
+its merge says refuse. The wave map's "Branch suffix" column
 is an intention rather than a record -- real head refs carry tool prefixes and
 disambiguating hashes, and some do not share a slug with the column at all --
 so it cannot address a pull request, and a substring search over pull requests
@@ -113,28 +116,60 @@ def find_record(project_root: Path, label: str):
     return None
 
 
-def landed_at(project_root: Path, label: str):
-    """When docs/wave-<id>/ first appeared here. None if it never has."""
-    path = f"docs/wave-{label.lower()}/"
+def _git(project_root: Path, *args):
+    """Run git; stdout on success, None on any failure."""
     try:
         out = subprocess.run(
-            ["git", "-C", str(project_root), "log", "--diff-filter=A",
-             "--format=%cI", "--reverse", "--", path],
+            ["git", "-C", str(project_root), *args],
             capture_output=True, text=True, encoding="utf-8", timeout=60,
         )
     except (OSError, subprocess.SubprocessError):
         return None
-    if out.returncode != 0:
+    return out.stdout if out.returncode == 0 else None
+
+
+def _committed_at(project_root: Path, rev: str):
+    out = _git(project_root, "log", "-1", "--format=%cI", rev)
+    if not out or not out.strip():
         return None
-    for line in out.stdout.splitlines():
-        line = line.strip()
-        if not line:
-            continue
-        try:
-            return datetime.fromisoformat(line)
-        except ValueError:
-            return None
-    return None
+    try:
+        return datetime.fromisoformat(out.strip())
+    except ValueError:
+        return None
+
+
+def landed_at(project_root: Path, label: str):
+    """When docs/wave-<id>/ reached this branch. None if it never has.
+
+    The date that decides pre-rule is when the wave's docs became visible
+    here, which is its merge -- not when the commit was written on the wave's
+    own branch. The two differ by the length of the wave's review: measured
+    across one instance's eighteen waves the lag ranges from six minutes to
+    forty-six hours, and one wave's commit and merge fall on opposite sides of
+    the rule date. Dating by the branch commit would let that wave pass as
+    pre-rule when its merge says otherwise, which is the one direction this
+    gate must not fail in.
+
+    So: find the commit that added the directory, then the oldest merge on
+    this branch that brought it in, and take that merge's date. A repository
+    that squashes or rebases has no such merge commit, and there the commit's
+    own date already is the date it landed.
+    """
+    path = f"docs/wave-{label.lower()}/"
+    out = _git(project_root, "log", "--diff-filter=A", "--format=%H", "--reverse", "--", path)
+    if not out:
+        return None
+    added = next((line.strip() for line in out.splitlines() if line.strip()), None)
+    if added is None:
+        return None
+
+    merges = _git(project_root, "rev-list", "--ancestry-path", "--merges", f"{added}..HEAD")
+    if merges and merges.strip():
+        first_merge = merges.split()[-1]  # rev-list is newest-first; oldest brought it in
+        merged_at = _committed_at(project_root, first_merge)
+        if merged_at is not None:
+            return merged_at
+    return _committed_at(project_root, added)
 
 
 def check(project_root: Path, epic: int):

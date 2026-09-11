@@ -127,9 +127,17 @@ still open, so Epic 6's closure is the one that will meet this and should
 expect to record it rather than refuse. Refuse only a wave that landed on or
 after the ruling date with no record.
 
-**Landing dates come from git, not from GitHub.** The script dates a wave by
-the first commit that added anything under `docs/wave-<id>/`, which for a
-merged wave is its merge. The wave map's "Branch suffix" column cannot address
+**Landing dates come from git, not from GitHub.** The script finds the commit
+that added anything under `docs/wave-<id>/`, then the merge that brought it to
+this branch, and dates the wave by the merge. Not by the commit: a wave's docs
+are written on its own branch and reach the closing branch only when the wave
+merges. Measured across one instance's eighteen waves that lag runs from six
+minutes to forty-six hours, and one wave's commit and merge fall on opposite
+sides of the rule date -- dating by the commit would pass it as pre-rule when
+its merge says refuse. A repository that squashes or rebases has no merge
+commit to find, and there the commit's own date already is its landing date.
+
+The wave map's "Branch suffix" column cannot address
 a pull request: real head refs carry tool prefixes and disambiguating hashes,
 and some do not share a slug with the column at all, so `gh pr view
 <branch suffix>` resolves nothing. A substring search over pull requests is
@@ -192,7 +200,10 @@ five files on the same branch.
   column's own spelling would have found no records at all. Dating a wave now
   uses the first commit that added its docs directory; the wave map's "Branch
   suffix" column is an intention rather than a record and resolves no pull
-  request.
+  request. A wave is dated by the merge that brought its docs to the closing
+  branch, not by the commit that wrote them: the lag between the two reaches
+  forty-six hours in the instance this was measured against, and wave 5D's
+  commit and merge straddle the rule date.
 - 1.2.0 (2026-09-10, founder ruling, settled-decisions register row 51):
   preflight adds a fourth condition, that every wave of the epic carries a
   review record at `docs/wave-<id>/review-party.md` or as a "Party-review

@@ -14,9 +14,18 @@ All notable changes to Keelswell. Format: Keep a Changelog; versioning: semver.
   record that cannot be dated. Fail-closed throughout: an undatable wave is
   not assumed pre-rule. The refusal text names the wave, both accepted record
   locations, and the remedy, per the vault's "the enforcer coaches" note.
+  A wave is dated by the merge that brought its docs to the closing branch,
+  not by the commit that wrote them on the wave's own branch. Measured across
+  ffbapp's eighteen waves that lag runs from six minutes to forty-six hours,
+  and wave 5D's commit (2026-09-09T03:09Z) and merge (2026-09-10T14:42Z) fall
+  on opposite sides of the rule date: dating by the commit would have passed a
+  post-rule wave as pre-rule, the one direction this gate must not fail in.
+  Caught by checking the shipped prediction against real history rather than
+  assuming the lag was negligible. Regression test included, verified to redden
+  when the defect is re-applied.
   Skill-local `scripts/` is upstream's own convention
   (bmad-party-mode/scripts/) and survives a refresh, unlike `_bmad/scripts/`
-  (runbook class D). Ten stdlib unittest cases ship beside it in
+  (runbook class D). Twelve stdlib unittest cases ship beside it in
   `scripts/tests/`. This is the change that moves the fork across
   Macedo's T4, the harness membership test the plan opens on.
 - `__pycache__/` and `*.pyc` ignored in .gitignore and
@@ -38,10 +47,11 @@ All notable changes to Keelswell. Format: Keep a Changelog; versioning: semver.
   found" -- real head refs carry tool prefixes and hashes
   (`claude/wave-4a-event-registry-825278`) and two waves' refs share no slug
   with the column at all. Substring matching is worse, since a wave's
-  merge-cleanup branch matches the same label. The gate dates a wave from the
-  first commit that added its docs directory instead; verified against all
-  seven pre-rule waves in ffbapp, each landing within the same window as its
-  pull request's merge.
+  merge-cleanup branch matches the same label. The gate walks from the commit
+  that added the wave's docs directory to the merge that brought it in, and
+  dates the wave by that merge; verified against all eighteen ffbapp waves,
+  with the seven pre-rule ones classified pre-rule and wave 5D correctly
+  post-rule.
 
 ### Changed
 - Upstream refresh: bmad-method 6.10.0 -> 6.12.0 (Phase 0 of
