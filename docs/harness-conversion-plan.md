@@ -171,6 +171,36 @@ and deliberately left here rather than fixed in passing (RQ, 2026-09-11):
   is not satisfied -- the conformance phase is where that claim gets earned,
   not Phase 1.
 
+**Carried in from Phase 2**, same rule: found while checking that phase's
+predictions, left here rather than fixed in passing (RQ, 2026-09-11):
+
+- `bmad-dev-wave` step 4.5, the open-questions gate, halts for user input and
+  that halt is a pause rather than a `blocked` status. It was left that way
+  deliberately: 4.5 asks a question it expects answered in the same session,
+  and blocking on every open question would make `blocked` routine, which
+  teaches the founder to clear the record by reflex and cheapens the control
+  everywhere else. The cost is that the pause lives entirely in the
+  conversation, which is the exact failure mode Phase 2 exists to remove for
+  every other piece of wave state. A session that dies while waiting for the
+  answer (crash, timeout, `/clear`, the reasons `bmad-resume-wave` exists)
+  leaves nothing on disk recording that the question went unanswered, and the
+  next dispatch walks past it.
+  The resolution is neither option on its own: a question answered in the same
+  session stays a pause, a question abandoned by a dead session becomes a
+  block. Nothing detects the second case today, but the fork's existing
+  `SessionEnd` hook is the place to hang it -- on session end, a wave paused at
+  4.5 with no recorded answer gets `--status blocked`. That makes it Phase 4
+  work, since it is a hook enforcing an invariant rather than a skill obeying
+  one, and it is the same missing `PreToolUse`/hook-level gap the Phase 1 item
+  above names.
+- `done` spans two skills: a wave is done once `bmad-merge-wave` sweeps it,
+  while its epic stays open until `bmad-close-epic` runs. Phase 2 mapped `done`
+  to a fresh follow-up review pass at step 10 rather than inventing a `closed`
+  status, per this plan's "do not add stages". Whether that follow-up pass is
+  genuinely wanted on a merged wave, or is ceremony inherited from
+  `bmad-build-auto`, is worth deciding before Phase 3 builds the evaluator that
+  would run it.
+
 **Estimate:** half a day.
 
 ## Phase 5: decide what is consumable
