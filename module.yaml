@@ -1,11 +1,12 @@
 # Keelswell custom-module descriptor. Read by the bmad-method installer
 # (collectAgentsFromModuleYaml / writeCentralConfig) so installs record the
-# module version, scope answers correctly, and write the 25 fork-only
+# module version, scope answers correctly, and write the 26 fork-only
 # roster additions into _bmad/config.toml under their Wheel of Time
-# display names. Declares ONLY agents no upstream module declares (the
-# 13 vanilla personas are declared by bmm/cis/tea module.yaml; their
+# display names. Declares ONLY agents no upstream module declares (12 of
+# the 13 vanilla personas are declared by bmm/cis/tea module.yaml; their
 # Wheel of Time names are pinned by the _bmad/custom/config.toml
-# overlay instead).
+# overlay instead. bmad-agent-tech-writer left the upstream bmm roster
+# in bmad-method 6.12.0, so it is declared here since that refresh).
 # Names must match config/agent-names.yaml (the roster of record).
 code: keelswell
 name: "Keelswell"
@@ -33,6 +34,16 @@ agents:
     icon: "🔎"
     team: software-development
     description: "Test architect with quality advisory authority for review gates and acceptance advisory. Use when the user asks to talk to Aviendha or requests the QA."
+
+  # Retired from the upstream bmm roster in bmad-method 6.12.0 (listed in
+  # its removals.txt); the fork keeps Loial. Safe to declare only while no
+  # upstream module declares this code.
+  - code: bmad-agent-tech-writer
+    name: "Loial"
+    title: "Technical Writer"
+    icon: "📚"
+    team: software-development
+    description: "Technical documentation specialist and knowledge curator. Use when the user asks to talk to Loial or requests the tech writer."
 
   # Architecture Expansion Pack
   - code: bmad-agent-arch-infrastructure-analyst
