@@ -62,8 +62,15 @@ Three seams are fork-only and merge-safe:
    `bmad-merge-wave`, `bmad-resume-wave`, `bmad-status-wave`,
    `bmad-close-epic`, `bmad-wrap`, plus `bmad-retrospective`). No
    upstream conflict surface at all.
-2. **`_bmad/scripts/`**, which already holds `resolve_customization.py`,
-   `resolve_config.py` and `memlog.py`.
+2. **Skill-local `scripts/` directories inside the wave skills**, the
+   convention upstream itself uses (`bmad-party-mode/scripts/`,
+   `bmad-sprint-planning/scripts/`, invoked as
+   `uv run {skill-root}/scripts/<name>.py`). The installer copies a
+   skill directory whole, so the scripts travel with the skill. Not
+   `_bmad/scripts/`: the 6.12.0 refresh showed the installer deletes
+   and re-copies that directory from its own package on every install
+   (`upstream-refresh-runbook.md`, class D), so anything the fork puts
+   there is gone at the next refresh.
 3. **`install.sh` phase 6 (validation)**, a gate upstream never sees.
 
 The capability is already here. What is missing is that none of it
@@ -71,9 +78,9 @@ enforces a workflow invariant.
 
 ## Phase 1: one real gate
 
-Move the `bmad-close-epic` refusal from prose into a script in
-`_bmad/scripts/` that the skill calls and that exits non-zero when a
-wave has no review record.
+Move the `bmad-close-epic` refusal from prose into a script under
+`skills/bmad-close-epic/scripts/` that the skill calls and that exits
+non-zero when a wave has no review record.
 
 Pick this gate because the recent wave work already invested in it
 (`bmad-dev-wave` 1.1.0, `bmad-close-epic` 1.2.0, `bmad-status-wave`
