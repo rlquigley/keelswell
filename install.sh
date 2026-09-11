@@ -210,9 +210,14 @@ PY
   cp templates/.gitignore.template "$T/.gitignore"
   cp -r templates/_bmad-output "$T/_bmad-output" 2>/dev/null || true
   echo "  Scaffolding $T/_bmad-output/ ... done (7 subdirectories)"
-  mkdir -p "$T/.claude/skills" "$T/.claude/hooks" "$T/.claude/rules"
+  mkdir -p "$T/.claude/skills" "$T/.claude/hooks" "$T/.claude/rules" "$T/.claude/agents"
   for s in skills/*; do rm -rf "$T/.claude/skills/$(basename "$s")"; cp -r "$s" "$T/.claude/skills/$(basename "$s")"; done
   cp .claude/hooks/*.sh "$T/.claude/hooks/" && chmod +x "$T/.claude/hooks/"*.sh
+  # Fork-owned Claude Code subagent definitions (Phase 3). Not BMAD personas:
+  # the installer never reads .claude/agents/, which is why the evaluator can
+  # live here without colliding with an upstream module.yaml declaration.
+  cp .claude/agents/*.md "$T/.claude/agents/"
+  echo "  Subagent definitions: $(ls -1 .claude/agents/*.md | wc -l | tr -d ' ') copied to $T/.claude/agents/"
   local slug; slug=$(basename "$T")
   mkdir -p "$HOME/.claude/projects/$slug/memory"
   echo "  Auto-memory directory: ~/.claude/projects/$slug/memory/ ... done"
@@ -240,7 +245,7 @@ allowlist_check() {
            _bmad/config.toml _bmad/_config/bmad-help.csv \
            _bmad/bmb/config.yaml _bmad/bmm/config.yaml _bmad/cis/config.yaml \
            _bmad/core/config.yaml _bmad/tea/config.yaml _bmad/custom/config.toml \
-           .claude/settings.json; do
+           .claude/settings.json .claude/agents/keelswell-wave-evaluator.md; do
     [ -e "$base/$f" ] || { echo "  allowlist gap: $base/$f missing"; gaps=1; }
   done
   [ "$gaps" -eq 0 ] || exit 6

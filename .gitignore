@@ -70,6 +70,9 @@ _bmad/keelswell/*
 !.claude/rules/
 .claude/rules/*
 !.claude/rules/*.md
+!.claude/agents/
+.claude/agents/*
+!.claude/agents/*.md
 !.claude/settings.json
 
 # --- Personal overrides stay personal ---

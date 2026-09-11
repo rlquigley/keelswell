@@ -26,7 +26,8 @@ when-not-to-use:
   - Wave ID does not appear in waves.md (refuse with not-found error)
 outputs:
   - .bmad/wave-<id>/resume-from-step-<N>.json
-version: 1.1.0
+  - the re-dispatch's opening prompt, from any open evaluator findings
+version: 1.2.0
 ---
 
 # bmad-resume-wave
@@ -86,6 +87,28 @@ refusal, which names when the wave was blocked and why. Clearing it is a human
 act: edit `status:` in `.bmad/wave-<id>/wave.md` to another valid status, or
 delete that file. Deleting only the `status:` line exits 3 instead.
 
+## The Opening Prompt
+Before re-dispatching, ask whether this wave owes the next session an answer
+to a fresh-context evaluation:
+
+    python3 {skill-root}/../bmad-dev-wave/scripts/evaluate_wave.py \
+        opening-prompt --project-root {project-root} --wave <id>
+
+  0  nothing owed -- no evaluation on disk, or the latest one is PASS
+  1  open findings -- stdout's `prompt` is the opening prompt, verbatim
+  2  structural: no wave map, or the wave is not in it
+  3  an evaluation record carries no readable verdict; repair or delete it
+
+On exit 1, that text opens the re-dispatched session. Use it as written. Do
+not paraphrase it, do not trim the findings to the ones you think matter, and
+do not lead with your own reading of what went wrong -- the evaluator saw a
+context you do not have, and this skill runs precisely when the session that
+could have argued with it is gone.
+
+Phase 3 of docs/harness-conversion-plan.md. The findings reach the next
+session because a script read them off disk, not because a session remembered
+to carry them.
+
 ## State-Inspection Probes
 The probes no longer decide the stage; they fix the step inside the stage the
 record named, and they still refuse the states below. Five probes run in
@@ -121,8 +144,16 @@ a `done` wave's follow-up review pass back into a resumption.
   continuing.
 - Wave already merged and cleaned: nothing to resume; exit 0 with a note.
 - HANDOFF.md Status red: refuse to resume without an explicit override.
+- Evaluation record with no readable verdict (exit 3): refuse; repair or
+  delete the record. Do not resume against a guess at what it said.
 
 ## Version history
+- 1.2.0 (2026-09-11, Phase 3 of docs/harness-conversion-plan.md): a wave with
+  an open NEEDS_WORK evaluation re-dispatches with the evaluator's findings as
+  its opening prompt, generated from the record on disk by
+  bmad-dev-wave/scripts/evaluate_wave.py rather than recalled by whoever was
+  in the room. That is the half of the generator-evaluator split this skill
+  owns: findings that survive the death of the session that received them.
 - 1.1.0 (2026-09-11, Phase 2 of docs/harness-conversion-plan.md): the
   re-entry stage comes from the wave's lifecycle status record rather than
   from this skill's own inference, and a blocked wave refuses here as it does

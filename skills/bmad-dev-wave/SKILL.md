@@ -23,10 +23,13 @@ output-locations:
   - .bmad/wave-<id>/checkpoint.json         # plus step-N.done markers (main repo)
   - .bmad/wave-<id>/wave.md                 # lifecycle status record (main repo)
   - <worktree>/docs/wave-<id>/test-design.md
+  - <worktree>/docs/wave-<id>/wave-diff.patch     # evaluator evidence, step 7
+  - <worktree>/docs/wave-<id>/verify-output.txt   # evaluator evidence, step 7
+  - <worktree>/docs/wave-<id>/evaluation-<n>.md   # one per evaluator pass
   - <worktree>/docs/wave-<id>/review-party.md   # required, every wave (register row 51)
   - <worktree>/docs/stories/                # JIT story files
   - pull request against main via gh pr create
-version: 1.2.0
+version: 1.3.0
 ---
 
 # bmad-dev-wave
@@ -75,7 +78,9 @@ re-entered by /bmad-resume-wave.
     subagent per story, capped by core/config.yaml
     parallelism.max_parallel_subagents) for parallel waves. Every subagent
     receives the Project Conventions Block verbatim (below).
-7.  Test expansion and review: close coverage gaps found in review.
+7.  Test expansion, then evaluation: close coverage gaps, then dispatch the
+    fresh-context evaluator (see The Evaluator). You do not review this wave
+    yourself and neither does any persona in this context.
 8.  Checkpoint preview: show the exact commits about to land; accept
     "approved", "edit: <instruction>", or "abort". A failing story may be
     demoted out of the wave (waves.md is updated and a follow-up wave queued).
@@ -186,6 +191,109 @@ A record that exists with an unreadable status is the opposite case and is
 refused, not backfilled. That asymmetry is what stops deleting the status line
 from working as a quiet override of blocked.
 
+## The Evaluator
+
+Step 7's review is not yours. It belongs to a subagent defined at
+`.claude/agents/keelswell-wave-evaluator.md`, dispatched with a context that
+never saw this wave get built, whose tool list is `Read`, `Glob`, `Grep` --
+no `Write`, no `Edit`, no `Bash`, no `Task`. Phase 3 of
+docs/harness-conversion-plan.md.
+
+Both halves matter and neither works alone. Fresh context, because an agent
+asked to review what it just produced praises it. No writing tools, because an
+agent that can fix a finding is the agent that decides which findings are
+worth having. The evaluator is structurally unable to edit: that is a tool
+list the harness enforces, not an instruction it is asked to honour.
+
+The definition is fork-owned and deliberately not a BMAD persona.
+`bmad-agent-qa` (Aviendha) is untouched and still holds her seat; she is no
+longer the one who grades this wave. `.claude/agents/` is invisible to the
+installer's agent registry, so nothing here can collide with an upstream
+module the way a `module.yaml` declaration would.
+
+Ask the script before dispatching. It decides three things you do not:
+
+    python3 {skill-root}/scripts/evaluate_wave.py dispatch \
+        --project-root {project-root} --wave <id>
+
+  0  proceed; the JSON carries `pass_number`, `third_pass_rule`, the
+     evidence paths, and `record_to`
+  2  structural: no wave map, or the wave is not in it
+  3  refuse: the definition is missing, declares no tools, or declares a tool
+     that can write, run or delegate
+
+Exit 3 is not a warning. Do not dispatch an evaluator whose tool list this
+check refused, and do not repair it by adding a rule telling it not to use the
+tool. Remove the tool.
+
+Write the evidence bundle to `docs/wave-<id>/` before dispatching -- the diff
+as `wave-diff.patch`, step 9's output as `verify-output.txt`, alongside the
+test design already there. `dispatch` names anything missing. The evaluator has
+no `Bash` and cannot produce this for itself, which is the trade: it reviews
+execution evidence rather than running the suite again. It can still `Read`,
+`Glob` and `Grep` the whole worktree, so the bundle is its starting point and
+not the limit of what it may look at.
+
+Then dispatch one subagent against that definition, hand it the evidence paths
+and the pass number, and pipe what it returns straight back:
+
+    python3 {skill-root}/scripts/evaluate_wave.py record \
+        --project-root {project-root} --wave <id> < <its output>
+
+  0  PASS -- continue at step 8
+  1  NEEDS_WORK -- halt (below)
+  3  the output carried no readable VERDICT line; re-dispatch
+  4  UPSTREAM_CAUSE -- the third-pass rule fired (below)
+
+The verdict is whatever the evaluator's own `VERDICT:` line says, parsed by
+the script. Do not summarize its output and route on your summary, and do not
+record a verdict it did not write.
+
+### NEEDS_WORK halts; it does not get fixed here
+
+On exit 1 the wave halts at step 7 with its status left at `in-progress`. It
+is not blocked: `NEEDS_WORK` is an ordinary outcome, and making it sticky would
+teach the founder to clear records by reflex, which is what keeps `blocked`
+worth something everywhere else.
+
+Do not fix the findings in this session. The context that built the wave is the
+context least able to judge whether a fix answered the finding, and fixing in
+place is how a finding quietly becomes a rationalization. The findings are the
+*next* session's opening prompt, produced from the record rather than from
+anyone's memory of it:
+
+    python3 {skill-root}/scripts/evaluate_wave.py opening-prompt \
+        --project-root {project-root} --wave <id>
+
+/bmad-resume-wave runs that and opens with what it prints. It works when this
+session no longer exists, which is the case it is for.
+
+### The third-pass rule
+
+`dispatch` sets `third_pass_rule` from the number of `evaluation-*.md` records
+on disk, not from anyone's count of how many times this has come around. On
+pass three or later, tell the evaluator the rule is armed: if it still has
+non-trivial findings it returns `UPSTREAM_CAUSE` and names the weak spec, the
+contradiction, or the ambiguous rule behind them, instead of producing a
+fourth round of findings.
+
+Taken from BMAD: non-trivial findings on a third pass "usually mean something
+is wrong upstream of this change: a weak spec, a contradiction, or ambiguity in
+the rules. Fix that instead of running another pass."
+
+Exit 4 means stop working the code. Fix the artifact the record names -- the
+story file, waves.md, the architecture doc, the Project Conventions Block --
+and re-enter the wave against a corrected spec. A fourth pass over the same
+spec is the loop this rule exists to break.
+
+### The evaluator and party mode are different things
+
+Step 7's evaluator is one generalist, every wave, PASS or NEEDS_WORK on this
+wave's own work. Step 10's party mode is several domain specialists,
+load-bearing waves only, hunting security, cost and platform findings. Neither
+replaces the other, and `docs/wave-<id>/review-party.md` is still required at
+step 11 for every wave. The evaluation records sit beside it.
+
 ## The Closure Gate
 Step 1 refuses to open a wave while an earlier epic is closure-pending
 (register row 51, ruled by RQ 2026-09-10). Closure-pending means every story
@@ -264,6 +372,17 @@ there is nothing to block.
 - Verify FAIL: offer edit (re-dispatch with failing-test context), demote
   (drop the story to a new wave), or abort (leave worktree for inspection).
   Abort blocks the wave.
+- Evaluator definition missing or declaring a writing tool at step 7: refuse
+  to dispatch (exit 3); quote the script's stderr. Remove the tool from the
+  definition. Do not dispatch it anyway with an instruction not to use the
+  tool, and do not fall back to reviewing the wave in this context -- that
+  fallback is the thing this step replaced.
+- Evaluator returns NEEDS_WORK: halt at step 7, status stays `in-progress`.
+  Not a block, and not fixed here; the findings open the next session.
+- Evaluator returns UPSTREAM_CAUSE: halt. Fix the artifact it names, not the
+  code, and do not run a fourth pass over the same spec.
+- Evaluator output with no readable VERDICT line: re-dispatch. Do not decide
+  what it meant on its behalf.
 - Never trust a subagent completion summary: read the diff, run the claimed
   tests, before step 8's preview.
 - review-party.md absent at step 11: refuse to open the pull request until it
@@ -271,6 +390,20 @@ there is nothing to block.
   without its review record cannot be reviewed again later.
 
 ## Version history
+- 1.3.0 (2026-09-11, Phase 3 of docs/harness-conversion-plan.md): step 7's
+  review moves out of this context. It is dispatched to a subagent defined at
+  `.claude/agents/keelswell-wave-evaluator.md` whose tool list carries no
+  Write, Edit, Bash or Task, so it is structurally unable to fix what it
+  finds, and whose context never saw the build. `scripts/evaluate_wave.py`
+  refuses to dispatch a definition that declares a writing tool, counts the
+  passes, and parses the evaluator's own VERDICT line into an exit code.
+  NEEDS_WORK halts the wave at `in-progress` rather than being fixed in place;
+  the findings become the next session's opening prompt, generated from the
+  record. On a third pass the evaluator names the upstream cause instead of
+  listing a fourth round. No step and no stage was added -- step 7 already
+  existed and its review changed hands. `bmad-agent-qa` is untouched: the
+  evaluator lives where no BMAD module declares agents, so it cannot collide
+  with her or with any upstream persona.
 - 1.2.0 (2026-09-11, Phase 2 of docs/harness-conversion-plan.md): the wave
   lifecycle status moves into `.bmad/wave-<id>/wave.md` and this skill gains
   `scripts/wave_status.py`, the one place the vocabulary is defined. Step 1
