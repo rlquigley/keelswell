@@ -23,6 +23,8 @@ _bmad/*
 _bmad/scripts/*
 !_bmad/scripts/resolve_config.py
 !_bmad/scripts/resolve_customization.py
+!_bmad/scripts/config_utils.py
+!_bmad/scripts/render_skill.py
 !_bmad/config.toml
 !_bmad/_config/
 _bmad/_config/*

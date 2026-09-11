@@ -91,8 +91,8 @@ All notable changes to Keelswell. Format: Keep a Changelog; versioning: semver.
   and left in place.
 - .gitignore allowlists _bmad/scripts/config_utils.py and
   _bmad/scripts/render_skill.py so the tracked resolvers keep working
-  from a fresh clone. templates/.gitignore.template still carries the old
-  allowlist (follow-up).
+  from a fresh clone; templates/.gitignore.template carries the same two
+  lines so initialised projects match.
 
 ### Fixed
 - Nine tracked .claude/skills copies of customize.toml (the seven bmm
