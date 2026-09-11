@@ -87,8 +87,8 @@ All notable changes to Keelswell. Format: Keep a Changelog; versioning: semver.
 - module.yaml declares bmad-agent-tech-writer (Loial, Technical Writer).
   Upstream bmm 6.12 no longer declares the code, so without this the
   overlay's name pin resolved to a name-only descriptor. Fork-only count
-  25 -> 26. The overlay pin in _bmad/custom/config.toml is now redundant
-  and left in place.
+  25 -> 26. The now-redundant name pin in _bmad/custom/config.toml is
+  removed (12 overlay pins remain).
 - .gitignore allowlists _bmad/scripts/config_utils.py and
   _bmad/scripts/render_skill.py so the tracked resolvers keep working
   from a fresh clone; templates/.gitignore.template carries the same two

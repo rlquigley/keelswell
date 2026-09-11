@@ -130,9 +130,11 @@ techRadarFile = "docs/architecture/tech-radar.md"
 standardsDirectory = "docs/architecture/standards/"
 reviewsDirectory = "docs/architecture/reviews/"
 
-# --- Keelswell roster pins (F-5): resolved display names for the 13
-# vanilla persona agents; overrides the installer-owned _bmad/config.toml
-# per its own custom-overlay contract. ---
+# --- Keelswell roster pins (F-5): resolved display names for the 12
+# vanilla persona agents still declared upstream; overrides the
+# installer-owned _bmad/config.toml per its own custom-overlay contract.
+# (bmad-agent-tech-writer/Loial is declared by module.yaml since the
+# 6.12.0 refresh and needs no pin.) ---
 
 [agents.bmad-agent-analyst]
 name = "Moiraine Damodred"
@@ -148,9 +150,6 @@ name = "Mat Cauthon"
 
 [agents.bmad-agent-ux-designer]
 name = "Min Farshaw"
-
-[agents.bmad-agent-tech-writer]
-name = "Loial"
 
 [agents.bmad-cis-agent-brainstorming-coach]
 name = "Siuan Sanche"
