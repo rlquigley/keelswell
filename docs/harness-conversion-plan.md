@@ -155,6 +155,22 @@ surface three waves later.
 **Verify:** deliberately break one invariant; the install fails loudly
 and names it.
 
+**Carried in from Phase 1**, found while checking that phase's predictions
+and deliberately left here rather than fixed in passing (RQ, 2026-09-11):
+
+- `install.sh:214` (`for s in skills/*; do ... cp -r ...`) copies the working
+  tree verbatim, so stale `__pycache__/` from a test run ships into every new
+  project. Ignored at both ends since Phase 1 added the lines to `.gitignore`
+  and `templates/.gitignore.template`, so nothing is committed and nothing
+  breaks; it just ships junk. One line in the copy loop prunes it.
+- The gate's invocation is still prose. Phase 1 made the review-record
+  *verdict* deterministic, but three links in the chain remain obedience:
+  invoking `/bmad-close-epic`, running the script inside step 1, and honouring
+  a non-zero exit. The fork ships two hooks (`PostToolUse`, `SessionEnd`) and
+  no `PreToolUse`, so nothing denies a tool call. Until one does, Macedo's T4
+  is not satisfied -- the conformance phase is where that claim gets earned,
+  not Phase 1.
+
 **Estimate:** half a day.
 
 ## Phase 5: decide what is consumable
