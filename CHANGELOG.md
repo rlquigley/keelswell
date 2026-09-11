@@ -30,9 +30,11 @@ All notable changes to Keelswell. Format: Keep a Changelog; versioning: semver.
     manifest.yaml now records keelswell as an installed module (v0.8.0,
     localPath = the checkout the refresh ran from) and bumps core/bmm to
     6.12.0. Per-module config.yaml timestamps and files-manifest.csv
-    regenerated (class C). Installer also creates ignored _bmad/keelswell/,
-    _bmad/render/, _bmad/{core,bmm}/v6-shims/, and _bmad/agents/config.yaml
-    (it treats the fork's _bmad/agents/ persona archive as a module dir).
+    regenerated (class C). Installer also creates _bmad/keelswell/ (its
+    config.yaml now tracked like the other module config files) and the
+    ignored _bmad/render/, _bmad/{core,bmm}/v6-shims/, and
+    _bmad/agents/config.yaml (it treats the fork's _bmad/agents/ persona
+    archive as a module dir).
   - Class B catalogs restored per the runbook (bmad-help.csv,
     skill-manifest.csv, core and bmm module-help.csv), then bmad-help.csv
     re-curated by hand: rows for the three removed skills dropped, rows for
@@ -91,7 +93,8 @@ All notable changes to Keelswell. Format: Keep a Changelog; versioning: semver.
   removed (12 overlay pins remain).
 - .gitignore allowlists _bmad/scripts/config_utils.py and
   _bmad/scripts/render_skill.py so the tracked resolvers keep working
-  from a fresh clone; templates/.gitignore.template carries the same two
+  from a fresh clone, and _bmad/keelswell/config.yaml like the other
+  module config files; templates/.gitignore.template carries the same
   lines so initialised projects match.
 
 ### Fixed
