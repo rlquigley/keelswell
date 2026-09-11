@@ -1,21 +1,108 @@
 # Harness conversion prompts
 
 Session-opening prompts for each phase of `harness-conversion-plan.md`,
-plus the standing post-pull check. Written 2026-09-11. Each phase
-assumes the previous one is merged to `main`. Run every session from
+plus the standing post-pull check. Written 2026-09-11. Phase 0 runs
+first; every later phase assumes the previous one is merged to
+`main`. Run every session from
 the keelswell root: the paths are relative to it and the project's
 `.claude/` settings need to load.
 
 Model and effort per phase are recommendations, not requirements. The
 reasoning: Opus 5 at `xhigh` is the default for bounded, fully
-specified coding work; Phase 4 gets Fable 5.1 because it touches the
-installer that already caused one incident and its failure mode is
-silent; Phase 5 drops to `high` because it is reading and judgment,
+specified coding work; Phases 0 and 4 get Fable 5.1 because they touch
+the installer that already caused one incident and their failure mode
+is silent; Phase 5 drops to `high` because it is reading and judgment,
 where a human's priors beat raw effort.
 
 Each prompt ends by making the model state its approach and its
 biggest uncertainty before touching anything. That step is where a
 misread of the plan gets caught cheaply. Do not skip it.
+
+## Phase 0: upstream refresh, before anything else
+
+Fable 5.1, effort `xhigh`. Opus 5 at `xhigh` is fine if step 3's
+`git status` matches what the runbook predicts; escalate if it does
+not.
+
+Why this is first: the fork is pinned at bmad-method 6.10.0 (published
+2026-07-03) and upstream is at 6.12.0 (2026-09-04). The delta is
+structural: BMM moved skills-first with five agents against the 6.10
+roster of seven, and QA moved into the TEA module. Phase 1 does not
+care, but Phase 3 routes around `bmad-agent-qa` and Phase 2 borrows
+`bmad-build-auto`'s vocabulary, both 6.12-era shapes. Building them
+against 6.10 and refreshing afterwards is the worst order.
+
+```text
+Run the upstream refresh runbook. This is preparation for Phase 1 of
+docs/harness-conversion-plan.md, not part of it: the fork is pinned
+at bmad-method 6.10.0 and upstream is at 6.12.0, and Phases 2 and 3
+are designed against the 6.12 shape, so the refresh has to land
+first.
+
+Read, in this order, before running anything:
+1. docs/upstream-refresh-runbook.md, all of it. The incident section
+   and the clobber classes (B and C) are the reason the procedure
+   looks the way it does.
+2. The manual chapters the runbook cites (Ch 34, App I.10/I.12/I.13)
+   in ../keelswell-manual.
+3. module.yaml, top comment. It documents how a duplicate agent
+   declaration corrupts config.toml. The upstream roster changed
+   between 6.10 and 6.12, so this is the live risk this time.
+4. docs/harness-conversion-prompts.md, the "Standing item" section.
+   Step 5a of the runbook runs it. Its step 1 does not apply yet;
+   its steps 2 and 3 do.
+
+What changed upstream that you should expect to see: BMM moved to a
+skills-first layout with five agents (the 6.10 roster here has
+seven), QA moved into the TEA module, and config moved toward
+_bmad/config.toml with team and user override layers. Some of that
+will collide with the fork's Wheel of Time overlay and with
+module.yaml. Expect it; do not be surprised by it; do not resolve it
+by hand-editing anything an upstream module declares.
+
+Then follow the runbook's six steps exactly, with these additions:
+
+- Before step 2, confirm which bmad-method version npx will resolve.
+  It must be 6.12.0, not a -next prerelease. Tell me the version
+  before you run the install.
+- At step 3, if git status shows anything outside the classes the
+  runbook names, stop and show me. That instruction is in the
+  runbook already; I am repeating it because it is the one that
+  matters.
+- At step 5a, run the standing item's steps 2 and 3: diff upstream's
+  changes against the fork-owned seams (wave skills, _bmad/scripts/,
+  install.sh, config/agent-names.yaml, module.yaml), then draft the
+  CHANGELOG entry with both halves: what changed upstream, and what
+  we are choosing not to adopt and why.
+- In that CHANGELOG entry, also record the post-refresh agent roster
+  (which personas exist, which module declares each). Phases 2 and 3
+  need that baseline.
+- While you are in the manifest: _bmad/_config/manifest.yaml lists a
+  bmad-loop module at v0.8.1. Tell me what it is and whether it is
+  the orchestrator that BMAD's bmad-build-auto hands off to. Do not
+  change it. Phase 2 may be able to lean on it.
+
+Done means: the runbook's step 5 verification passes, the CHANGELOG
+entry is written with both halves and the roster, and the tree is
+clean on a branch ready for PR. Open the PR. In its description,
+list every file the refresh touched that a Phase 1 through 3 session
+will also touch, so those sessions know what moved under them.
+
+Constraints:
+- Branch, never main. Clean tree before step 2.
+- Do not touch agents/ except through the installer and the class B
+  restore the runbook describes.
+- If the refresh wants to change the wave skills or _bmad/scripts/,
+  that is unexpected and you stop.
+- Nothing from the harness conversion plan gets built in this
+  session. If you see an obvious Phase 1 opportunity, note it for
+  the Phase 1 session and leave it.
+
+Before running the install: tell me the resolved version, your read
+of what the roster change will do to the Wheel of Time overlay and
+module.yaml, and the one thing you are least sure about. Wait for my
+go-ahead.
+```
 
 ## Phase 1: one real gate
 
