@@ -51,6 +51,14 @@ Restore after refresh:
                     _bmad/_config/skill-manifest.csv \
                     _bmad/core/module-help.csv _bmad/bmm/module-help.csv
     # then re-run any catalog additions the refresh legitimately needs
+    # (bmad-help.csv: drop rows for removed skills, add rows for new real
+    # skills from the package's module-help.csv files, refresh _meta URLs)
+
+The restored skill-manifest.csv and module-help.csv files then describe
+the layout BEFORE the refresh (skill ids that no longer exist, none of
+the new ones). Nothing fork-side reads them and the installer
+regenerates them on its next run, so this is accepted staleness, not a
+defect to fix by hand.
 
 Class C -- installer-owned regeneration, absorbed by design:
 `_bmad/config.toml` comes back with upstream names, but the
@@ -59,12 +67,30 @@ Class C -- installer-owned regeneration, absorbed by design:
 refresh). `config.yaml` files reset `user_name`/timestamps and derive
 `project_name` from the directory name -- cosmetic, restorable with git.
 
+Class D -- `_bmad/scripts/`: the installer deletes the directory and
+re-copies its own src/scripts/* on every run (6.10 and 6.12 both do
+this). The fork's copies are vanilla, so it is invisible until upstream
+changes a script; 6.12.0 did (resolve_config.py and
+resolve_customization.py now import config_utils.py, render_skill.py
+added). Two consequences: any file the fork places there is gone after
+the next refresh, so fork scripts live under skills/ or _bmad/custom/;
+and every tracked script's imports must be allowlisted in .gitignore
+and templates/.gitignore.template or a fresh clone gets broken
+resolvers.
+
 ## The procedure
 
 1. Work on a branch; confirm a clean tree.
-2. Run the standard invocation (unchanged from install.sh
-   phase4_upstream):
-       npx bmad-method install --directory . --custom-source <this-repo> --tools claude-code --yes
+2. Confirm which version npx will resolve (`npm view bmad-method
+   dist-tags`; `latest`, never a -next prerelease) and pin it:
+       npx bmad-method@X.Y.Z install --directory . --custom-source <this-repo> --tools claude-code --yes
+   Deliberately no --modules. install.sh phase4_upstream passes
+   --modules bmm,cis,tea,bmb, which is right for a fresh target but on an
+   existing install makes the installer deselect and delete every
+   installed module not in that list (bmad-loop; verified at 6.12.0).
+   With --yes and no --modules the installer selects installed plus
+   defaults and keeps everything. The two invocations are not
+   equivalent for a refresh.
 3. Review `git status`. Expect: catalog regeneration (class B),
    config churn (class C), plus whatever the new upstream version
    legitimately changed. Anything unexpected: stop.
@@ -73,7 +99,11 @@ refresh). `config.yaml` files reset `user_name`/timestamps and derive
 5. Verify: `python3 _bmad/scripts/resolve_config.py --project-root .
    --key agents` shows Wheel of Time names; `./install.sh
    --validate-only --skip-mcp-check` exits 0; spot-activate one vanilla
-   agent (expects its WoT persona).
+   agent (expects its WoT persona). Precondition for the validate step:
+   config/agent-names.yaml.default must carry the same agents as
+   config/agent-names.yaml (the validator asserts equal counts). Sync
+   the .default whenever an agent is added, or this step fails for a
+   reason unrelated to the refresh (it did at 0.8.0: 32 vs 38).
 5a. Run the post-pull check from docs/harness-conversion-prompts.md
    ("Standing item"): confirms the harness enforcement layer survived
    the refresh, diffs upstream's changes against the fork-owned seams,
