@@ -24,6 +24,11 @@ Fable 5.1, effort `xhigh`. Opus 5 at `xhigh` is fine if step 3's
 `git status` matches what the runbook predicts; escalate if it does
 not.
 
+Ran 2026-09-11, merged as PR #11. One assumption in this prompt was
+wrong: `_bmad/scripts/` is installer-owned, not a fork seam (the
+installer wipes and re-copies it on every run; runbook class D). The
+Phase 1 and Phase 2 prompts below were corrected for that.
+
 Why this is first: the fork is pinned at bmad-method 6.10.0 (published
 2026-07-03) and upstream is at 6.12.0 (2026-09-04). The delta is
 structural: BMM moved skills-first with five agents against the 6.10
@@ -118,9 +123,11 @@ bmad-close-epic gate real. Do not start Phase 2.
 What Phase 1 is: bmad-close-epic currently asks the agent to refuse
 closing a wave that has no review record. That refusal is prose in
 SKILL.md, so it depends on the model choosing to comply. Move the
-enforcement into a script under _bmad/scripts/ that the skill calls
-and that exits non-zero when the review record is missing. The rule
-does not change; only where it is enforced.
+enforcement into a script under skills/bmad-close-epic/scripts/ that
+the skill calls (upstream's own skill-local convention; see
+bmad-party-mode/scripts/) and that exits non-zero when the review
+record is missing. The rule does not change; only where it is
+enforced.
 
 Done means: attempting to close a wave with no review record fails on
 the script's exit code, not on the agent's judgment. Show me that
@@ -129,13 +136,20 @@ failing case and the passing case before you call it finished.
 Constraints that matter here:
 - Keelswell tracks four upstreams (BMM, CIS, TEA, the Ricoledan
   architecture pack). Only touch the fork-owned seams the plan names:
-  the wave skills, _bmad/scripts/, install.sh. Do not touch agents/.
+  the wave skills (including their scripts/ subdirectories) and
+  install.sh. Do not touch agents/. Never put anything in
+  _bmad/scripts/: the installer wipes and re-copies it on every
+  refresh (docs/upstream-refresh-runbook.md, class D).
 - The installer is fragile. module.yaml documents how a duplicate
   declaration corrupts config.toml. Read that comment before changing
   anything the installer reads.
-- Match the existing script style in _bmad/scripts/ (Python already
-  lives there) and the existing skill conventions, including the
-  version bump and CHANGELOG entry the recent wave commits used.
+- Match upstream's skill-local script style (Python, stdlib only;
+  .claude/skills/bmad-party-mode/scripts/ is the nearest model).
+  Upstream 6.12 invokes such scripts as
+  `uv run {skill-root}/scripts/<name>.py`; the fork's mirrored skills
+  still use `python3`. Pick one and say which in your approach. Keep
+  the existing skill conventions, including the version bump and
+  CHANGELOG entry the recent wave commits used.
 - Do not add stages or agents.
 
 Work on a branch and open a PR, the way the recent wave changes were
@@ -185,8 +199,11 @@ dispatch after its underlying cause is fixed, (3) removing the
 blocked status by hand lets it proceed. Show me all three.
 
 Constraints:
-- Fork-owned seams only: the wave skills and _bmad/scripts/. Do not
-  touch agents/ or anything an upstream module declares.
+- Fork-owned seams only: the wave skills and their scripts/
+  subdirectories. The shared vocabulary file lives in one wave skill
+  (or _bmad/custom/, which the installer never rewrites), never in
+  _bmad/scripts/ (installer-owned; runbook class D). Do not touch
+  agents/ or anything an upstream module declares.
 - Existing in-flight wave records have no status field. Decide what
   a missing status means and tell me before implementing. Do not
   silently default it.
