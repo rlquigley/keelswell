@@ -16,7 +16,7 @@ allowed-tools:
   - Glob
   - Bash
 output-locations: []
-version: 1.1.0
+version: 1.2.0
 ---
 
 # bmad-status-wave
@@ -34,16 +34,37 @@ printed output of the session and lives nowhere else.
 2. Worktree: sibling directories matching <project>-wave-* on disk.
 3. Branches: `git branch --list 'wave-*'`.
 4. PR state: `gh pr list` filtered by head branch.
-5. Current step: the wave's checkpoint markers under .bmad/wave-<id>/, the
-   project HANDOFF.md, and the branch's last commit message.
+5. Status and current step: the wave's lifecycle status record, read with
+
+       python3 {skill-root}/../bmad-dev-wave/scripts/wave_status.py show \
+           --project-root {project-root}
+
+   which is read-only -- it never writes and never backfills a missing
+   record, unlike the `route` verb the acting skills call. Then the wave's
+   checkpoint markers under .bmad/wave-<id>/, the project HANDOFF.md, and the
+   branch's last commit message.
 6. Tests: verify-fast results if present.
 
-## Output: the seven-column dashboard
+## Output: the eight-column dashboard
 One row per wave; fixed column widths and value enumerations (downstream
 tooling parses positionally):
-| Wave | Branch | Step | PR | Tests | Blocked-on | Flags |
+| Wave | Status | Branch | Step | PR | Tests | Blocked-on | Flags |
+- Status is the value `show` reports: one of the six statuses, or `unmigrated`
+  for a wave with no record yet, or `corrupt` for a record whose status cannot
+  be read. Do not enumerate the six here; they are defined once in
+  bmad-dev-wave/scripts/wave_status.py and tabled in /bmad-dev-wave.
 - PR in {none, open, merged}; Tests in {green, red, unknown}; Flags shows
   load-bearing / spine-only.
+
+A `blocked` row is a hard stop on that wave, not a note: every dispatch
+refuses on it until a human edits or deletes `.bmad/wave-<id>/wave.md`, and
+fixing the underlying cause does not clear it. Read a blocked row as work
+waiting on the founder. A `corrupt` row is the same shape of stop with a
+different remedy: the record needs repairing or deleting.
+
+An `unmigrated` row is a wave that predates the status field. Nothing is
+wrong with it; the next acting skill that touches it backfills the record and
+says so. This skill leaves it alone, because backfilling would be a write.
 
 ## Cross-Wave Consistency Checks
 Surface, do not fix: a branch with no worktree; a worktree on the wrong
@@ -73,6 +94,11 @@ enforcing it.
   actual state wins.
 
 ## Version history
+- 1.2.0 (2026-09-11, Phase 2 of docs/harness-conversion-plan.md): the
+  dashboard gains a Status column, read from the wave's lifecycle record
+  through the `show` verb, which is the read-only half of the same script the
+  acting skills route on. Still strictly read-only: `show` never backfills a
+  missing record, so a project scan cannot quietly migrate eighteen waves.
 - 1.1.0 (2026-09-10, founder ruling, settled-decisions register row 51):
   the closure-pending check tests every wave merged rather than every wave
   cleaned up, so it agrees with the /bmad-dev-wave preflight that now

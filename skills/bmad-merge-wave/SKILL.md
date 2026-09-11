@@ -4,8 +4,8 @@ description: >
   Post-merge cleanup for a single wave. Verifies the wave's pull request is
   merged on the remote, pulls main fast-forward-only, removes the wave's
   worktree via an absolute git -C path, deletes the local branch, archives
-  the wave checkpoint, and verifies the cleanup. Idempotent across
-  re-invocation.
+  the wave checkpoint, marks the wave done in its lifecycle record, and
+  verifies the cleanup. Idempotent across re-invocation.
 when-to-use: |
   After a wave's PR is merged on the remote (any merge style), including when
   /bmad-status-wave shows a merged-with-worktree row. Not for abandoning an
@@ -19,7 +19,7 @@ allowed-tools:
 inputs:
   - wave-id (positional, required)
   - --verbose (optional; full git output instead of one line per step)
-version: 1.1.0
+version: 1.2.0
 ---
 
 # bmad-merge-wave
@@ -112,10 +112,25 @@ path is reachable only behind the verified-merged check -- never otherwise.
 ## Step 5: Verify cleanup
 Worktree directory absent; worktree registry clean; branch absent; archive
 checkpoint.json, the step-N.done markers, and the cleanup markers under
-CHECKPOINT_DIR/archive/. The archive is a step record, not a gate: epic
-closure reads it when present and proves cleanup from live pull-request and
-worktree state, so a missing archive blocks nothing. Print the five-line
-summary and exit 0.
+CHECKPOINT_DIR/archive/. Then mark the wave done:
+
+    python3 {skill-root}/../bmad-dev-wave/scripts/wave_status.py set \
+        --project-root MAIN_REPO --wave WAVE_ID --status done
+
+This is the wave's terminal status and this skill is the only writer of it: a
+wave is done when its pull request is merged and its worktree and branch are
+swept, which is the state this step has just verified. Leave the lifecycle
+record itself in place -- archive the checkpoint, not the record, because a
+later dispatch reading no record would treat a swept wave as unmigrated and
+infer its stage all over again.
+
+The set exits 1 if the wave is blocked, and that refusal stands: a blocked
+wave is not made done by cleaning up after it. Report it and stop; clearing
+the block is the founder's act, not this skill's.
+
+The archive is a step record, not a gate: epic closure reads it when present
+and proves cleanup from live pull-request and worktree state, so a missing
+archive blocks nothing. Print the five-line summary and exit 0.
 
 ## Merge-Type Acceptance
 Merge-commit, squash, and rebase merges are all accepted; the only rejected
@@ -131,11 +146,18 @@ state is one that is not `MERGED`.
 | Wrong branch | worktree not on the resolved BRANCH_NAME | check out the wave branch or remove the worktree manually |
 | Ambiguous branch | more than one branch matches BRANCH_SUFFIX | refuse and name them; disambiguate before re-invoking |
 | Resolution failed | local branch absent while origin carries an unmerged one | refuse and name BRANCH_SUFFIX; fetch, or correct the waves.md suffix |
+| Wave blocked | the status record reads blocked | refuse to mark it done; a human clears the block by editing or deleting `.bmad/wave-<id>/wave.md` |
 Idempotent no-op: worktree gone, branch gone locally and on origin -> "already
 cleaned up; nothing to do", exit 0. A merged remote branch left undeleted is
 reported, not refused.
 
 ## Version history
+- 1.2.0 (2026-09-11, Phase 2 of docs/harness-conversion-plan.md): step 5 marks
+  the wave `done` in its lifecycle record once cleanup verifies, making this
+  skill the only writer of that terminal status. The record survives the
+  archive sweep on purpose: archiving it would make the next dispatch read a
+  swept wave as unmigrated and infer its stage again. A blocked wave refuses
+  the transition rather than being tidied into done.
 - 1.1.0 (2026-08-24, founder ruling at the Epic 1 closure): worktree and branch
   resolved by discovery rather than by path convention, so a harness-created
   worktree is found instead of silently missed; the `gh --json merged` field

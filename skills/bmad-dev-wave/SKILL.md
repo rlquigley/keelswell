@@ -21,11 +21,12 @@ allowed-tools:
 output-locations:
   - ../<project>-wave-<id>/                 # sibling worktree, branch wave-<id>-<suffix>
   - .bmad/wave-<id>/checkpoint.json         # plus step-N.done markers (main repo)
+  - .bmad/wave-<id>/wave.md                 # lifecycle status record (main repo)
   - <worktree>/docs/wave-<id>/test-design.md
   - <worktree>/docs/wave-<id>/review-party.md   # required, every wave (register row 51)
   - <worktree>/docs/stories/                # JIT story files
   - pull request against main via gh pr create
-version: 1.1.0
+version: 1.2.0
 ---
 
 # bmad-dev-wave
@@ -55,8 +56,10 @@ merge. It never merges.
 ## The Twelve-Step Workflow
 Each step writes a checkpoint marker under .bmad/wave-<id>/; any step can be
 re-entered by /bmad-resume-wave.
-1.  Preflight: clean tree, wave exists in waves.md, gh authenticated, and no
-    earlier epic is closure-pending (see The Closure Gate).
+1.  Preflight: the status gate below decides whether this wave may be
+    dispatched at all and at which step to re-enter; then clean tree, wave
+    exists in waves.md, gh authenticated, and no earlier epic is
+    closure-pending (see The Closure Gate).
 2.  Worktree creation: sibling ../<project>-wave-<id> on branch
     wave-<id>-<suffix>.
 3.  Wave-scoped test design (one QA-persona subagent) ->
@@ -65,8 +68,10 @@ re-entered by /bmad-resume-wave.
 4.5 Open-questions gate: scan auto-memory for unresolved questions tagged to
     this wave's stories; HALT for user input on any hit. Never dispatch
     parallel subagents past an unfired gate.
-5.  ATDD scaffolding: failing test stubs per the test design.
-6.  Implementation dispatch: serial for spine waves; parallel (one coding
+5.  ATDD scaffolding: failing test stubs per the test design. On completion
+    set the status to ready-for-dev.
+6.  Implementation dispatch: set the status to in-progress before dispatching.
+    Serial for spine waves; parallel (one coding
     subagent per story, capped by core/config.yaml
     parallelism.max_parallel_subagents) for parallel waves. Every subagent
     receives the Project Conventions Block verbatim (below).
@@ -77,7 +82,8 @@ re-entered by /bmad-resume-wave.
 9.  Verify: run tests/verify-fast.sh in the worktree; on FAIL offer
     edit / demote / abort.
 10. Party-mode adversarial review -- load-bearing waves only (skipped by
-    --no-party): dispatch security, cost, and platform reviewers; block on
+    --no-party): set the status to in-review, then dispatch security, cost,
+    and platform reviewers; block on
     HIGH or CRITICAL findings. Write docs/wave-<id>/review-party.md before
     step 11, always, including when the review found nothing and when it did
     not run (see The Review Record).
@@ -100,6 +106,85 @@ test framework and verify harness location, CI constraints, standing policy
 decisions, and coding discipline (touch only the story's files; no drive-by
 improvements). Populate the block for your project before the first dispatch;
 an empty block is a preflight warning.
+
+## The Status Gate
+
+This skill owns the wave lifecycle status and the script that reads and writes
+it. Phase 2 of docs/harness-conversion-plan.md; the vocabulary is defined once,
+in that script, and bmad-create-wave, bmad-merge-wave, bmad-resume-wave and
+bmad-status-wave all read it from there rather than each restating the names.
+
+Step 1 asks the script where this wave stands. The answer is not yours to
+derive:
+
+    python3 {skill-root}/scripts/wave_status.py route \
+        --project-root {project-root} --wave <id>
+
+Exit 0 proceeds, and its JSON names the `reentry_step` to start at -- use it
+instead of assuming step 1, and instead of inferring the step from the
+conversation. Exit 1, 2 or 3 is the refusal; quote its stderr, which names the
+wave and the remedy. There is no flag and no override.
+
+  0  proceed; the JSON carries status, stage and reentry_step
+  1  the wave is blocked
+  2  structural: no wave map, or the wave is not in it
+  3  the record exists and its status is missing or unrecognized
+
+The six statuses and the step each re-enters at:
+
+| status | meaning | re-entry |
+|---|---|---|
+| draft | this skill has not run past step 5 | first incomplete of 1-5 |
+| ready-for-dev | steps 1-5 done, nothing dispatched | step 6 |
+| in-progress | implementation dispatched | first incomplete of 6-9 |
+| in-review | review, commits, PR, awaiting merge | first incomplete of 10-12 |
+| done | merged and swept by /bmad-merge-wave | step 10, a fresh follow-up pass |
+| blocked | sticky halt | none |
+
+No stage is added: every re-entry point above is a step this skill already
+has. A status names the stage; the checkpoint markers name the step within it.
+
+Advance the status with the same script, never by editing the record by hand:
+
+    python3 {skill-root}/scripts/wave_status.py set \
+        --project-root {project-root} --wave <id> --status <status>
+
+Write points are steps 5, 6 and 10 above, and every refusal in Error Handling
+that halts the wave, which writes `--status blocked --reason "<one line>"`.
+
+## Blocked is sticky
+
+A blocked wave halts every later dispatch, **including after the cause is
+fixed**. Fixing the cause changes nothing the gate reads. There is no retry
+flag, and `set` refuses to write over a blocked record, so this skill cannot
+clear a block it created -- which is the point, since the run that blocked the
+wave is the run that would argue it is safe to resume. A retry loop is not a
+control mechanism.
+
+Only a human clears it, by editing `status:` in `.bmad/wave-<id>/wave.md` to
+another valid status or deleting that file. Deleting just the `status:` line
+does not work: a record that exists with no readable status exits 3.
+
+Taken from BMAD's bmad-build-auto, whose note on permanence is the part worth
+copying -- a blocked record halts every later dispatch "even after the cause is
+fixed. To retry, delete the story file."
+
+## Waves with no status record
+
+A wave whose record does not exist yet predates this field. `route` backfills
+it once: it infers the stage from the same checkpoint and worktree evidence
+/bmad-resume-wave's probes already used, prints an `UNMIGRATED` notice naming
+the inferred status and the evidence, writes the record, and proceeds. The
+inference runs once per wave; every dispatch after that routes on the record.
+
+Read the notice before dispatching. Ambiguity resolves toward `draft`, which
+re-enters at the earliest incomplete step, because re-running an idempotent
+preflight costs minutes while guessing a wave forward past steps that never
+ran skips its test design and its ATDD scaffolding.
+
+A record that exists with an unreadable status is the opposite case and is
+refused, not backfilled. That asymmetry is what stops deleting the status line
+from working as a quiet override of blocked.
 
 ## The Closure Gate
 Step 1 refuses to open a wave while an earlier epic is closure-pending
@@ -156,6 +241,15 @@ Contents:
   dated amendments as well; this record does not replace that filing.
 
 ## Error Handling
+Every refusal below that halts a wave mid-flight also writes
+`--status blocked --reason "<one line>"` before halting, so the next dispatch
+refuses at step 1 instead of re-discovering the same failure. The two
+preflight refusals are the exception: they fire before the wave opens, so
+there is nothing to block.
+- Wave blocked at preflight: refuse; quote the script's stderr. Not clearable
+  by this skill or by any flag.
+- Wave record present with an unreadable status: refuse (exit 3). Repair the
+  record or delete it.
 - Dirty working tree at preflight: refuse; name the dirty paths.
 - Earlier epic closure-pending at preflight: refuse; name the epic and its
   merged waves, and point at /bmad-close-epic. Not overridable by a flag;
@@ -164,9 +258,12 @@ Contents:
   the flag. The flag skips a step that already ran, not the artifact.
 - Wave ID not in waves.md: refuse; suggest /bmad-create-wave.
 - Open question surfaced by a subagent that the gate should have caught:
-  halt the wave; record the resolution to auto-memory before re-dispatch.
+  halt the wave and block it; record the resolution to auto-memory, then clear
+  the block by hand before re-dispatch. Step 4.5's own halt is not a block: it
+  is a pause inside the plan stage waiting on an answer in the same session.
 - Verify FAIL: offer edit (re-dispatch with failing-test context), demote
   (drop the story to a new wave), or abort (leave worktree for inspection).
+  Abort blocks the wave.
 - Never trust a subagent completion summary: read the diff, run the claimed
   tests, before step 8's preview.
 - review-party.md absent at step 11: refuse to open the pull request until it
@@ -174,6 +271,15 @@ Contents:
   without its review record cannot be reviewed again later.
 
 ## Version history
+- 1.2.0 (2026-09-11, Phase 2 of docs/harness-conversion-plan.md): the wave
+  lifecycle status moves into `.bmad/wave-<id>/wave.md` and this skill gains
+  `scripts/wave_status.py`, the one place the vocabulary is defined. Step 1
+  routes on the record's status rather than inferring the re-entry step from
+  the conversation, and steps 5, 6 and 10 write the status forward. Blocked is
+  sticky: it halts every later dispatch after its cause is fixed, and the
+  script refuses to let any skill write over it, so only a human editing or
+  deleting the record clears it. No stage was added -- every status re-enters
+  at a step this skill already had.
 - 1.1.0 (2026-09-10, founder ruling, settled-decisions register row 51):
   step 1 refuses while an earlier epic is closure-pending, and step 10 must
   write docs/wave-<id>/review-party.md for every wave. Both halves were

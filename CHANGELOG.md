@@ -3,6 +3,42 @@ All notable changes to Keelswell. Format: Keep a Changelog; versioning: semver.
 
 ## [Unreleased] - 2026-09-11
 ### Added
+- Wave lifecycle status, and Keelswell's first *sticky* control:
+  `skills/bmad-dev-wave/scripts/wave_status.py` (Phase 2 of
+  docs/harness-conversion-plan.md). bmad-create-wave 1.0.0 -> 1.1.0,
+  bmad-dev-wave 1.1.0 -> 1.2.0, bmad-merge-wave 1.1.0 -> 1.2.0,
+  bmad-resume-wave 1.0.0 -> 1.1.0, bmad-status-wave 1.1.0 -> 1.2.0.
+  A wave now carries its stage in `.bmad/wave-<id>/wave.md` and the wave
+  skills route on it instead of each inferring state from the conversation and
+  the filesystem. The vocabulary is BMAD's own bmad-build-auto
+  (`spec-template.md:5` and its step-01 routing table) -- draft,
+  ready-for-dev, in-progress, in-review, done, blocked -- defined once in that
+  script and read from there by all five skills. No stage was added: every
+  status re-enters at a step bmad-dev-wave already had, and `done` re-enters
+  at step 10 as a fresh follow-up review pass rather than a resumption.
+  Verbs are `route` (the gate, exit code is the verdict), `set` (advance it)
+  and `show` (read-only, for the dashboard; it never backfills, so a
+  project-wide scan cannot quietly migrate eighteen waves).
+  **Blocked is sticky, and that is the Phase 2 deliverable.** A blocked wave
+  halts every later dispatch after its cause is fixed, `set` refuses to write
+  over a blocked record, and no flag exists to force either -- so no skill can
+  clear a block it created. Only a human editing `status:` or deleting the
+  record clears it. The asymmetry is the control: a retry loop is not one,
+  because the run that blocked the wave is the run that would argue it is safe
+  to resume. Copied from bmad-build-auto's note on permanence.
+  Two ways a missing status is read, and the split is the mechanism rather
+  than bookkeeping. No record at all is a wave that predates the field:
+  `route` backfills it once from checkpoint, git and worktree evidence, prints
+  an `UNMIGRATED` notice naming the inference, and proceeds -- Phase 1's
+  prospective-rule shape, where a pre-field artifact gets a named reported
+  exemption and never a silent default. A record that exists with an
+  unreadable status is refused (exit 3). Without that second half, deleting
+  the `status:` line would be an undocumented override of blocked.
+  Forty stdlib unittest cases ship in `scripts/tests/`, and every claim they
+  rest on was mutation-checked: six deliberate defects re-applied, six
+  reddened. One did not, and it was a finding rather than a gap -- the
+  `done`-re-enters-at-10 branch was unreachable given that stage's single
+  step, so the branch is gone and a test pins the width instead.
 - Keelswell's first executable enforcer:
   `skills/bmad-close-epic/scripts/check_review_records.py` (Phase 1 of
   docs/harness-conversion-plan.md). bmad-close-epic 1.2.0 -> 1.3.0. The
@@ -40,6 +76,19 @@ All notable changes to Keelswell. Format: Keep a Changelog; versioning: semver.
   templates/.gitignore.template, now that the fork ships runnable Python.
 
 ### Fixed
+- The Phase 2 backfill read sixteen of ffbapp's eighteen waves as `draft`,
+  re-entering at step 1, when all eighteen are merged and done. Caught by
+  running the migration against the real instance instead of the fixture:
+  those waves have no `.bmad/wave-<id>/` at all, because their worktrees were
+  swept by hand before bmad-merge-wave 1.1.0 started archiving checkpoints, so
+  there was no marker evidence to infer from and the safe-direction default
+  took over. The fix reuses Phase 1's own landing signal -- whether
+  `docs/wave-<id>/` has merged into main -- and the ancestry test is the part
+  that makes it safe: that directory also exists inside the wave's own
+  worktree from step 3 onward, so mere presence would read every in-flight
+  wave as finished. Re-run against a clone of the real repository, all twenty
+  waves now migrate correctly, wave 5D included, whose stale step-2 checkpoint
+  is overridden by its merged docs.
 - bmad-close-epic's frontmatter claimed the epic-id argument matches an
   `## Epic <N>` block in waves.md. No such block exists: waves.md carries one
   flat table for the whole project, ordered by execution rather than by epic
