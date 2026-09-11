@@ -2,6 +2,47 @@
 All notable changes to Keelswell. Format: Keep a Changelog; versioning: semver.
 
 ## [Unreleased] - 2026-09-11
+### Added
+- Keelswell's first executable enforcer:
+  `skills/bmad-close-epic/scripts/check_review_records.py` (Phase 1 of
+  docs/harness-conversion-plan.md). bmad-close-epic 1.2.0 -> 1.3.0. The
+  preflight condition that every wave of an epic carries an adversarial
+  review record was prose asking the agent to refuse its own work; it is now
+  an exit code the skill obeys. The rule is unchanged. Exit 0 proceeds; 1 is
+  a wave that landed on or after the 2026-09-10 rule date with no record; 2
+  is structural (no wave map, or no waves in the epic); 3 is a wave with no
+  record that cannot be dated. Fail-closed throughout: an undatable wave is
+  not assumed pre-rule. The refusal text names the wave, both accepted record
+  locations, and the remedy, per the vault's "the enforcer coaches" note.
+  Skill-local `scripts/` is upstream's own convention
+  (bmad-party-mode/scripts/) and survives a refresh, unlike `_bmad/scripts/`
+  (runbook class D). Ten stdlib unittest cases ship beside it in
+  `scripts/tests/`. This is the change that moves the fork across
+  Macedo's T4, the harness membership test the plan opens on.
+- `__pycache__/` and `*.pyc` ignored in .gitignore and
+  templates/.gitignore.template, now that the fork ships runnable Python.
+
+### Fixed
+- bmad-close-epic's frontmatter claimed the epic-id argument matches an
+  `## Epic <N>` block in waves.md. No such block exists: waves.md carries one
+  flat table for the whole project, ordered by execution rather than by epic
+  (in the ffbapp instance wave 6A sits between 4A and 4B). The epic is the
+  leading digits of a Wave label. Caught by writing the gate against the real
+  artifact; nothing had checked the documented contract against the file.
+- The same pass found wave directories are lower-cased (`docs/wave-6a/`)
+  while the Wave column spells them `6A`, so a check built on the column's
+  own spelling finds no records anywhere. Recorded in the skill.
+- Dating a wave via `gh pr view <branch suffix>` does not work and was never
+  going to: waves.md's "Branch suffix" column is an intention, not a record.
+  Probed against ffbapp, all three test branches returned "no pull requests
+  found" -- real head refs carry tool prefixes and hashes
+  (`claude/wave-4a-event-registry-825278`) and two waves' refs share no slug
+  with the column at all. Substring matching is worse, since a wave's
+  merge-cleanup branch matches the same label. The gate dates a wave from the
+  first commit that added its docs directory instead; verified against all
+  seven pre-rule waves in ffbapp, each landing within the same window as its
+  pull request's merge.
+
 ### Changed
 - Upstream refresh: bmad-method 6.10.0 -> 6.12.0 (Phase 0 of
   docs/harness-conversion-plan.md; runbook docs/upstream-refresh-runbook.md,
