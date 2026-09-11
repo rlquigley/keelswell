@@ -23,6 +23,8 @@ _bmad/*
 _bmad/scripts/*
 !_bmad/scripts/resolve_config.py
 !_bmad/scripts/resolve_customization.py
+!_bmad/scripts/config_utils.py
+!_bmad/scripts/render_skill.py
 !_bmad/config.toml
 !_bmad/_config/
 _bmad/_config/*
@@ -49,6 +51,9 @@ _bmad/tea/*
 _bmad/custom/*
 !_bmad/custom/config.toml
 !_bmad/custom/module-help.csv
+!_bmad/keelswell/
+_bmad/keelswell/*
+!_bmad/keelswell/config.yaml
 
 # --- .claude allowlist for the full skill snapshot ---
 .claude/*

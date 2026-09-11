@@ -1,6 +1,111 @@
 # Changelog
 All notable changes to Keelswell. Format: Keep a Changelog; versioning: semver.
 
+## [Unreleased] - 2026-09-11
+### Changed
+- Upstream refresh: bmad-method 6.10.0 -> 6.12.0 (Phase 0 of
+  docs/harness-conversion-plan.md; runbook docs/upstream-refresh-runbook.md,
+  invocation pinned to `npx bmad-method@6.12.0`, no `--modules`). What
+  changed upstream and landed here:
+  - BMM is skills-first: five agents (analyst, pm, ux-designer, architect,
+    dev); bmad-agent-tech-writer retired (upstream removals.txt). Eight
+    new skills in .claude/skills (bmad-build, bmad-build-auto,
+    bmad-deep-recon, bmad-review, bmad-walkthrough, bmad-project-context,
+    bmad-editorial-review, bmad-review-verification-gap); three removed
+    (bmad-check-implementation-readiness, bmad-index-docs, bmad-shard-doc);
+    21 old names retained as v6 compatibility shims that forward to their
+    replacements (installShims: true recorded in manifest.yaml; upstream
+    removes shims at v7). 106 -> 111 skill dirs.
+  - _bmad/scripts/ re-synced from upstream: resolve_config.py and
+    resolve_customization.py now import a new config_utils.py (same
+    four-layer and three-layer merge, same CLI); render_skill.py added
+    (bmad-build and bmad-build-auto shell out to it via `uv run`, so uv is
+    now an upstream expectation). memlog.py unchanged. Finding: the
+    installer wipes and re-copies _bmad/scripts/ on every install, so the
+    directory is installer-owned, not a fork seam. Phase 1 must put its
+    gate script elsewhere.
+  - _bmad/config.toml regenerated: 38 agent blocks (bmm 5, cis 6, tea 1,
+    keelswell 26), no duplicates; the _bmad/custom/config.toml overlay
+    pins re-win at resolution (all 13 Wheel of Time names verified).
+    manifest.yaml now records keelswell as an installed module (v0.8.0,
+    localPath = the checkout the refresh ran from) and bumps core/bmm to
+    6.12.0. Per-module config.yaml timestamps and files-manifest.csv
+    regenerated (class C). Installer also creates _bmad/keelswell/ (its
+    config.yaml now tracked like the other module config files) and the
+    ignored _bmad/render/, _bmad/{core,bmm}/v6-shims/, and
+    _bmad/agents/config.yaml (it treats the fork's _bmad/agents/ persona
+    archive as a module dir).
+  - Class B catalogs restored per the runbook (bmad-help.csv,
+    skill-manifest.csv, core and bmm module-help.csv), then bmad-help.csv
+    re-curated by hand: rows for the three removed skills dropped, rows for
+    the five new real skills added from the 6.12 module-help sources, the
+    Core and BMad Method _meta docs URLs updated. Rows for the 21 shim
+    names were left in place (they still resolve, through forwarders).
+- Not adopted, and why:
+  - External module upgrades: tea v1.19.0 (v1.26.0 available), cis v0.2.1
+    (v0.3.2), bmb v2.1.0 (v2.2.2), bmad-loop v0.8.1 (v0.11.1). All four are
+    `channel: pinned` in manifest.yaml and the installer re-asserts pins
+    under --yes; unpinning is a separate decision (`--pin code=tag`).
+    tea v1.26.0 still declares only bmad-tea, so bmad-agent-qa remains
+    keelswell-declared either way.
+  - Upstream's 6.12 edits to the five vanilla bmm agent skills (menus
+    re-pointed at bmad-deep-recon and bmad-project-context) and the
+    bmad-retrospective rewrite: the fork's marketplace copies win over the
+    upstream package for the same skill id, so these did not land. The
+    mirrors still route through shim names (bmad-market-research,
+    bmad-document-project, ...), which work until upstream drops shims at
+    v7. Re-basing the mirrors on 6.12 is a follow-up, not part of this
+    refresh.
+  - The retirement of bmad-agent-tech-writer: the fork keeps Loial (see
+    Added).
+  - install.sh phase 4's `--modules bmm,cis,tea,bmb`: on an existing
+    install it deselects and deletes bmad-loop, so the refresh used the
+    runbook's line without it. The runbook text saying the two invocations
+    are identical is stale.
+  - skill-manifest.csv and the core/bmm module-help.csv were restored to
+    their 6.10 content as the runbook prescribes; they now describe the
+    pre-refresh layout (nothing fork-side reads them; the installer
+    regenerates them on the next run).
+- Post-refresh agent roster (38), by declaring module:
+  - bmm (upstream module.yaml, names pinned by the overlay): Moiraine
+    Damodred (analyst), Egwene al'Vere (pm), Perrin Aybara (architect),
+    Mat Cauthon (dev), Min Farshaw (ux-designer).
+  - cis (upstream, overlay-pinned): Siuan Sanche, Nynaeve al'Meara,
+    Logain Ablar, Birgitte Silverbow, Thom Merrilin, Morgase Trakand.
+  - tea (upstream, overlay-pinned): Galad Damodred (bmad-tea).
+  - keelswell module.yaml (26): Rand al'Thor (bmad-master), Aviendha
+    (bmad-agent-qa), Loial (bmad-agent-tech-writer); the eight
+    architecture-pack agents Verin Mathwin, Elayne Trakand, Cadsuane
+    Melaidhrin, Androl Genhald, Rhuarc, Berelain sur Paendrag, Lan
+    Mandragoran, Sorilea (module label "arch" via the overlay); the fifteen
+    custom agents Tam al'Thor, Tuon, Setalle Anan, Hurin, Gareth Bryne,
+    Damer Flinn, Bayle Domon, Juilin Sandar, Jain Farstrider, Basel Gill,
+    Talmanes Delovinde, Egeanin Tamarath, Aludra, Leane Sharif, Tarna Feir.
+  - No agent is declared by more than one module. bmad-loop declares none;
+    it is BMAD's outer orchestrator (uv-installed Python tool, module half
+    only installed here) that invokes upstream bmad-build-auto per story.
+
+### Added
+- module.yaml declares bmad-agent-tech-writer (Loial, Technical Writer).
+  Upstream bmm 6.12 no longer declares the code, so without this the
+  overlay's name pin resolved to a name-only descriptor. Fork-only count
+  25 -> 26. The now-redundant name pin in _bmad/custom/config.toml is
+  removed (12 overlay pins remain).
+- .gitignore allowlists _bmad/scripts/config_utils.py and
+  _bmad/scripts/render_skill.py so the tracked resolvers keep working
+  from a fresh clone, and _bmad/keelswell/config.yaml like the other
+  module config files; templates/.gitignore.template carries the same
+  lines so initialised projects match.
+
+### Fixed
+- Nine tracked .claude/skills copies of customize.toml (the seven bmm
+  agents, bmad-master, bmad-tea) still carried the pre-0.6.0 voice fields;
+  the refresh re-copied them from the skills/ sources, which win. Every
+  fork mirror in .claude/skills now matches its skills/ source exactly.
+- config/agent-names.yaml.default had 32 agents against the 38-agent
+  roster of record (stale since 0.7.0), which made `install.sh
+  --validate-only` fail before this refresh. Synced; validation exits 0.
+
 ## [0.8.0] - 2026-08-24
 ### Added
 - Two custom agents forming a design maker/critic pair, deliberately
