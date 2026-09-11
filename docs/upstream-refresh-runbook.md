@@ -74,6 +74,12 @@ refresh). `config.yaml` files reset `user_name`/timestamps and derive
    --key agents` shows Wheel of Time names; `./install.sh
    --validate-only --skip-mcp-check` exits 0; spot-activate one vanilla
    agent (expects its WoT persona).
+5a. Run the post-pull check from docs/harness-conversion-prompts.md
+   ("Standing item"): confirms the harness enforcement layer survived
+   the refresh, diffs upstream's changes against the fork-owned seams,
+   and drafts the CHANGELOG entry (what changed, what we chose not to
+   adopt). Until Phase 4 of docs/harness-conversion-plan.md lands, its
+   step 1 has nothing to report; run steps 2 and 3.
 6. Diff-review, commit, merge.
 
 ## Known limitation (F-10, closed for documented installs)
