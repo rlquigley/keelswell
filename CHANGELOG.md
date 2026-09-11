@@ -2,6 +2,65 @@
 All notable changes to Keelswell. Format: Keep a Changelog; versioning: semver.
 
 ## [Unreleased] - 2026-09-11
+### Added
+- Keelswell's first executable enforcer:
+  `skills/bmad-close-epic/scripts/check_review_records.py` (Phase 1 of
+  docs/harness-conversion-plan.md). bmad-close-epic 1.2.0 -> 1.3.0. The
+  preflight condition that every wave of an epic carries an adversarial
+  review record was prose asking the agent to refuse its own work; it is now
+  an exit code the skill obeys. The rule is unchanged. Exit 0 proceeds; 1 is
+  a wave that landed on or after the 2026-09-10 rule date with no record; 2
+  is structural (no wave map, or no waves in the epic); 3 is a wave with no
+  record that cannot be dated. Fail-closed throughout: an undatable wave is
+  not assumed pre-rule. The refusal text names the wave, both accepted record
+  locations, and the remedy, per the vault's "the enforcer coaches" note.
+  A wave is dated by the merge that brought its docs to the closing branch,
+  not by the commit that wrote them on the wave's own branch. Measured across
+  ffbapp's eighteen waves that lag runs from six minutes to forty-six hours,
+  and wave 5D's commit (2026-09-09T03:09Z) and merge (2026-09-10T14:42Z) fall
+  on opposite sides of the rule date: dating by the commit would have passed a
+  post-rule wave as pre-rule, the one direction this gate must not fail in.
+  Caught by checking the shipped prediction against real history rather than
+  assuming the lag was negligible. Regression test included, verified to redden
+  when the defect is re-applied.
+  Skill-local `scripts/` is upstream's own convention
+  (bmad-party-mode/scripts/) and survives a refresh, unlike `_bmad/scripts/`
+  (runbook class D). Twelve stdlib unittest cases ship beside it in
+  `scripts/tests/`. What this does and does not buy against Macedo's T4, the
+  harness membership test the plan opens on: the *verdict* is now deterministic
+  -- which waves carry records, and which side of the rule date they landed on,
+  are computed rather than judged, so the agent can no longer reason its way to
+  "this gap is acceptable". The *invocation* is not. Three links in the chain
+  are still prose: invoking the skill, running the script inside step 1, and
+  obeying a non-zero exit. The fork ships two hooks (PostToolUse em-dash scrub,
+  SessionEnd wrap reminder) and no PreToolUse anywhere, so nothing denies a
+  tool call. Calling T4 satisfied would overstate it until a hook forces the
+  invocation; that is Phase 4's job.
+- `__pycache__/` and `*.pyc` ignored in .gitignore and
+  templates/.gitignore.template, now that the fork ships runnable Python.
+
+### Fixed
+- bmad-close-epic's frontmatter claimed the epic-id argument matches an
+  `## Epic <N>` block in waves.md. No such block exists: waves.md carries one
+  flat table for the whole project, ordered by execution rather than by epic
+  (in the ffbapp instance wave 6A sits between 4A and 4B). The epic is the
+  leading digits of a Wave label. Caught by writing the gate against the real
+  artifact; nothing had checked the documented contract against the file.
+- The same pass found wave directories are lower-cased (`docs/wave-6a/`)
+  while the Wave column spells them `6A`, so a check built on the column's
+  own spelling finds no records anywhere. Recorded in the skill.
+- Dating a wave via `gh pr view <branch suffix>` does not work and was never
+  going to: waves.md's "Branch suffix" column is an intention, not a record.
+  Probed against ffbapp, all three test branches returned "no pull requests
+  found" -- real head refs carry tool prefixes and hashes
+  (`claude/wave-4a-event-registry-825278`) and two waves' refs share no slug
+  with the column at all. Substring matching is worse, since a wave's
+  merge-cleanup branch matches the same label. The gate walks from the commit
+  that added the wave's docs directory to the merge that brought it in, and
+  dates the wave by that merge; verified against all eighteen ffbapp waves,
+  with the seven pre-rule ones classified pre-rule and wave 5D correctly
+  post-rule.
+
 ### Changed
 - Upstream refresh: bmad-method 6.10.0 -> 6.12.0 (Phase 0 of
   docs/harness-conversion-plan.md; runbook docs/upstream-refresh-runbook.md,

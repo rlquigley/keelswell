@@ -1,6 +1,10 @@
 # --- Node ---
 node_modules/
 
+# --- Python bytecode from skill-local scripts and their tests ---
+__pycache__/
+*.pyc
+
 # --- BMAD personal overrides (per-user, not shared) ---
 _bmad/**/*.local.*
 

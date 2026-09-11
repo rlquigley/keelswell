@@ -20,9 +20,11 @@ allowed-tools:
   - Write
 inputs:
   - >-
-    epic-id (positional, required; integer matching an "## Epic <N>" block in
-    waves.md). No flags: closure is not tunable, there is no --dry-run, no
-    --skip-subskill, no --force.
+    epic-id (positional, required; integer matching the leading digits of a
+    Wave label in the waves.md wave table -- waves.md carries one flat table
+    for the whole project, ordered by execution rather than by epic, so there
+    are no per-epic sections to match). No flags: closure is not tunable,
+    there is no --dry-run, no --skip-subskill, no --force.
 output-locations:
   - _bmad-output/epic-closure/epic-<N>/SUMMARY.md
   - _bmad-output/epic-closure/epic-<N>/code-review.md
@@ -31,17 +33,18 @@ output-locations:
   - _bmad-output/epic-closure/epic-<N>/retrospective.md
   - a docs-only branch pushed to origin, and a pull request against main
   - every existing story file of the epic set to Status: done
-version: 1.2.0
+version: 1.3.0
 ---
 
 # bmad-close-epic
 
 ## The Six-Step Closure Workflow
-1. Preflight: the epic block exists in waves.md and lists at least one wave;
-   every wave of the epic is merged AND cleaned up; every story of the epic
-   has landed; and every wave of the epic carries a review record. Any
-   failure: refuse -- partial closures produce misleading records. What counts
-   as proof for the second, third and fourth conditions is below.
+1. Preflight: waves.md lists at least one wave for the epic; every wave of the
+   epic is merged AND cleaned up; every story of the epic has landed; and
+   every wave of the epic carries a review record. Any failure: refuse --
+   partial closures produce misleading records. The fourth condition is not
+   yours to judge: run the gate script below and obey its exit code. What
+   counts as proof for the second and third conditions is further below.
 2. Create the docs-only closure branch off main. No production code changes
    are permitted on it.
 3. Run the four sub-skills in order -- code-review, testarch-trace,
@@ -82,9 +85,28 @@ acceptance criteria live in the epics document, which is the source the
 traceability pass reads in either case. Refuse for a story whose wave never
 merged, never for a story whose file was never written.
 
+## The review-record gate
+
+The fourth preflight condition is decided by a script, not by you:
+
+    python3 {skill-root}/scripts/check_review_records.py \
+        --project-root {project-root} --epic <N>
+
+Exit 0 proceeds. Exit 1, 2 or 3 is the refusal; quote its stderr, which names
+the wave and the remedy. There is no flag and no override. Do not re-derive
+the verdict by reading files yourself, and do not proceed on a non-zero exit
+because the gap looks defensible -- arguing the exception is exactly the step
+this gate exists to remove.
+
+  0  every wave carries a record, or lacks one lawfully (pre-rule)
+  1  a wave landed on or after the rule date with no record
+  2  structural: no wave map, or the epic has no waves in it
+  3  a wave with no record could not be dated
+
 **A wave carries a review record** when `docs/wave-<id>/review-party.md`
 exists, or when `docs/wave-<id>/api-surface.md` carries a "Party-review
-amendments" section. The first is canonical and is what /bmad-dev-wave 1.1.0
+amendments" section (the wave directory is lower-cased: wave 6A is
+`docs/wave-6a/`). The first is canonical and is what /bmad-dev-wave 1.1.0
 writes; the second is the recognized alternative waves 2B, 5C and 5D used,
 and it is a real reachable record, so it counts. A record whose findings live
 only in a commit message does not count, which is the whole point.
@@ -95,15 +117,37 @@ Epic 4 and Epic 5 those are exactly the waves carrying the acceptance clauses
 nothing asserts, while wave 5A's own CRITICAL finding is discoverable only by
 reading a commit message.
 
-**The requirement is prospective, from 2026-09-10.** A wave whose pull
-request merged before that date and carries no record is recorded in the
-closure's own code-review pass as a pre-rule gap, with its severity argued
-there, and never refused. Applying the rule backwards would block closures
-over waves that landed before it existed, which buys no safety. The known
-instances at ruling time are waves 1A, 3C, 4A, 4B, 5A, 5B and 6A; of those
-only **wave 6A** belongs to an epic still open, so Epic 6's closure is the
-one that will meet this and should expect to record it rather than refuse.
-Refuse only a wave that merged after the ruling date with no record.
+**The requirement is prospective, from 2026-09-10.** A wave that landed before
+that date and carries no record is recorded in the closure's own code-review
+pass as a pre-rule gap, with its severity argued there, and never refused.
+Applying the rule backwards would block closures over waves that landed before
+it existed, which buys no safety. The known instances at ruling time are waves
+1A, 3C, 4A, 4B, 5A, 5B and 6A; of those only **wave 6A** belongs to an epic
+still open, so Epic 6's closure is the one that will meet this and should
+expect to record it rather than refuse. Refuse only a wave that landed on or
+after the ruling date with no record.
+
+**Landing dates come from git, not from GitHub.** The script finds the commit
+that added anything under `docs/wave-<id>/`, then the merge that brought it to
+this branch, and dates the wave by the merge. Not by the commit: a wave's docs
+are written on its own branch and reach the closing branch only when the wave
+merges. Measured across one instance's eighteen waves that lag runs from six
+minutes to forty-six hours, and one wave's commit and merge fall on opposite
+sides of the rule date -- dating by the commit would pass it as pre-rule when
+its merge says refuse. A repository that squashes or rebases has no merge
+commit to find, and there the commit's own date already is its landing date.
+
+The wave map's "Branch suffix" column cannot address
+a pull request: real head refs carry tool prefixes and disambiguating hashes,
+and some do not share a slug with the column at all, so `gh pr view
+<branch suffix>` resolves nothing. A substring search over pull requests is
+worse -- a wave whose merge-cleanup branch also carries the wave label matches
+twice, and which one you take changes the date.
+
+A wave the script cannot date does not get the benefit of the doubt. An
+undatable wave has no `docs/wave-<id>/` on this branch, which means it has not
+landed, which is a different refusal than a missing record and is named as
+one.
 
 ## Story status is this skill's to set
 
@@ -129,16 +173,37 @@ five files on the same branch.
 - Some wave not cleaned up: name it, and name which check failed (pull request
   unmerged, pull request open, or worktree still carrying the branch); run
   /bmad-merge-wave first.
-- Some wave merged after 2026-09-10 with no review record: name the wave and
-  both accepted locations. There is no flag; the remedy is to write the
-  record, which means the review has to have happened. A wave that merged
-  before that date is recorded as a pre-rule gap, not refused.
-- Epic has zero waves: refuse (planning error or typo).
+- Some wave landed on or after 2026-09-10 with no review record: the gate
+  script exits 1 and names the wave and both accepted locations. Quote it.
+  There is no flag; the remedy is to write the record, which means the review
+  has to have happened. A wave that landed before that date is recorded as a
+  pre-rule gap, not refused.
+- Some wave with no review record cannot be dated: the gate script exits 3.
+  The wave has not landed here, so run or merge the wave; the missing record
+  is not what blocks you.
+- Epic has zero waves: refuse (planning error or typo). The gate script exits
+  2 for this and for a missing wave map.
 - Closure branch already exists: refuse; delete or rename it explicitly.
 - Main diverged since the waves merged: refuse; reconcile main first. Local
   main merely behind origin is not divergence: fast-forward and continue.
 
 ## Version history
+- 1.3.0 (2026-09-11, Phase 1 of docs/harness-conversion-plan.md): the review-
+  record condition moves from prose into
+  `scripts/check_review_records.py`, which the skill calls and whose exit code
+  is the verdict. The rule is unchanged; what changed is that refusing no
+  longer depends on the closing agent choosing to refuse its own work. Two
+  corrections fell out of writing it against the real artifact instead of the
+  documented one: waves.md carries a single flat table ordered by execution,
+  not `## Epic <N>` blocks (the frontmatter said otherwise and nothing had
+  checked), and wave directories are lower-cased, so a gate built on the Wave
+  column's own spelling would have found no records at all. Dating a wave now
+  uses the first commit that added its docs directory; the wave map's "Branch
+  suffix" column is an intention rather than a record and resolves no pull
+  request. A wave is dated by the merge that brought its docs to the closing
+  branch, not by the commit that wrote them: the lag between the two reaches
+  forty-six hours in the instance this was measured against, and wave 5D's
+  commit and merge straddle the rule date.
 - 1.2.0 (2026-09-10, founder ruling, settled-decisions register row 51):
   preflight adds a fourth condition, that every wave of the epic carries a
   review record at `docs/wave-<id>/review-party.md` or as a "Party-review
