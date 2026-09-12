@@ -201,6 +201,39 @@ predictions, left here rather than fixed in passing (RQ, 2026-09-11):
   `bmad-build-auto`, is worth deciding before Phase 3 builds the evaluator that
   would run it.
 
+**Carried in from Phase 3**, same rule: found while checking that phase's
+predictions, left here rather than fixed in passing (RQ, 2026-09-11):
+
+- Phase 2 asked whether `done`'s follow-up pass is wanted "before Phase 3
+  builds the evaluator that would run it". Phase 3 did not resolve it, and did
+  not need to: `done` re-enters at step 10, party mode, while the evaluator
+  went to step 7, so a merged wave's follow-up pass runs the domain reviewers
+  and not the evaluator. The question is unchanged and still open, just no
+  longer blocking.
+
+- The evaluator's *inability to edit* is structural, but its *being dispatched
+  at all* is still prose, and this is the third time the same gap has been
+  written down (Phase 1's gate invocation, Phase 2's step-4.5 pause, now this).
+  Nothing stops a step-7 agent from reviewing the wave in its own context and
+  never running `evaluate_wave.py dispatch`, and nothing stops it from reading
+  exit 1 and fixing the findings in place anyway. The three items now share one
+  root: the fork ships `PostToolUse` and `SessionEnd` hooks and no `PreToolUse`,
+  so no tool call is ever denied. Phase 4 should treat them as one piece of work
+  rather than three, since one `PreToolUse` hook covers all three and three
+  separate ones would not.
+- `templates/settings.json.template` carries `subagentModels` and
+  `subagentReasoning` keys that do not appear in Claude Code's settings schema.
+  If that is right, they have configured nothing since they were written, and
+  `core/config.yaml`'s `role_models` table has been feeding a dead end. Phase 3
+  routed around it by putting `model: opus` in the evaluator's own frontmatter,
+  which is the mechanism that does work, but the config table is still the
+  documented source of truth and the two now disagree. Worth confirming against
+  the schema before Phase 5 prunes anything on the strength of that table.
+- `core/config.yaml`'s `model_tiers` pin `claude-opus-4-8`, `claude-sonnet-4-6`
+  and `claude-haiku-4-5`, a generation behind the current Claude 5 family. This
+  is exactly the "re-earn after each model release" case Phase 5 names, so it
+  belongs there rather than in a phase that happened to notice it.
+
 **Estimate:** half a day.
 
 ## Phase 5: decide what is consumable
