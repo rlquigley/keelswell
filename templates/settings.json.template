@@ -24,7 +24,15 @@
       "args": []
     }
   },
-  "hooks": {
+    "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit|NotebookEdit|Bash",
+        "hooks": [
+          { "type": "command", "command": ".claude/hooks/wave-gate.sh" }
+        ]
+      }
+    ],
     "PostToolUse": [
       {
         "matcher": "Edit|Write",
@@ -37,7 +45,8 @@
       {
         "matcher": "",
         "hooks": [
-          { "type": "command", "command": ".claude/hooks/wrap-reminder.sh" }
+          { "type": "command", "command": ".claude/hooks/wrap-reminder.sh" },
+          { "type": "command", "command": ".claude/hooks/wave-session-end.sh" }
         ]
       }
     ]
