@@ -29,7 +29,7 @@ output-locations:
   - <worktree>/docs/wave-<id>/review-party.md   # required, every wave (register row 51)
   - <worktree>/docs/stories/                # JIT story files
   - pull request against main via gh pr create
-version: 1.4.0
+version: 1.5.0
 ---
 
 # bmad-dev-wave
@@ -377,6 +377,33 @@ sometimes an expected absence:
   from the prior session must already exist on disk; if it does not, refuse
   the flag rather than skipping the step.
 
+Front matter, required in all three cases:
+
+```yaml
+---
+title: "Wave <id> party-mode adversarial review"
+wave: <id>
+created: <YYYY-MM-DD>
+model: <the model the reviewers were dispatched at>
+effort: <low|medium|high|xhigh|max>
+---
+```
+
+`model` is the reviewers' model, not the orchestrator's. Reviewers are
+dispatched as subagents and can run at a different model than the
+session that dispatched them; the reviewers' is the one that produced
+the findings. Write the model string itself (`claude-opus-5`), never
+the policy that chose it: three of ffbapp's ten records said "the
+session model" and none named a model, which left every finding in
+them unattributable to any generation. Where reviewers ran at
+different models, list each. `status` and `stories` are optional and
+two records already carry them.
+
+This block is the reason the record can be read back by a later pass.
+Agent value is re-earned after each model release rather than assumed
+(`docs/agent-inventory.md`), and an unstamped finding cannot take part
+in that: it proves something about a model nobody can name.
+
 Contents:
 - the reviewers dispatched and their disjoint domains;
 - every finding, with its severity, and how it was proved -- by execution or
@@ -432,6 +459,14 @@ there is nothing to block.
   names. Do not retry the same write through a different tool.
 
 ## Version history
+- 1.5.0 (2026-09-12, Phase 6.1 of docs/harness-conversion-plan.md): the
+  review record gains a required front-matter block carrying `model` and
+  `effort`, the reviewers' rather than the orchestrator's. The record had
+  no specified header at all; two of ffbapp's ten wrote one anyway and
+  this codifies what they converged on. Three said reviewers ran at "the
+  session model" and none named a model, so no finding in any of the ten
+  can be attributed to a model generation, which is what
+  docs/agent-inventory.md could not recompute against.
 - 1.4.0 (2026-09-11, Phase 4 of docs/harness-conversion-plan.md): the rules
   become hooks. `scripts/wave_gate.py` is the one PreToolUse hook (closure,
   verdict, review, in-place) and the SessionEnd hook that blocks a wave left

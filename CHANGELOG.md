@@ -1,8 +1,35 @@
 # Changelog
 All notable changes to Keelswell. Format: Keep a Changelog; versioning: semver.
 
-## [Unreleased] - 2026-09-11
+## [Unreleased] - 2026-09-12
 ### Added
+- Agent inventory (Phase 5 of docs/harness-conversion-plan.md):
+  `docs/agent-inventory.md` asks one question of each of the sixteen
+  fork-only agents, what specific failure it prevents, and sorts the answers
+  into earns-its-place (6), consumable (7), and no-answer (3). Assessed
+  against the Claude 5 family and dated, because the grouping is expected to
+  go stale on each model release: prose does not survive being moved to
+  another model family, so a persona that earned its place has to earn it
+  again. No agent is deleted, renamed, or edited, including the three that
+  could not answer; each of those gets a way to find out instead. The pass
+  also found that no wave skill references any of the sixteen, which is why
+  Phase 6 was added to the plan.
+- Review records carry the model that produced them (Phase 6.1 of
+  docs/harness-conversion-plan.md): bmad-dev-wave 1.4.0 -> 1.5.0.
+  `docs/wave-<id>/review-party.md` gains a required front-matter block with
+  `title`, `wave`, `created`, `model` and `effort`. `model` is the
+  reviewers' model, not the orchestrator's: reviewers are dispatched as
+  subagents and can run at a different model than the session that
+  dispatched them, and theirs is the one that produced the findings. The
+  record had no specified header at all; two of ffbapp's ten wrote one
+  anyway, and this codifies the shape they converged on. Three of the ten
+  said reviewers ran at "the session model" and none named a model, so no
+  finding in any of them can be attributed to a model generation, which is
+  what `docs/agent-inventory.md` could not recompute against. Scoped to the
+  wave record deliberately: `bmad-party-mode` is upstream, so the
+  planning-phase reviews it writes stay unstamped rather than opening a
+  conflict surface. Asserted under `--validate-only` in both `skills/` and
+  `.claude/skills/`; the spec itself takes effect at the next wave.
 - Conformance check and hooks (Phase 4 of docs/harness-conversion-plan.md):
   install.sh phase 6 asserts the enforcement layer Phases 1-3 built, and two
   hooks make the rules those phases stated fail as tool calls.

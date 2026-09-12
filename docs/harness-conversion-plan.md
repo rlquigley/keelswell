@@ -320,6 +320,13 @@ it then; do not assume it can.
 
 **Verify:** the next wave's `review-party.md` names its model.
 
+**Done 2026-09-12** (bmad-dev-wave 1.5.0). The record had no front
+matter to add to: the skill specified none, and two of ffbapp's ten
+wrote one anyway, so the block codifies what they converged on rather
+than imposing a new shape. Scope grew from two fields to a five-field
+block for that reason. `model` is the reviewers', not the
+orchestrator's.
+
 **Estimate:** 20 minutes.
 
 ### 6.2 Refresh ffbapp's nine stale agent codes
