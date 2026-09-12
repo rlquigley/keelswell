@@ -249,7 +249,9 @@ allowlist_check() {
            .claude/settings.json .claude/agents/keelswell-wave-evaluator.md \
            .claude/skills/bmad-close-epic/scripts/check_review_records.py \
            .claude/skills/bmad-dev-wave/scripts/wave_status.py \
-           .claude/skills/bmad-dev-wave/scripts/evaluate_wave.py; do
+           .claude/skills/bmad-dev-wave/scripts/evaluate_wave.py \
+           .claude/skills/bmad-dev-wave/scripts/wave_gate.py \
+           .claude/hooks/wave-gate.sh .claude/hooks/wave-session-end.sh; do
     [ -e "$base/$f" ] || { echo "  allowlist gap: $base/$f missing"; gaps=1; }
   done
   [ "$gaps" -eq 0 ] || exit 6
@@ -284,6 +286,8 @@ harness_check() {
   done
   if [ -z "$missing" ]; then echo "    every wave skill references wave_status.py ... ok"
   else echo "    every wave skill references wave_status.py ... FAIL (missing in:$missing)"; bad=1; fi
+  if [ -x "$root/bmad-dev-wave/scripts/wave_gate.py" ]; then echo "    hook script wave_gate.py present and executable ... ok"
+  else echo "    hook script wave_gate.py present and executable ... FAIL ($root/bmad-dev-wave/scripts/wave_gate.py)"; bad=1; fi
   if [ -f "$evaluate" ] && err=$(python3 "$evaluate" check --project-root "$base" 2>&1 >/dev/null); then
     echo "    evaluator subagent declares no writing tool ... ok"
   else
@@ -291,6 +295,23 @@ harness_check() {
     [ -f "$evaluate" ] && printf '%s\n' "$err" | sed 's/^/      /' || echo "      ($evaluate missing)"
     bad=1
   fi
+  return "$bad"
+}
+
+hooks_check() {
+  # $1: the project root. The two hook wrappers must exist, be executable, and
+  # be registered. The fork has no .claude/settings.json of its own (hooks are
+  # resolved into a target project from the template), so there the template
+  # is the registration that is checked.
+  local base="$1" bad=0 h settings="$1/.claude/settings.json"
+  [ -f "$settings" ] || settings="templates/settings.json.template"
+  echo "  Harness hooks under $base/.claude/hooks/ (registration: $settings):"
+  for h in wave-gate.sh wave-session-end.sh; do
+    if [ -x "$base/.claude/hooks/$h" ]; then echo "    $h present and executable ... ok"
+    else echo "    $h present and executable ... FAIL ($base/.claude/hooks/$h)"; bad=1; fi
+    if grep -q "\.claude/hooks/$h" "$settings" 2>/dev/null; then echo "    $h registered ... ok"
+    else echo "    $h registered ... FAIL (not named in $settings)"; bad=1; fi
+  done
   return "$bad"
 }
 
@@ -306,6 +327,7 @@ phase6_validation() {
   local base="${TARGET_PROJECT:-.}" harness_bad=0
   harness_check skills "$FORK_ROOT" || harness_bad=1
   harness_check "$base/.claude/skills" "$base" || harness_bad=1
+  hooks_check "$base" || harness_bad=1
   if [ "$harness_bad" -ne 0 ]; then
     echo "  ERROR: harness invariant failed (named above). Nothing was repaired; restore the file and re-run --validate-only."; exit 7
   fi

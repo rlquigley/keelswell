@@ -27,7 +27,7 @@ when-not-to-use:
 outputs:
   - .bmad/wave-<id>/resume-from-step-<N>.json
   - the re-dispatch's opening prompt, from any open evaluator findings
-version: 1.2.0
+version: 1.3.0
 ---
 
 # bmad-resume-wave
@@ -126,7 +126,11 @@ order: wave-map, worktree, branch, commits, checkpoint.
 
 ## Open-Questions Re-Check
 Always re-run, regardless of checkpoint state, in case questions were
-resolved (or new ones recorded) since the original dispatch.
+resolved (or new ones recorded) since the original dispatch. A wave the
+SessionEnd hook blocked because `.bmad/wave-<id>/step-4.5.pending` was still
+present when its session ended is cleared the way every block is: a human
+records the answer, deletes the marker, and edits the record. This skill does
+neither.
 
 ## --from-step Override
 Warn-and-confirm semantics: print the routed step and the override, require
@@ -148,6 +152,9 @@ a `done` wave's follow-up review pass back into a resumption.
   delete the record. Do not resume against a guess at what it said.
 
 ## Version history
+- 1.3.0 (2026-09-11, Phase 4 of docs/harness-conversion-plan.md): names the
+  step-4.5 pending marker and the SessionEnd block it produces, so a resumed
+  wave blocked for an unanswered question is read as that and not as drift.
 - 1.2.0 (2026-09-11, Phase 3 of docs/harness-conversion-plan.md): a wave with
   an open NEEDS_WORK evaluation re-dispatches with the evaluator's findings as
   its opening prompt, generated from the record on disk by

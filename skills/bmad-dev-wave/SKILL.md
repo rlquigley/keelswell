@@ -29,7 +29,7 @@ output-locations:
   - <worktree>/docs/wave-<id>/review-party.md   # required, every wave (register row 51)
   - <worktree>/docs/stories/                # JIT story files
   - pull request against main via gh pr create
-version: 1.3.0
+version: 1.4.0
 ---
 
 # bmad-dev-wave
@@ -69,8 +69,12 @@ re-entered by /bmad-resume-wave.
     docs/wave-<id>/test-design.md.
 4.  Just-in-time story creation for stories not yet on disk.
 4.5 Open-questions gate: scan auto-memory for unresolved questions tagged to
-    this wave's stories; HALT for user input on any hit. Never dispatch
-    parallel subagents past an unfired gate.
+    this wave's stories. On any hit, write the questions to
+    .bmad/wave-<id>/step-4.5.pending and HALT for user input; when the
+    answers are recorded, delete that marker and write step-4.5.done. A
+    session that ends with the marker present has its wave blocked by the
+    SessionEnd hook (see The Hooks). Never dispatch parallel subagents past
+    an unfired gate.
 5.  ATDD scaffolding: failing test stubs per the test design. On completion
     set the status to ready-for-dev.
 6.  Implementation dispatch: set the status to in-progress before dispatching.
@@ -294,6 +298,42 @@ load-bearing waves only, hunting security, cost and platform findings. Neither
 replaces the other, and `docs/wave-<id>/review-party.md` is still required at
 step 11 for every wave. The evaluation records sit beside it.
 
+## The Hooks
+
+Phase 4 of docs/harness-conversion-plan.md. Every rule above was a script's
+exit code that this skill was asked to obey; two hooks now make the tool
+calls that would cross a rule fail on their own. The rules live in
+`scripts/wave_gate.py`, the wrappers in `.claude/hooks/wave-gate.sh`
+(PreToolUse on Write, Edit, MultiEdit, NotebookEdit and Bash) and
+`.claude/hooks/wave-session-end.sh` (SessionEnd), and install.sh registers
+both in a target project's `.claude/settings.json` and asserts all of it under
+`--validate-only`.
+
+What the PreToolUse hook denies, reading only what is on disk:
+
+- **closure**: any write under `_bmad-output/epic-closure/epic-<N>/` while
+  `check_review_records.py --epic N` exits non-zero. /bmad-close-epic's gate,
+  run by the hook at the moment the artifact would be written.
+- **verdict**: any write to `docs/wave-<id>/evaluation-<n>.md` that is not
+  `evaluate_wave.py record`. A verdict typed by the agent it grades is not one.
+- **review**: `wave_status.py set --status in-review` for a wave whose latest
+  evaluation is not PASS. There is no way into the review stage except through
+  step 7's evaluator.
+- **in-place**: after this session records NEEDS_WORK for a wave, any write
+  into that wave's worktree by this session. The findings open the next
+  session; the hook remembers which session recorded the verdict.
+
+A denial arrives as the hook's stderr, naming the rule and the remedy. Do not
+route around it through another tool: Bash is matched on the command's text,
+so a redirect through a variable or a here-doc is not seen, and taking that
+route is the exact obedience failure the hook exists to remove.
+
+What the SessionEnd hook does: a wave whose `.bmad/wave-<id>/step-4.5.pending`
+marker is present when the session ends is set to `blocked`, reason recorded,
+because the question it was waiting on has no answer on disk and the next
+dispatch would walk past it. Ending by `resume` does not count. Sticky as
+always: a human records the answer, deletes the marker, and clears the block.
+
 ## The Closure Gate
 Step 1 refuses to open a wave while an earlier epic is closure-pending
 (register row 51, ruled by RQ 2026-09-10). Closure-pending means every story
@@ -388,8 +428,16 @@ there is nothing to block.
 - review-party.md absent at step 11: refuse to open the pull request until it
   is written. This is the one step-11 refusal, because a wave that lands
   without its review record cannot be reviewed again later.
+- Tool call denied by the wave-gate hook: quote its stderr and do what it
+  names. Do not retry the same write through a different tool.
 
 ## Version history
+- 1.4.0 (2026-09-11, Phase 4 of docs/harness-conversion-plan.md): the rules
+  become hooks. `scripts/wave_gate.py` is the one PreToolUse hook (closure,
+  verdict, review, in-place) and the SessionEnd hook that blocks a wave left
+  paused at step 4.5, which now writes a `step-4.5.pending` marker while it
+  waits. No stage added; every denial is a rule this skill already stated,
+  now failing as a tool call instead of depending on the agent to refuse.
 - 1.3.0 (2026-09-11, Phase 3 of docs/harness-conversion-plan.md): step 7's
   review moves out of this context. It is dispatched to a subagent defined at
   `.claude/agents/keelswell-wave-evaluator.md` whose tool list carries no
