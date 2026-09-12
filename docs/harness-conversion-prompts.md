@@ -375,8 +375,9 @@ the effort. Wait for my go-ahead.
 Opus 5, effort `medium`. Event-triggered, not scheduled. Runs at step
 5a of `upstream-refresh-runbook.md`, after verification and before the
 diff-review commit, so the "what we chose not to adopt" note lands in
-the same commit as the pull. Until Phase 4 is merged, step 1 has
-nothing to report; run steps 2 and 3.
+the same commit as the pull. Step 1 is Phase 4's conformance check
+(merged 2026-09-11); a failure there names the invariant and stops the
+refresh before anything is committed.
 
 ```text
 I just pulled upstream BMAD (or CIS, TEA, or the architecture pack)

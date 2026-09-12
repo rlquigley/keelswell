@@ -108,8 +108,9 @@ resolvers.
    ("Standing item"): confirms the harness enforcement layer survived
    the refresh, diffs upstream's changes against the fork-owned seams,
    and drafts the CHANGELOG entry (what changed, what we chose not to
-   adopt). Until Phase 4 of docs/harness-conversion-plan.md lands, its
-   step 1 has nothing to report; run steps 2 and 3.
+   adopt). Its step 1 is Phase 4's conformance check: the harness
+   invariants and hook checks step 5's --validate-only already ran, read
+   as a pass/fail per invariant. Run all three steps.
 6. Diff-review, commit, merge.
 
 ## Known limitation (F-10, closed for documented installs)

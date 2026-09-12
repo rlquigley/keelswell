@@ -26,7 +26,8 @@ when-not-to-use:
   - Wave ID does not appear in waves.md (refuse with not-found error)
 outputs:
   - .bmad/wave-<id>/resume-from-step-<N>.json
-version: 1.0.0
+  - the re-dispatch's opening prompt, from any open evaluator findings
+version: 1.3.0
 ---
 
 # bmad-resume-wave
@@ -51,8 +52,67 @@ Path: .bmad/wave-<id>/resume-from-step-<N>.json
 On successful auto-detection (or confirmed override), the skill invokes
 /bmad-dev-wave with --wave-id <id> --from-step <N> and exits.
 
+## The Status Router
+The re-entry stage comes from the wave's lifecycle status record, not from
+this skill's reading of the filesystem and not from the conversation:
+
+    python3 {skill-root}/../bmad-dev-wave/scripts/wave_status.py route \
+        --project-root {project-root} --wave <id>
+
+Exit 0 proceeds and its JSON carries `status`, `stage` and `reentry_step`;
+`reentry_step` is the `--from-step` value. Exit 1, 2 or 3 is the refusal;
+quote its stderr. There is no flag and no override.
+
+  0  proceed
+  1  the wave is blocked -- see below
+  2  structural: no wave map, or the wave is not in it
+  3  the record exists and its status is missing or unrecognized
+
+The vocabulary lives in that one script and the table is in /bmad-dev-wave,
+which owns it. Do not restate the status names here and do not re-derive the
+stage by reading files: a second reading that disagrees with the record is the
+inference this phase exists to remove.
+
+A wave with no record yet predates the field. `route` backfills it once from
+the same evidence the probes below gather, prints an `UNMIGRATED` notice
+naming the inferred status, and proceeds. Read that notice before confirming
+the re-dispatch; it is the one dispatch whose stage was guessed rather than
+recorded.
+
+## Blocked is sticky
+Exit 1 means the wave is blocked, and a blocked wave stays blocked on every
+later dispatch **even after its cause is fixed**. This skill cannot clear it,
+--from-step cannot skip past it, and no flag exists to force it. Quote the
+refusal, which names when the wave was blocked and why. Clearing it is a human
+act: edit `status:` in `.bmad/wave-<id>/wave.md` to another valid status, or
+delete that file. Deleting only the `status:` line exits 3 instead.
+
+## The Opening Prompt
+Before re-dispatching, ask whether this wave owes the next session an answer
+to a fresh-context evaluation:
+
+    python3 {skill-root}/../bmad-dev-wave/scripts/evaluate_wave.py \
+        opening-prompt --project-root {project-root} --wave <id>
+
+  0  nothing owed -- no evaluation on disk, or the latest one is PASS
+  1  open findings -- stdout's `prompt` is the opening prompt, verbatim
+  2  structural: no wave map, or the wave is not in it
+  3  an evaluation record carries no readable verdict; repair or delete it
+
+On exit 1, that text opens the re-dispatched session. Use it as written. Do
+not paraphrase it, do not trim the findings to the ones you think matter, and
+do not lead with your own reading of what went wrong -- the evaluator saw a
+context you do not have, and this skill runs precisely when the session that
+could have argued with it is gone.
+
+Phase 3 of docs/harness-conversion-plan.md. The findings reach the next
+session because a script read them off disk, not because a session remembered
+to carry them.
+
 ## State-Inspection Probes
-Five probes run in order: wave-map, worktree, branch, commits, checkpoint.
+The probes no longer decide the stage; they fix the step inside the stage the
+record named, and they still refuse the states below. Five probes run in
+order: wave-map, worktree, branch, commits, checkpoint.
 - Wave-map: the ID resolves to a row in waves.md; refuse otherwise.
 - Worktree: exists at the sibling path? on the expected branch? clean or
   dirty? Refuse to resume a dirty worktree.
@@ -60,24 +120,53 @@ Five probes run in order: wave-map, worktree, branch, commits, checkpoint.
 - Commits: which stories have per-story commits already (foundation commit
   plus per-story pattern for parallel waves; per-story only for serial).
 - Checkpoint: read .bmad/wave-<id>/checkpoint.json and the step-N.done
-  markers; the highest completed marker plus the commit probe fixes the
-  re-entry step.
+  markers. The router already reads both conventions to pick the step within
+  the stage; this probe is what the commit probe is reconciled against, and a
+  disagreement between markers and commits is reported, not resolved silently.
 
 ## Open-Questions Re-Check
 Always re-run, regardless of checkpoint state, in case questions were
-resolved (or new ones recorded) since the original dispatch.
+resolved (or new ones recorded) since the original dispatch. A wave the
+SessionEnd hook blocked because `.bmad/wave-<id>/step-4.5.pending` was still
+present when its session ended is cleared the way every block is: a human
+records the answer, deletes the marker, and edits the record. This skill does
+neither.
 
 ## --from-step Override
-Warn-and-confirm semantics: print the auto-detected step and the override,
-require explicit confirmation before honoring the override.
+Warn-and-confirm semantics: print the routed step and the override, require
+explicit confirmation before honoring the override. The override moves the
+step, never the status: it cannot re-enter a blocked wave, and it cannot turn
+a `done` wave's follow-up review pass back into a resumption.
 
 ## Error Handling
+- Wave blocked: refuse; quote the router's stderr. Not clearable here.
+- Wave record present with an unreadable status: refuse (exit 3). Repair the
+  record or delete it; do not guess the status.
 - Worktree deleted: cannot resume; re-run /bmad-dev-wave fresh (the wave map
   still stands).
 - PR force-pushed by another session: report divergence; ask before
   continuing.
 - Wave already merged and cleaned: nothing to resume; exit 0 with a note.
 - HANDOFF.md Status red: refuse to resume without an explicit override.
+- Evaluation record with no readable verdict (exit 3): refuse; repair or
+  delete the record. Do not resume against a guess at what it said.
+
+## Version history
+- 1.3.0 (2026-09-11, Phase 4 of docs/harness-conversion-plan.md): names the
+  step-4.5 pending marker and the SessionEnd block it produces, so a resumed
+  wave blocked for an unanswered question is read as that and not as drift.
+- 1.2.0 (2026-09-11, Phase 3 of docs/harness-conversion-plan.md): a wave with
+  an open NEEDS_WORK evaluation re-dispatches with the evaluator's findings as
+  its opening prompt, generated from the record on disk by
+  bmad-dev-wave/scripts/evaluate_wave.py rather than recalled by whoever was
+  in the room. That is the half of the generator-evaluator split this skill
+  owns: findings that survive the death of the session that received them.
+- 1.1.0 (2026-09-11, Phase 2 of docs/harness-conversion-plan.md): the
+  re-entry stage comes from the wave's lifecycle status record rather than
+  from this skill's own inference, and a blocked wave refuses here as it does
+  everywhere else. The five probes stay, demoted from deciding the stage to
+  fixing the step within it. The vocabulary is read from
+  bmad-dev-wave/scripts/wave_status.py, which defines it once.
 
 ## See Also
 - /bmad-create-wave: produces the wave map this skill reads.

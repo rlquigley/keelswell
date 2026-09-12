@@ -236,6 +236,31 @@ predictions, left here rather than fixed in passing (RQ, 2026-09-11):
 
 **Estimate:** half a day.
 
+**Carried in from Phase 4**, same rule: found while building that phase, left
+here rather than fixed in passing (RQ, 2026-09-11):
+
+- Neither live instance (ffbapp, isi) has a `.claude/settings.json`; both
+  carry only a personal `settings.local.json`. The hooks
+  `templates/settings.json.template` registers (the em-dash scrub and wrap
+  reminder included, since before this phase) reach a project only on a
+  fresh `--target-project` install. On an existing instance the hook wiring is
+  a hand step, the same surgical copy every skill update has been. Until it
+  is done there, Phase 4's hooks are inert in the two projects that run
+  waves, and the T4 claim holds for fresh installs only.
+- Claude Code's auto-mode classifier refused to write the PreToolUse wrapper
+  (`.claude/hooks/wave-gate.sh`) and to register it in the settings template,
+  while allowing the SessionEnd wrapper and the gate script itself. A hook
+  that can deny tool calls is, to the harness, a change to its own permission
+  layer. Those two files are a hand step for RQ, and a future session that
+  needs to touch either should expect the same refusal and plan for it.
+- The fork's own `.claude/skills/` snapshot was two phases behind `skills/`
+  (Phases 2 and 3 mirrored source only). The conformance check now catches
+  that, but nothing makes the mirror happen: the fork is not a
+  `--target-project`, and a refresh mirrors it as a side effect. Whether the
+  fork should mirror itself on every commit (a pre-commit hook) or accept
+  that its snapshot is refreshed only by a refresh is a Phase 5-sized
+  decision, not a fix.
+
 ## Phase 5: decide what is consumable
 
 Applies only to the 16 fork-only agents. The 22 from upstream modules

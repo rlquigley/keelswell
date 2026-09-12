@@ -3,6 +3,65 @@ All notable changes to Keelswell. Format: Keep a Changelog; versioning: semver.
 
 ## [Unreleased] - 2026-09-11
 ### Added
+- Conformance check and hooks (Phase 4 of docs/harness-conversion-plan.md):
+  install.sh phase 6 asserts the enforcement layer Phases 1-3 built, and two
+  hooks make the rules those phases stated fail as tool calls.
+  bmad-dev-wave 1.3.0 -> 1.4.0, bmad-close-epic 1.3.0 -> 1.4.0,
+  bmad-resume-wave 1.2.0 -> 1.3.0.
+  **The check.** After every install and under `--validate-only`, phase 6
+  asserts, in both `skills/` (the source) and `.claude/skills/` (the snapshot
+  an upstream refresh rewrites): the closure gate script exists and is
+  executable and `bmad-close-epic/SKILL.md` calls it; `wave_status.py`
+  exists and is executable and all five wave skills reference it;
+  `wave_gate.py` exists and is executable; and the evaluator's tool list
+  passes `evaluate_wave.py check`, which is Phase 3's own refusal reused
+  rather than a second parser. Then the two hook wrappers exist, are
+  executable, and are registered (in a target's `.claude/settings.json`; in
+  the fork, which has none, in the template). A failure names the invariant
+  and exits 7 (Table I.13: a runtime file is missing or a skill failed to
+  load); nothing is repaired. `--validate-allowlist` gains the scripts and
+  wrappers as must-exist files. Demonstrated by breaking four invariants
+  under `--validate-only` (evaluator declares Write; close-epic loses the
+  gate call; `wave_status.py` deleted from the snapshot; gate script loses
+  its exec bit), each failing with exit 7 and passing after repair.
+  **The hooks.** `skills/bmad-dev-wave/scripts/wave_gate.py` is the one
+  PreToolUse hook the plan asked for, wrapped by `.claude/hooks/wave-gate.sh`
+  on Write, Edit, MultiEdit, NotebookEdit and Bash. Four rules, each read off
+  disk: *closure* (nothing is written under
+  `_bmad-output/epic-closure/epic-<N>/` while `check_review_records.py --epic
+  N` exits non-zero); *verdict* (`docs/wave-<id>/evaluation-<n>.md` is written
+  by `evaluate_wave.py record` and nothing else); *review* (`wave_status.py
+  set --status in-review` is denied unless the wave's latest evaluation is
+  PASS); *in-place* (the session that recorded NEEDS_WORK cannot write into
+  that wave's worktree afterwards; the hook notes the session id when it sees
+  `record`). The SessionEnd half, `.claude/hooks/wave-session-end.sh`, blocks
+  any wave whose `.bmad/wave-<id>/step-4.5.pending` marker is present when a
+  session ends other than by `resume`; step 4.5 now writes that marker while
+  it waits and removes it when the answer is recorded. Bash is matched on the
+  command's text, a substring test and not a parse: a redirect through a
+  variable, a prior `cd`, or a here-doc is not seen, and that is the named
+  gap. 28 stdlib unittest cases in `scripts/tests/test_wave_gate.py`.
+  **Prediction, to be checked at the next refresh.** Would catch: the
+  installer ceasing to copy a custom skill's subdirectories (scripts/ gone
+  from the snapshot); the installer rewriting files through a content writer
+  that drops the exec bit; BMAD adopting `.claude/agents/` as an IDE-owned
+  target and wiping or regenerating the evaluator (the same class as the
+  2026-07-19 `.agents/` incident); upstream shipping a same-id
+  `bmad-close-epic` or `bmad-dev-wave` whose precedence over the fork's copy
+  flips, so the snapshot's SKILL.md no longer names the gate script; a
+  template or copy path change that leaves the hook wrappers unregistered or
+  non-executable. Would miss: prose drift inside a wave skill that keeps the
+  reference string but stops obeying the exit code; the installer moving
+  `_bmad-output/planning-artifacts/waves.md` or the `.bmad/wave-<id>/`
+  convention, which leaves every script present, wired and exiting 2 on
+  every run; Claude Code changing what a subagent's `tools:` list or a
+  PreToolUse exit 2 means, which the check reads but cannot verify the
+  harness honours; and any Bash route to a guarded file that does not name
+  it. Also found: the fork's own `.claude/skills/` snapshot was two phases
+  behind `skills/` (Phases 2 and 3 mirrored source only), so the fork's own
+  sessions were loading pre-Phase-2 wave skills. Mirrored by hand, the act
+  Phase 1 performed; the check would have caught it. The phase-5 copy loop
+  now prunes `__pycache__` (carried in from Phase 1).
 - A wave evaluator that cannot edit: `.claude/agents/keelswell-wave-evaluator.md`
   and `skills/bmad-dev-wave/scripts/evaluate_wave.py` (Phase 3 of
   docs/harness-conversion-plan.md). bmad-dev-wave 1.2.0 -> 1.3.0,

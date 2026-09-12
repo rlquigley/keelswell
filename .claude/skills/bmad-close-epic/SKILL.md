@@ -33,7 +33,7 @@ output-locations:
   - _bmad-output/epic-closure/epic-<N>/retrospective.md
   - a docs-only branch pushed to origin, and a pull request against main
   - every existing story file of the epic set to Status: done
-version: 1.3.0
+version: 1.4.0
 ---
 
 # bmad-close-epic
@@ -102,6 +102,12 @@ this gate exists to remove.
   1  a wave landed on or after the rule date with no record
   2  structural: no wave map, or the epic has no waves in it
   3  a wave with no record could not be dated
+
+The same script also runs from the PreToolUse hook the moment anything is
+written under `_bmad-output/epic-closure/epic-<N>/` (Phase 4 of
+docs/harness-conversion-plan.md, `bmad-dev-wave/scripts/wave_gate.py`). A
+closure whose gate fails cannot be written, whether or not step 1 ran the
+script; the hook's stderr carries the same refusal.
 
 **A wave carries a review record** when `docs/wave-<id>/review-party.md`
 exists, or when `docs/wave-<id>/api-surface.md` carries a "Party-review
@@ -188,6 +194,10 @@ five files on the same branch.
   main merely behind origin is not divergence: fast-forward and continue.
 
 ## Version history
+- 1.4.0 (2026-09-11, Phase 4 of docs/harness-conversion-plan.md): the gate is
+  enforced by the PreToolUse hook as well as by step 1. Writing any closure
+  artifact for an epic whose gate exits non-zero is denied at the tool call.
+  The rule and the script are unchanged.
 - 1.3.0 (2026-09-11, Phase 1 of docs/harness-conversion-plan.md): the review-
   record condition moves from prose into
   `scripts/check_review_records.py`, which the skill calls and whose exit code

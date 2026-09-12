@@ -212,6 +212,7 @@ PY
   echo "  Scaffolding $T/_bmad-output/ ... done (7 subdirectories)"
   mkdir -p "$T/.claude/skills" "$T/.claude/hooks" "$T/.claude/rules" "$T/.claude/agents"
   for s in skills/*; do rm -rf "$T/.claude/skills/$(basename "$s")"; cp -r "$s" "$T/.claude/skills/$(basename "$s")"; done
+  find "$T/.claude/skills" -name __pycache__ -type d -prune -exec rm -rf {} +
   cp .claude/hooks/*.sh "$T/.claude/hooks/" && chmod +x "$T/.claude/hooks/"*.sh
   # Fork-owned Claude Code subagent definitions (Phase 3). Not BMAD personas:
   # the installer never reads .claude/agents/, which is why the evaluator can
@@ -245,11 +246,73 @@ allowlist_check() {
            _bmad/config.toml _bmad/_config/bmad-help.csv \
            _bmad/bmb/config.yaml _bmad/bmm/config.yaml _bmad/cis/config.yaml \
            _bmad/core/config.yaml _bmad/tea/config.yaml _bmad/custom/config.toml \
-           .claude/settings.json .claude/agents/keelswell-wave-evaluator.md; do
+           .claude/settings.json .claude/agents/keelswell-wave-evaluator.md \
+           .claude/skills/bmad-close-epic/scripts/check_review_records.py \
+           .claude/skills/bmad-dev-wave/scripts/wave_status.py \
+           .claude/skills/bmad-dev-wave/scripts/evaluate_wave.py \
+           .claude/skills/bmad-dev-wave/scripts/wave_gate.py \
+           .claude/hooks/wave-gate.sh .claude/hooks/wave-session-end.sh; do
     [ -e "$base/$f" ] || { echo "  allowlist gap: $base/$f missing"; gaps=1; }
   done
   [ "$gaps" -eq 0 ] || exit 6
   echo "  Allowlist: ok"
+}
+
+# Phase 4 of docs/harness-conversion-plan.md: the enforcement layer Phases 1-3
+# built is asserted after every install and under --validate-only. These checks
+# read; they never repair. A failure names the invariant and phase 6 exits 7
+# (Table I.13: a runtime file is missing or a skill failed to load).
+WAVE_SKILLS="bmad-create-wave bmad-dev-wave bmad-merge-wave bmad-resume-wave bmad-status-wave"
+
+harness_check() {
+  # $1: the skills root to assert. skills/ is the fork's source; .claude/skills
+  #     is the snapshot an upstream refresh rewrites, so both are checked.
+  # $2: the project root whose .claude/agents/ the evaluator check reads.
+  local root="$1" base="$2" bad=0 s missing err
+  local gate="$root/bmad-close-epic/scripts/check_review_records.py"
+  local vocab="$root/bmad-dev-wave/scripts/wave_status.py"
+  local evaluate="$root/bmad-dev-wave/scripts/evaluate_wave.py"
+  echo "  Harness invariants under $root/:"
+  if [ -x "$gate" ]; then echo "    gate script present and executable ... ok"
+  else echo "    gate script present and executable ... FAIL ($gate)"; bad=1; fi
+  if grep -q 'scripts/check_review_records.py' "$root/bmad-close-epic/SKILL.md" 2>/dev/null; then
+    echo "    gate wired into bmad-close-epic ... ok"
+  else echo "    gate wired into bmad-close-epic ... FAIL ($root/bmad-close-epic/SKILL.md does not call scripts/check_review_records.py)"; bad=1; fi
+  if [ -x "$vocab" ]; then echo "    status vocabulary present and executable ... ok"
+  else echo "    status vocabulary present and executable ... FAIL ($vocab)"; bad=1; fi
+  missing=""
+  for s in $WAVE_SKILLS; do
+    grep -q 'wave_status.py' "$root/$s/SKILL.md" 2>/dev/null || missing="$missing $s"
+  done
+  if [ -z "$missing" ]; then echo "    every wave skill references wave_status.py ... ok"
+  else echo "    every wave skill references wave_status.py ... FAIL (missing in:$missing)"; bad=1; fi
+  if [ -x "$root/bmad-dev-wave/scripts/wave_gate.py" ]; then echo "    hook script wave_gate.py present and executable ... ok"
+  else echo "    hook script wave_gate.py present and executable ... FAIL ($root/bmad-dev-wave/scripts/wave_gate.py)"; bad=1; fi
+  if [ -f "$evaluate" ] && err=$(python3 "$evaluate" check --project-root "$base" 2>&1 >/dev/null); then
+    echo "    evaluator subagent declares no writing tool ... ok"
+  else
+    echo "    evaluator subagent declares no writing tool ... FAIL"
+    [ -f "$evaluate" ] && printf '%s\n' "$err" | sed 's/^/      /' || echo "      ($evaluate missing)"
+    bad=1
+  fi
+  return "$bad"
+}
+
+hooks_check() {
+  # $1: the project root. The two hook wrappers must exist, be executable, and
+  # be registered. The fork has no .claude/settings.json of its own (hooks are
+  # resolved into a target project from the template), so there the template
+  # is the registration that is checked.
+  local base="$1" bad=0 h settings="$1/.claude/settings.json"
+  [ -f "$settings" ] || settings="templates/settings.json.template"
+  echo "  Harness hooks under $base/.claude/hooks/ (registration: $settings):"
+  for h in wave-gate.sh wave-session-end.sh; do
+    if [ -x "$base/.claude/hooks/$h" ]; then echo "    $h present and executable ... ok"
+    else echo "    $h present and executable ... FAIL ($base/.claude/hooks/$h)"; bad=1; fi
+    if grep -q "\.claude/hooks/$h" "$settings" 2>/dev/null; then echo "    $h registered ... ok"
+    else echo "    $h registered ... FAIL (not named in $settings)"; bad=1; fi
+  done
+  return "$bad"
 }
 
 phase6_validation() {
@@ -261,6 +324,14 @@ phase6_validation() {
     echo "  ERROR: leftover agent tokens in skills/ or agents/"; exit 7
   fi
   echo "  skills/ and agents/: no leftover tokens ... ok"
+  local base="${TARGET_PROJECT:-.}" harness_bad=0
+  harness_check skills "$FORK_ROOT" || harness_bad=1
+  harness_check "$base/.claude/skills" "$base" || harness_bad=1
+  hooks_check "$base" || harness_bad=1
+  if [ "$harness_bad" -ne 0 ]; then
+    echo "  ERROR: harness invariant failed (named above). Nothing was repaired; restore the file and re-run --validate-only."; exit 7
+  fi
+  echo "  Harness invariants: ok"
   if command -v keelswell >/dev/null 2>&1; then
     echo "  keelswell command on PATH ... ok ($(command -v keelswell))"
   else
