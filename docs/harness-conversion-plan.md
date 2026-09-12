@@ -272,10 +272,177 @@ accumulated. `[[anthropic-cwc-long-running-agents]]` gives the same
 advice from practice: "re-evaluate how much of CLAUDE.md you still need
 after each model release."
 
-This is deliberately last. It is the lowest-value phase and the easiest
-to argue about; the first four change what Keelswell is.
+This was written to be last. It is the lowest-value phase and the
+easiest to argue about; the first four change what Keelswell is.
+
+**Done 2026-09-12:** `agent-inventory.md`, assessed against the Claude
+5 family. Six earn their place, seven are consumable, three could not
+answer and are not recommended for deletion. The pass also found that
+nothing in the wave loop calls any of the sixteen, which is why
+Phase 6 exists and why this is no longer the last phase.
 
 **Estimate:** ongoing, one pass per model release.
+
+## Phase 6: call the agents the wave needs
+
+Phase 5's inventory (`agent-inventory.md`, 2026-09-12) produced one
+finding that outranks its own verdicts: **no wave skill references any
+of the sixteen fork-only agents.** `bmad-dev-wave` step 10 hardcodes
+three domains, "dispatch security, cost, and platform reviewers", and
+nothing anywhere selects a reviewer from what the wave actually
+touches. Waves 4A and 4B landed the model work with no Damer Flinn,
+and 4B is where the defect 5D eventually caught originated.
+
+That is why twelve of the sixteen have no evidence. It is an absence of
+dispatch, not an absence of value, and it means Phase 5's groupings
+rest on planning-phase reviews for most of the slate.
+
+Five items, sequenced. All but the first are small; the first is the
+phase.
+
+### 6.1 Record the model in every wave review record
+
+Cheapest and first, because everything else is measured against it.
+Review records do not say which model produced them, so Phase 5's
+inventory cannot be recomputed exactly against its own evidence and
+the next pass inherits the same blindness. Add `model:` and `effort:`
+to the front matter of `docs/wave-<id>/review-party.md`, written by
+`bmad-dev-wave` step 10.
+
+Scoped to the wave record deliberately. `bmad-party-mode` is upstream,
+not fork-owned, so stamping the planning-phase reviews it writes would
+open the conflict surface this plan avoids. Those stay unstamped. The
+loss is bounded: planning is largely done on ffbapp, and wave records
+are where the next inventory's evidence will come from. If a
+`_bmad/custom/bmad-party-mode.toml` override turns out to be able to
+inject front-matter fields rather than only workflow variables, revisit
+it then; do not assume it can.
+
+**Verify:** the next wave's `review-party.md` names its model.
+
+**Estimate:** 20 minutes.
+
+### 6.2 Refresh ffbapp's nine stale agent codes
+
+ffbapp keys nine of the fifteen custom agents under their pre-0.5.0
+persona codes (`agent-setalle-anan`, `agent-tam-althor`,
+`agent-hurin`, `agent-gareth-bryne`, `agent-damer-flinn`,
+`agent-bayle-domon`, `agent-juilin-sandar`, `agent-jain-farstrider`,
+`agent-tuon`). Its `config.toml` and skill directories agree with each
+other, so nothing is broken today. But 6.3 is written against role
+codes and would silently miss those nine on the only instance that
+runs waves. Sequence this before 6.3 or 6.3 ships inert.
+
+Surgical per-skill copy per `upstream-refresh-runbook.md`, the same
+hand step every instance update has been.
+
+**Verify:** `resolve_party.py` returns all sixteen under role codes.
+
+**Estimate:** one hour.
+
+### 6.3 A reviewer-selection script, not a reviewer-selection rule
+
+Replace step 10's hardcoded three with a selection driven by the
+wave's changed-file list. The sixteen triggers are already written in
+`agent-inventory.md` in checkable form: each can be answered yes or no
+from the file list and spec without judgment.
+
+Build it as `skills/bmad-dev-wave/scripts/select_reviewers.py` reading
+a YAML trigger table, printing the reviewer set. **The script is the
+point.** A selection rule written as prose in the SKILL.md lands in
+the layer `[[structure-transfers-prose-does-not]]` says regresses when
+moved; the same logic as a script and a table is dispatch, which is
+the layer that transfers. This is also the convention upstream already
+uses (`bmad-party-mode/scripts/`), so it travels with the skill
+directory and survives a refresh.
+
+The rule the table encodes is **necessity, not a budget**: if eight
+domains are genuinely in the diff, call eight; if one is, call one. No
+cap, because a cap means choosing which real gaps to skip looking for.
+What keeps it affordable is trigger precision, not a headcount limit.
+
+The fixed three lose their exemption at the same time. If necessity
+decides, dispatching security, cost and platform on every load-bearing
+wave is wrong in the same direction as never dispatching the
+specialists. Wave 5B's clean result is already on record as a review
+that found nothing.
+
+Adds no agent, so it does not violate "do not add agents" below: it
+routes to the sixteen already declared.
+
+**Verify:** a wave touching no infrastructure dispatches no platform
+reviewer, and a wave touching a webhook receiver dispatches
+`agent-billing`, both provable from the script's output before the
+wave runs.
+
+**Estimate:** half a day.
+
+### 6.4 One ablation wave for the three unanswered agents
+
+`agent-web-designer`, `agent-design-critic` and `core-bmad-master` have
+zero activations across 87 transcripts. Phase 5 does not recommend
+deleting them; it recommends finding out.
+
+Two of the three answer in a single wave, the first that ships a
+rendered surface: dispatch the web designer to build with its
+five-step verification loop (the only real structure in the slate, and
+it has never run), then the design critic against the result. If the
+critic's list contains nothing the builder's own pass missed, the
+independence claim buys nothing and one of the two is enough.
+
+`core-bmad-master` needs no wave. Name one request that should route to
+it and does not already route to `bmad-help` or to skill routing. If
+that sentence cannot be written, the entry stays unanswered and costs
+one roster line in party mode.
+
+**Verify:** the wave's review record names what each of the two filed,
+and whether the lists overlap.
+
+**Estimate:** rides an existing wave. Blocked until a phase ships a
+user interface.
+
+### 6.5 Collapse the eight duplicate agent files
+
+Eight `agents/custom-*.md` files are byte-identical to their
+`skills/agent-*/SKILL.md` (accessibility, analytics, design-critic,
+growth, legal, ml, sre, web-designer). The other seven use the better
+pattern already: a short persona descriptor over a richer skill. Two
+copies of the same prose drift independently, and the fork has two
+generations of the slate living side by side.
+
+Lowest value of the five. It is maintenance hygiene on the consumable
+layer, which is the layer this plan says not to invest in, so it goes
+last and only because duplication costs maintenance rather than
+capability.
+
+**Verify:** a fresh `--target-project` install produces the same
+roster before and after, count-asserted.
+
+**Estimate:** two hours.
+
+### Party mode is not in scope
+
+Standing rule, verified 2026-09-12 and unchanged by 6.3: when
+`bmad-party-mode` is initiated, every agent is in the room. Trigger
+selection is for the wave loop only. The resolver already does this
+(`"active": "installed"`, a room of 38) because `default_party` is
+`""`, so the rule is preserved by **not** setting it. Any change that
+sets `default_party` to a configured group shrinks the default room and
+breaks this.
+
+### Predicted impact
+
+Per the standing discipline below. **Predicted:** 6.3 raises the
+finding count on model-touching and payment-touching waves and lowers
+reviewer count on waves that touch neither. **At risk:** review cost
+per wave, and the failure mode is not an expensive review but a review
+that gets skipped because it became expensive. Wave 3C already ran with
+no adversarial review at all. If average reviewer dispatches per wave
+rise rather than redistribute, the triggers are too loose; tighten
+before concluding anything about the agents.
+
+**Estimate:** one day for 6.1 through 6.3, which is the part that
+changes behaviour. 6.4 rides a wave; 6.5 is two hours whenever.
 
 ## Standing item: upstream drift
 
