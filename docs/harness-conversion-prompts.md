@@ -326,6 +326,14 @@ the one thing you are least sure about. Wait for my go-ahead.
 
 Opus 5, effort `high`.
 
+Ran 2026-09-12, merged as PR #17. The prompt worked, but two of its
+assumptions did not. It asked for an example "from a real wave", and
+for most of the sixteen the usable evidence turned out to be
+planning-phase party reviews with per-seat attribution, not waves. And
+it framed Group 3 as agents nobody can name a failure for, when the
+actual cause was that no wave skill calls any of them. That finding is
+now Phase 6.
+
 ```text
 Start Phase 5 of the keelswell harness conversion. Phases 1 through 4
 are merged.
@@ -368,6 +376,231 @@ Constraints:
 Before writing the document: tell me which agents you expect to land
 in each group and why, so I can correct your priors before you spend
 the effort. Wait for my go-ahead.
+```
+
+## Phase 6: call the agents the wave needs
+
+Five items. 6.1 ran 2026-09-12 and merged as PR #18; its prompt is not
+kept, because it was a twenty-minute edit whose only surprise is
+already recorded in the plan (there was no front matter to add to).
+
+Order matters: **6.2 gates 6.3.** 6.3's trigger table is written
+against role codes, and ffbapp still keys nine agents under persona
+codes, so 6.3 shipped first is inert on the only instance that runs
+waves. 6.5 is independent. 6.4 is blocked until something ships a user
+interface.
+
+### Phase 6.2: refresh ffbapp's nine stale agent codes
+
+Fable 5.1, effort `xhigh`. Same reasoning as Phases 0 and 4: this
+edits an installed tree rather than the fork, and its failure mode is
+silent. A dropped roster entry does not error, it just means a seat
+stops appearing in party mode and nobody notices for a month.
+
+**Run this session from the ffbapp root, not keelswell.**
+
+```text
+Run item 6.2 of the keelswell harness conversion. Read
+docs/harness-conversion-plan.md in ../keelswell first (Phase 6), then
+docs/agent-inventory.md there, section "Party mode: all sixteen are
+seated".
+
+This session edits ffbapp's installed BMAD tree. It does not edit the
+keelswell fork. Do not change any skill's behaviour; this is a rename
+of nine agent codes and nothing else.
+
+The problem: keelswell renamed nine custom agents from persona form to
+role form in v0.5.0 on 2026-07-20 (agent-tam-althor -> agent-sre,
+agent-tuon -> agent-growth, agent-setalle-anan -> agent-accessibility,
+agent-hurin -> agent-analytics, agent-gareth-bryne -> agent-legal,
+agent-damer-flinn -> agent-ml, agent-bayle-domon -> agent-billing,
+agent-juilin-sandar -> agent-appsec, agent-jain-farstrider ->
+agent-performance). ffbapp never refreshed. Its _bmad/config.toml and
+its .claude/skills/ directories both still use the persona codes, so
+they agree with each other and nothing is visibly broken today. But
+item 6.3 builds a reviewer-selection table against role codes, and it
+would silently match nothing here.
+
+Before changing anything, record the baseline so the verification has
+something to compare against:
+
+  uv run .claude/skills/bmad-party-mode/scripts/resolve_party.py \
+    --project-root . --skill .claude/skills/bmad-party-mode
+
+Note the room size and which of the sixteen fork-only agents are
+seated. It should be 38 and all 16.
+
+Then find every place a persona code appears. At minimum:
+_bmad/config.toml ([agents.*] table names), the .claude/skills/
+directory names, _bmad/custom/module-help.csv, and anything under
+_bmad/custom/. Search for all nine, do not assume that list is
+complete, and report what you found before editing.
+
+Follow ../keelswell/docs/upstream-refresh-runbook.md. This is the
+surgical per-skill copy, not a full installer run. Do not run
+`npx bmad-method install`: the runbook's class D says the installer
+wipes and re-copies directories it owns, and this instance carries
+local state that has not been reconciled with the fork in two months.
+
+Verify, and paste the output:
+1. resolve_party.py returns a room of 38 with all 16 fork-only agents
+   seated, now under role codes.
+2. No persona code survives anywhere: grep for all nine across the
+   repo and show a clean result.
+3. Activating one renamed skill still works. Pick agent-appsec (it is
+   the one with a real activation on record) and confirm it resolves.
+
+Do not touch _bmad-output/. The historical artifacts cite personas by
+display name, which is unchanged; only the skill codes move.
+
+Before touching anything: tell me which files you found the nine codes
+in, whether any of them surprised you, and what you think is most
+likely to break. Wait for my go-ahead.
+```
+
+### Phase 6.3: a reviewer-selection script
+
+Opus 5, effort `xhigh`. Bounded and fully specified: the triggers are
+already written. The judgment is in the table, not the code.
+
+Run from the keelswell root. Requires 6.2 merged.
+
+```text
+Start item 6.3 of the keelswell harness conversion. 6.1 and 6.2 are
+merged.
+
+Read docs/harness-conversion-plan.md, Phase 6, item 6.3. Then read
+docs/agent-inventory.md in full: every one of the sixteen entries ends
+with a Trigger line, and those lines are the input to this work. Do
+not re-derive them.
+
+What to build: skills/bmad-dev-wave/scripts/select_reviewers.py plus a
+YAML trigger table beside it. Given a wave's changed-file list (and
+its spec where a trigger needs it), it prints the set of reviewers to
+dispatch. Step 10 of bmad-dev-wave calls it instead of hardcoding
+"security, cost, and platform".
+
+The script is the point. A selection rule written as prose in the
+SKILL.md sits in the layer that regresses when moved to another model;
+the same logic as a script plus a table is dispatch, which transfers.
+See ../harness-wiki/wiki/concepts/structure-transfers-prose-does-not.md
+if you want the evidence. Put it under the skill's own scripts/
+directory, the convention upstream already uses, so it travels with
+the skill and survives a refresh. Not _bmad/scripts/: the installer
+owns that and wipes it.
+
+The rule the table encodes is necessity, not a budget. If eight
+domains are genuinely in the diff, it returns eight. If one is, it
+returns one. Do not add a cap, a maximum, or a "top N most relevant".
+A cap means choosing which real gaps to skip looking for.
+
+What keeps it affordable is trigger precision. Every trigger must be
+answerable yes or no from the file list and spec without judgment. If
+you find yourself writing a trigger that needs interpretation, the
+trigger is wrong, not the rule.
+
+The fixed three lose their exemption in the same change. Security,
+cost and platform become entries in the table like everything else. A
+wave touching no infrastructure should return no platform reviewer.
+
+Also decide, and tell me your recommendation before implementing:
+whether install.sh's harness_check should assert this script the way
+it asserts wave_status.py and wave_gate.py. There is an argument both
+ways and I want your read on it.
+
+Housekeeping this repo expects, from the 6.1 commit as the model:
+bump the skill version and add a version-history entry; mirror the
+edit into .claude/skills/; add a CHANGELOG entry under [Unreleased];
+mark 6.3 done in the plan. Run `bash install.sh --validate-only` and
+paste the harness-invariant block.
+
+Verify with real data, not invented examples: ffbapp has eighteen
+waves under ../ffbapp/docs/wave-*/. Run the selector against several
+of their actual changed-file lists and show what it returns. Wave 4A
+and 4B landed model work and should pull agent-ml. Waves that touched
+no infrastructure should not pull a platform reviewer.
+
+Before writing code: state your approach, show me the trigger table's
+shape for three agents, and name your biggest uncertainty. Wait for my
+go-ahead.
+```
+
+### Phase 6.4: one ablation wave for the three unanswered agents
+
+No separate session. This rides the first wave that ships a rendered
+surface, so keep it here until that wave exists and then paste it into
+that wave's kickoff.
+
+```text
+This wave also runs item 6.4 of the keelswell harness conversion. Read
+docs/agent-inventory.md, Group 3, in ../keelswell.
+
+agent-web-designer and agent-design-critic have never been activated.
+This is the first wave with a surface they could act on, so it is the
+experiment.
+
+At the build step, dispatch agent-web-designer and let it run its own
+five-step verification loop (browser at 375, 768 and 1280, each in
+light and dark, screenshot and read rather than assume the CSS
+worked). That loop is the only real structure in the custom slate and
+it has never run once.
+
+Then dispatch agent-design-critic against the result, and record its
+defect list separately.
+
+The question this answers: does the critic's list contain anything the
+builder's own verification pass already caught? Record the overlap
+explicitly in the wave's review record. If the lists are effectively
+the same, the independence claim buys nothing and one of the two is
+enough. If they diverge, both earn their place and the inventory moves
+them out of Group 3.
+
+Do not merge the two dispatches into one agent to save a turn. The
+separation is the experiment.
+```
+
+### Phase 6.5: collapse the eight duplicate agent files
+
+Opus 5, effort `high`. Mechanical, but the installer reads `agents/`
+for the roster, so the verification matters more than the edit.
+
+Run from the keelswell root. Independent of 6.2 and 6.3.
+
+```text
+Run item 6.5 of the keelswell harness conversion. Read
+docs/harness-conversion-plan.md, Phase 6, item 6.5.
+
+Eight files under agents/ are byte-identical to their
+skills/agent-*/SKILL.md: accessibility, analytics, design-critic,
+growth, legal, ml, sre, web-designer. Confirm that yourself before
+acting; do not take my word for it.
+
+The other seven custom agents use a better pattern already: agents/ carries
+a short persona descriptor and the skill carries the procedure.
+Compare agents/custom-appsec.md against skills/agent-appsec/SKILL.md
+to see the shape. Convert the eight to match it.
+
+This is maintenance on the consumable layer, which this plan says not
+to invest in, so keep it strictly mechanical. Do not improve the
+prose, do not rewrite a capability menu, do not fix anything you
+notice in passing. Mention what you noticed instead.
+
+The risk is the installer. It reads agents/ to build the roster, so
+verify the roster is unchanged rather than assuming:
+1. Count [agents.*] tables produced by a fresh `--target-project`
+   install before and after. They must match, and the count must be
+   asserted, not eyeballed.
+2. resolve_party.py on the target returns the same room size and the
+   same sixteen fork-only agents.
+3. `bash install.sh --validate-only` passes both trees.
+
+Housekeeping: bump nothing (no skill behaviour changes), but add a
+CHANGELOG entry under [Unreleased], mirror anything that needs
+mirroring into .claude/skills/, and mark 6.5 done in the plan.
+
+Before editing: show me the diff you intend for one of the eight and
+name what you think the installer will do with it. Wait for my
+go-ahead.
 ```
 
 ## Standing item: after every upstream pull
