@@ -261,6 +261,21 @@ All notable changes to Keelswell. Format: Keep a Changelog; versioning: semver.
   post-rule.
 
 ### Changed
+- Eight `agents/custom-*.md` files collapsed to persona descriptors (Phase
+  6.5 of docs/harness-conversion-plan.md): accessibility, analytics,
+  design-critic, growth, legal, ml, sre, web-designer. Each was
+  byte-identical to its `skills/agent-*/SKILL.md`; each now carries the H1,
+  a provenance paragraph, and the overview paragraph verbatim, the shape the
+  other seven custom agents already use, with the procedure living only in
+  the skill. No prose edited, no skill changed, nothing bumped, nothing to
+  mirror. The plan's premise that the installer reads `agents/` to build the
+  roster was wrong: `[agents.*]` tables come from `module.yaml` alone
+  (collectAgentsFromModuleYaml) and an install never copies `agents/` into a
+  target. Verified anyway: a fresh `--target-project` install before and
+  after emits the same 38 `[agents.*]` tables with the same codes
+  (count-asserted), `resolve_party.py` on the target returns the same room
+  of 38 and the same sixteen fork-only agents, and `--validate-only` passes
+  both trees.
 - Upstream refresh: bmad-method 6.10.0 -> 6.12.0 (Phase 0 of
   docs/harness-conversion-plan.md; runbook docs/upstream-refresh-runbook.md,
   invocation pinned to `npx bmad-method@6.12.0`, no `--modules`). What
