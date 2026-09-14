@@ -30,7 +30,7 @@ output-locations:
   - <worktree>/.bmad-changed.txt            # reviewer-selection input, step 10
   - <worktree>/docs/stories/                # JIT story files
   - pull request against main via gh pr create
-version: 1.6.0
+version: 1.7.0
 ---
 
 # bmad-dev-wave
@@ -391,13 +391,29 @@ this affordable is trigger precision: every pattern in
 and the spec, with no judgment. A trigger needing interpretation is a wrong
 trigger, not a wrong rule -- fix the table, do not overrule its output.
 
-**Zero reviewers is a possible answer.** Measured over ffbapp's eighteen
-waves, four return none: their diffs are grammar ASTs, test fixtures and
-contract registries that touch no reviewer's domain. Exit code 0, empty
-`selected`. The wave still writes its review record naming that case; see The
-Review Record. Whether a zero-selection load-bearing wave should also get a
-domain-less adversarial pass is an open founder ruling, not this script's
-call.
+**Zero reviewers is a possible answer, and it is not zero review.** When no
+row fires, the JSON carries a `fallback` instead of an empty answer: a method
+rather than a seat, dispatched as plain subagents under the brief the table
+carries. Dispatch it exactly as written and record the review with
+`record_as`, never as though a trigger fired.
+
+The method is ffbapp's own. Waves 3A and 3D both ran real reviews under no
+persona's name -- "mutation-based correctness review", "specimen
+expressiveness review", "real-sheet execution review" -- and 3D's record says
+it ran "under the wave 3A pattern". That review found two HIGH findings on 3A
+that no seat in the table would have looked for. Waves 3C and 4A got no review
+at all and both are load-bearing. This block is why that cannot happen again.
+
+It is not the step-7 evaluator twice. That one reads: fresh context,
+Read/Glob/Grep, no Bash. This one executes, which is the standing party brief:
+a finding is proved by execution or by mutation, never by reading.
+
+**The table is the whole roster.** All 38 agents in `config/agent-names.yaml`
+have a row, asserted by test, so a missing trigger is visible in one file
+rather than needing a count. Four rows are inert and each says why:
+custom-bizops and core-bmad-master because the inventory ruled so,
+custom-web-designer and bmm-dev because both build rather than review and a
+builder grading its own build is what Phase 3 separated.
 
 **Party mode is unaffected.** Trigger selection is for this step only. When
 bmad-party-mode is initiated, every agent is in the room; that rule is
@@ -417,9 +433,11 @@ sometimes an expected absence:
 - the review ran and found nothing: say so, and still record the reviewers,
   their domains, and what each attacked. Wave 5B's clean result is exactly
   what got lost by leaving it in a commit message;
-- the selector returned no reviewers: say so, and record the changed-file
-  count and the spec files it read, so the empty answer can be re-derived.
-  Four of ffbapp's eighteen waves return none;
+- the selector returned no reviewers and the fallback ran: say so, name the
+  method, and record the changed-file count and the spec files it read so the
+  empty answer can be re-derived. Mark it with the fallback's `record_as`, not
+  as a fired trigger: a record that cannot tell the two apart cannot be
+  checked against the table later;
 - the review did not run (the wave is not load-bearing, or --no-party): a
   short record naming which case applies and why. Under --no-party the record
   from the prior session must already exist on disk; if it does not, refuse
@@ -510,6 +528,23 @@ there is nothing to block.
   names. Do not retry the same write through a different tool.
 
 ## Version history
+- 1.7.0 (2026-09-14, Phase 6.3 of docs/harness-conversion-plan.md, second
+  pass): the trigger table becomes the whole 38-agent roster and gains a
+  fallback. A sweep of every seat against the four ffbapp waves that selected
+  nobody found three with a real trigger and no row -- tea-murat (fixtures,
+  conftest, verify scripts, CI lanes), arch-data-architect (migrations, models,
+  schema) and arch-integration-architect (routes, OpenAPI, protobuf) -- of
+  which the data architect had been missing from ten of eighteen waves that
+  changed database schema. The remaining seventeen were given triggers on
+  founder instruction and all but bmm-dev fire on an artifact rather than on
+  code. When no row fires at all the table's `fallback` is returned: the wave
+  3A pattern, two concurrent reviewers with disjoint mutation domains and a
+  held-back verification pass, which is the method ffbapp's own 3A and 3D
+  reviews used under no persona's name. A fifth precision rule is recorded:
+  structural BMAD vocabulary is never a trigger, because "acceptance criterion"
+  and "functional requirement" appear in every test design by construction and
+  fired bmm-qa and bmm-pm on nine of eighteen waves apiece before they were
+  dropped.
 - 1.6.0 (2026-09-14, Phase 6.3 of docs/harness-conversion-plan.md): step 10
   stops hardcoding "security, cost, and platform" and asks
   `scripts/select_reviewers.py` which reviewers the wave's own changed files

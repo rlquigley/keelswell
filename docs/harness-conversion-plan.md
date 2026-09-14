@@ -417,17 +417,48 @@ them took the mean to 1.9 without removing a single true positive.
 That is the predicted redistribution rather than a rise, which is what
 the plan said to check before concluding anything about the agents.
 
-Two things left open. **Four of eighteen waves return zero reviewers**
-(3A, 3C, 3D, 4A -- grammar ASTs, fixtures and contract registries that
-touch no reviewer's domain). Whether a load-bearing wave with an empty
-selection should still get a domain-less adversarial pass is a founder
-ruling, not the script's call; it is named in the skill rather than
-decided. And **wave 4A does not pull `agent-ml`**: its eleven files are
-a contract registry and its spec's only ML vocabulary is one
-"projection" and fourteen "scoring" that all mean fantasy league
-scoring rules. If 4A genuinely needed Damer Flinn, the inventory's
-trigger sentence does not say why, and by this item's own rule that
-makes the trigger wrong rather than the rule.
+**Second pass, same day** (bmad-dev-wave 1.7.0). Both things left open
+above were settled by looking at what the four zero-reviewer waves
+actually got.
+
+**The zero case is a method, not a seat.** Waves 3A and 3D both ran
+real reviews and neither named a persona: their reviewers were
+"mutation-based correctness review", "specimen expressiveness review"
+and "real-sheet execution review", and 3D's record says it ran "under
+the wave 3A pattern". Across all ten ffbapp review records not one
+reviewer heading names an agent, which is the same finding as the
+inventory's fifteen-of-eighteen bare-domain count arriving from the
+other direction. That review found the two HIGH findings on 3A that no
+seat in the table would have looked for. Waves 3C and 4A had no review
+at all and both are load-bearing -- 3C was already on record, 4A was
+not. So the table gained a `fallback` carrying the 3A pattern, returned
+beside `selected` rather than merged into it.
+
+**Wave 4A needed no ML reviewer.** ffbapp's own wave map settles it:
+the 4A row reads "Projectable event-class registry with the CI mapping
+check against the grammar. **Not model code.**" The selector agrees
+with the map. 4A now selects `tea-murat` on its fixture set.
+
+**The table is the whole roster.** A sweep of all 38 seats found three
+with a real trigger and no row: `tea-murat`, `arch-data-architect` and
+`arch-integration-architect`. The data architect had been absent from
+ten of eighteen waves that changed database schema; the old fixed three
+sent them a cost reviewer instead. The remaining seventeen were given
+triggers on founder instruction rather than left inert; a test asserts
+the table and `config/agent-names.yaml` are the same set.
+
+**A fifth precision rule, and the measurement that forced it.**
+Structural BMAD vocabulary is never a trigger. A test design quotes its
+acceptance criteria and cites its functional requirements by
+construction, so seating those phrases fired `bmm-qa` and `bmm-pm` on
+nine of eighteen waves apiece. Adding the seventeen rows took the mean
+from 1.9 to 4.4; dropping the structural vocabulary took it to 3.2,
+with the fallback firing on exactly two waves. The plan's at-risk note
+asked for redistribution rather than a rise, and 3.2 against the old
+rule's fixed 3.0 is the closest honest reading of that: the same volume,
+aimed at what the diff holds. **`arch-cost-optimizer` now fires on none
+of the eighteen**, which is the sharpest evidence the fixed three were
+wrong.
 
 **Estimate:** half a day.
 

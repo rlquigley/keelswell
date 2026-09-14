@@ -25,9 +25,14 @@ pattern in the table is answerable yes or no from the changed-file list and
 the spec, without judgment. A trigger needing interpretation is a wrong
 trigger, not a wrong rule.
 
-AN EMPTY ANSWER IS AN ANSWER. Zero reviewers exits 0. A wave that touches no
-infrastructure returns no platform reviewer, and that is the point of removing
-the fixed three's exemption rather than a failure to be retried.
+AN EMPTY ANSWER IS AN ANSWER, BUT IT IS NOT NO REVIEW. Zero reviewers exits 0:
+a wave touching no infrastructure returns no platform reviewer, which is the
+point of removing the fixed three's exemption. When NO row fires, the table's
+`fallback` is returned instead -- a method rather than a seat. Four of
+ffbapp's eighteen waves select nobody, and the two of those that were reviewed
+at all used exactly this method under no persona's name; the other two shipped
+with no adversarial review and were both marked load-bearing. See the
+fallback block's own comment in the table for the evidence.
 
 WHAT THE SPEC MATCHER REFUSES, AND WHY. Four rules, every one of them added
 because a plain substring match got a real ffbapp wave wrong. They are stated
@@ -58,6 +63,14 @@ here rather than in the table because they apply to every phrase in it.
      3D, 5C and 5D, every one of them a passing quotation of the architecture
      spine's component list. This is a precision rule inside one trigger. It
      is not a cap on the reviewer count; there is no such cap anywhere.
+
+  5. Structural vocabulary is never a trigger. This one lives in the table
+     rather than the code, and is stated here because it is the rule most
+     easily broken: a BMAD test design quotes its story's acceptance criteria
+     and cites the PRD's functional requirements by construction, so those
+     phrases appear in every spec and separate nothing. Seating them fired
+     bmm-qa and bmm-pm on nine of eighteen waves apiece. Match the domain's
+     vocabulary, never the harness's.
 
 Usage:
 
@@ -159,6 +172,8 @@ def load_table(path):
 
     version = None
     reviewers = []
+    fallback = {}
+    section = "reviewers"
     current = None
     current_list = None
 
@@ -170,7 +185,12 @@ def load_table(path):
 
         if indent == 0:
             current_list = None
+            current = None
             if line == "reviewers:":
+                section = "reviewers"
+                continue
+            if line == "fallback:":
+                section = "fallback"
                 continue
             key, value = _split_kv(line, lineno)
             if key != "version":
@@ -179,6 +199,10 @@ def load_table(path):
                 version = int(value)
             except ValueError:
                 raise TableError(f"line {lineno}: version must be an integer, got {value!r}")
+
+        elif indent == 2 and section == "fallback":
+            key, value = _split_kv(line, lineno)
+            fallback[key] = _unquote(value)
 
         elif indent == 2:
             if not line.startswith("- "):
@@ -216,11 +240,21 @@ def load_table(path):
         raise TableError(f"unsupported table version {version}; this script reads version 1")
     if not reviewers:
         raise TableError("table declares no reviewers")
-    return reviewers
+    return reviewers, fallback
 
 
-def validate(reviewers):
+FALLBACK_FIELDS = ("method", "brief", "source", "record_as")
+
+
+def validate(reviewers, fallback=None):
     """Every rule the table has to obey. Raises TableError naming the first break."""
+    if fallback is not None:
+        for field in FALLBACK_FIELDS:
+            if not fallback.get(field):
+                raise TableError(
+                    f"fallback: missing required field '{field}'. A wave whose "
+                    "selection is empty still has to be reviewed"
+                )
     seen = set()
     for entry in reviewers:
         role = entry.get("role", "<no role>")
@@ -337,6 +371,17 @@ def select(reviewers, changed_files, spec_text):
     return selected, skipped, inert
 
 
+def resolve(reviewers, fallback, changed_files, spec_text):
+    """select(), plus the fallback when no row fired.
+
+    The fallback is returned, never merged into `selected`: a record that
+    cannot tell a fired trigger from an empty selection cannot be checked
+    against the table later.
+    """
+    selected, skipped, inert = select(reviewers, changed_files, spec_text)
+    return selected, skipped, inert, (fallback if not selected else None)
+
+
 # --------------------------------------------------------------------------
 # Input
 # --------------------------------------------------------------------------
@@ -378,7 +423,7 @@ def read_spec_text(paths):
 # Output
 # --------------------------------------------------------------------------
 
-def render(selected, skipped, inert, wave, n_files, n_specs, n_ignored):
+def render(selected, skipped, inert, fallback, wave, n_files, n_specs, n_ignored):
     label = f"Wave {wave}" if wave else "Selection"
     ignored = f", {n_ignored} bookkeeping path{'' if n_ignored == 1 else 's'} ignored" if n_ignored else ""
     lines = [
@@ -389,8 +434,14 @@ def render(selected, skipped, inert, wave, n_files, n_specs, n_ignored):
     ]
 
     if not selected:
-        lines.append("  none. No trigger in the table fires on this wave.")
+        lines.append("  No trigger in the table fires on this wave.")
         lines.append("")
+        if fallback:
+            lines.append(f"FALLBACK: {fallback['method']}, "
+                         f"{fallback['reviewers']} reviewers  [{fallback['source']}]")
+            lines.append(f"    {fallback['brief']}")
+            lines.append(f"    record the review as: {fallback['record_as']}")
+            lines.append("")
     for hit in selected:
         lines.append(f"{hit['role']}  ({hit['skill']}, {hit['display']})  [{hit['source']}]")
         for match in hit["matched_paths"]:
@@ -415,10 +466,12 @@ def render(selected, skipped, inert, wave, n_files, n_specs, n_ignored):
 # --------------------------------------------------------------------------
 
 def cmd_select(args):
-    reviewers = validate(load_table(Path(args.table)))
+    reviewers, fallback_row = load_table(Path(args.table))
+    validate(reviewers, fallback_row)
     changed_files, n_ignored = read_changed_files(args.changed_files)
     spec_text = read_spec_text(args.spec)
-    selected, skipped, inert = select(reviewers, changed_files, spec_text)
+    selected, skipped, inert, fallback = resolve(
+        reviewers, fallback_row, changed_files, spec_text)
 
     if args.json:
         print(json.dumps({
@@ -427,21 +480,24 @@ def cmd_select(args):
             "ignored_file_count": n_ignored,
             "spec_file_count": len(args.spec),
             "selected": selected,
+            "fallback": fallback,
             "not_selected": [e["role"] for e in skipped],
             "inert": [{"role": e["role"], "reason": e["inert"]} for e in inert],
         }, indent=2))
     else:
-        print(render(selected, skipped, inert, args.wave,
+        print(render(selected, skipped, inert, fallback, args.wave,
                      len(changed_files), len(args.spec), n_ignored))
     return 0
 
 
 def cmd_check(args):
-    reviewers = validate(load_table(Path(args.table)))
+    reviewers, fallback = load_table(Path(args.table))
+    validate(reviewers, fallback)
     firing = [e for e in reviewers if not e.get("inert")]
     print(
         f"reviewer-triggers.yaml: {len(reviewers)} rows, "
-        f"{len(firing)} can fire, {len(reviewers) - len(firing)} inert ... ok"
+        f"{len(firing)} can fire, {len(reviewers) - len(firing)} inert, "
+        f"fallback \"{fallback['method']}\" ... ok"
     )
     return 0
 

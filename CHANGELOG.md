@@ -3,6 +3,47 @@ All notable changes to Keelswell. Format: Keep a Changelog; versioning: semver.
 
 ## [Unreleased] - 2026-09-12
 ### Added
+- The trigger table becomes the whole roster, and gains a fallback (Phase 6.3
+  second pass, 2026-09-14): bmad-dev-wave 1.6.0 -> 1.7.0. A sweep of all 38
+  seats in `config/agent-names.yaml` against the four ffbapp waves that
+  selected nobody found three with a real trigger and no row: `tea-murat`
+  (fixtures, conftest, verify scripts, CI lanes), `arch-data-architect`
+  (migrations, models, schema) and `arch-integration-architect` (routes,
+  OpenAPI, protobuf). The data architect had been absent from ten of eighteen
+  waves that changed database schema; under the old fixed three they got a
+  cost reviewer instead. The remaining seventeen were given triggers rather
+  than left inert, on founder instruction, and all but `bmm-dev` fire on an
+  artifact rather than on code; several will never fire in a pure-code repo,
+  which is correct behaviour and not a dead row. A test asserts the table and
+  the roster are the same set, so a seat can no longer go missing quietly.
+  **The fallback.** When no row fires, the table returns a method rather than
+  a seat: the wave 3A pattern, two concurrent reviewers with disjoint mutation
+  domains and a held-back third pass that writes its own exploits from the
+  finding text. It is ffbapp's own, not invented here: waves 3A and 3D both
+  ran real reviews under no persona's name ("mutation-based correctness
+  review", "specimen expressiveness review", "real-sheet execution review"),
+  3D's record says it ran "under the wave 3A pattern", and across all ten
+  ffbapp review records not one reviewer heading names an agent. That review
+  found the two HIGH findings on 3A -- non-finite Decimals passing every type
+  check, and `decimal.InvalidOperation` escaping the degrade posture because it
+  is an `ArithmeticError` -- which no seat in the table would have looked for.
+  Waves 3C and 4A had no review at all and both are marked load-bearing; that
+  is the hole this closes. The fallback is returned beside `selected`, never
+  merged into it, so a record can always tell an empty selection from a fired
+  trigger.
+  **A fifth precision rule, and the measurement that forced it.** Structural
+  BMAD vocabulary is never a trigger: a test design quotes its story's
+  acceptance criteria and cites the PRD's functional requirements by
+  construction, so "acceptance criterion" and "functional requirement" appear
+  in every spec and separate nothing. Seated, they fired `bmm-qa` and `bmm-pm`
+  on nine of eighteen waves apiece. The same trap catches a word the project
+  has redefined -- ffbapp "prices" a touchdown and has a "presentation dial",
+  neither about money nor slides. Adding all seventeen rows took mean
+  dispatches per wave from 1.9 to 4.4; dropping the structural vocabulary took
+  it to 3.2, with the fallback firing on exactly the two waves that need it.
+  Also recorded: `arch-cost-optimizer`, one of the old fixed three, now fires
+  on none of ffbapp's eighteen waves.
+  35 stdlib tests. Still asserted under `--validate-only` in both roots.
 - Reviewer selection is a script, not a paragraph (Phase 6.3 of
   docs/harness-conversion-plan.md): bmad-dev-wave 1.5.0 -> 1.6.0, plus
   `scripts/select_reviewers.py` and `scripts/reviewer-triggers.yaml`.

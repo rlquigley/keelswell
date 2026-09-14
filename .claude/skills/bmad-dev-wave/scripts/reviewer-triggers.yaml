@@ -41,12 +41,55 @@
 #   inert    present only on a row that can never fire. Names why. A row with
 #            an `inert` key carries no `paths` and no `spec`.
 #
+# STRUCTURAL VOCABULARY IS NEVER A TRIGGER. A BMAD test design quotes the
+# story's acceptance criteria and cites the PRD's functional requirements by
+# construction, so "acceptance criterion", "functional requirement",
+# "success metric" and their kin appear in every spec and separate nothing.
+# Seating them fired bmm-qa and bmm-pm on nine of ffbapp's eighteen waves
+# apiece, on the form of the document rather than the subject of the wave.
+# The same trap catches a word the project has redefined: "pricing" means what
+# a fantasy rule set charges for a touchdown, "presentation" means ffbapp's
+# exposure dial, and neither is about money or slides. Match the domain's
+# vocabulary, never the harness's, and never a word the repo has taken.
+#
 # A row fires if ANY of its paths or spec patterns matches. Overlap between
 # rows is expected and correct: custom-growth and custom-billing both fire on
 # pricing, custom-accessibility and custom-design-critic both fire on a
 # rendered surface. Two reviewers on one wave is necessity, not a collision.
 
 version: 1
+
+# WHEN NO ROW FIRES. Four of ffbapp's eighteen waves select nobody: 3A (a
+# grammar AST), 3C (test fixtures and a regression test), 3D (a pricing
+# compiler) and 4A (an event-class registry). Their diffs hold no reviewer's
+# domain, and that is the correct answer to the question the table asks. It is
+# not the correct answer to whether the wave was reviewed.
+#
+# The evidence says what to send instead, and it is a method rather than a
+# seat. 3A and 3D both ran real reviews and neither named a persona: their
+# reviewers were "mutation-based correctness review", "specimen expressiveness
+# review" and "real-sheet execution review", and 3D's record says outright that
+# it ran "under the wave 3A pattern". Across all ten ffbapp review records, not
+# one reviewer heading names an agent. That review found the two HIGH findings
+# on 3A -- non-finite Decimals passing every type check, and
+# decimal.InvalidOperation escaping the degrade posture because it is an
+# ArithmeticError rather than a ValueError. No seat in the table above would
+# have looked for either; a fifteen-mutation sweep found both.
+#
+# 3C and 4A had no review at all, and both are marked load-bearing in ffbapp's
+# own wave map. That is the failure this block exists to stop.
+#
+# This is not the step-7 evaluator a second time. That one reads: fresh
+# context, Read/Glob/Grep, no Bash. This one executes -- the standing party
+# brief is that a finding is proved by execution or by mutation, never by
+# reading.
+
+fallback:
+  method: "the wave 3A pattern"
+  reviewers: "2"
+  source: "derived-2026-09-14 from ffbapp docs/wave-3a and docs/wave-3d review records"
+  brief: "Two concurrent reviewers with disjoint domains, each stated before either starts. Reviewer 1 runs a mutation sweep over the diff's production files, mutating and byte-restoring per probe, and reports every mutation that stayed green as either a real gap or a proved redundancy. Reviewer 2 executes the wave's own subject against real data outside the repo's tests. Then a third pass, held back and given only the finding text, writes its own exploits without reading the remediation's tests. Every finding is proved by execution or by mutation and none by reading."
+  record_as: "fallback"
 
 reviewers:
 
@@ -447,6 +490,363 @@ reviewers:
     source: "none"
     trigger: "none nameable"
     inert: "docs/agent-inventory.md calls this the only one of the sixteen for which no trigger is nameable: the router role it would fill is already filled by skill routing and by bmad-help. Item 6.4 resolves it by naming one request that should route to it, which is a sentence rather than a condition in a diff."
+
+  # --- Not among the sixteen, and not among the fixed three either. Added
+  # 2026-09-14 by a sweep of the whole 38-agent roster against the four ffbapp
+  # waves that returned no reviewer at all. Sixteen of the twenty agents absent
+  # from this table have no trigger that is answerable from a diff: the six CIS
+  # seats facilitate ideation, bmm-analyst/pm/architect/dev/ux-designer and
+  # arch-infrastructure-analyst/cloud-architect work before the build rather
+  # than review it, arch-architecture-governor has no mechanical signal (every
+  # ffbapp wave cites an AD-n, so "references an architecture decision" fires
+  # always and means nothing), bmm-tech-writer has no doc surface in evidence,
+  # and arch-security-reviewer is deliberately unseated so security is not
+  # dispatched twice. bmm-qa is excluded for a different reason: Phase 3 moved
+  # her off grading this wave on purpose, and seating her here would reverse it.
+
+  - role: tea-murat
+    skill: bmad-tea
+    display: "Galad Damodred"
+    source: "derived-2026-09-14"
+    trigger: "the wave adds or changes a test fixture set, a test-support module, a conftest, a verify script, or a CI test lane"
+    paths:
+      - "**/fixtures/**"
+      - "**/conftest.py"
+      - "**/tests/support/**"
+      - "**/verify-*.sh"
+      - "**/ci-*.yml"
+      - "**/*.fixture.json"
+      - "**/factories.py"
+    spec:
+      - "mutation sweep"
+      - "fixture architecture"
+      - "test lane"
+      - "coverage gap"
+
+  - role: arch-data-architect
+    skill: bmad-agent-arch-data-architect
+    display: "Cadsuane Melaidhrin"
+    source: "derived-2026-09-14"
+    trigger: "the wave adds or changes a database migration, a schema or model definition, an index, or a data pipeline stage"
+    paths:
+      - "**/migrations/**"
+      - "**/models.py"
+      - "**/schema/**"
+      - "**/db_schema*"
+      - "**/alembic/**"
+      - "**/*.ddl"
+      - "**/pipelines/**"
+    spec:
+      - "database migration"
+      - "check constraint"
+      - "foreign key"
+      - "index on"
+      - "backfill"
+
+  - role: arch-integration-architect
+    skill: bmad-agent-arch-integration-architect
+    display: "Androl Genhald"
+    source: "derived-2026-09-14"
+    trigger: "the wave adds or changes an HTTP route, an OpenAPI or protobuf or GraphQL contract, a message topic or consumer, or a public API version"
+    paths:
+      - "**/openapi*"
+      - "**/*.proto"
+      - "**/graphql/**"
+      - "**/*.graphql"
+      - "**/asyncapi*"
+      - "**/urls.py"
+      - "**/routes*"
+      - "**/serializers.py"
+    spec:
+      - "API version"
+      - "message topic"
+      - "OpenAPI"
+      - "backwards compatible"
+
+  # --- The remaining seventeen of the 38-agent roster, swept 2026-09-14 and
+  # given triggers 2026-09-14 on founder instruction, so this file IS the whole
+  # roster: every seat is here and every trigger is visible in one place. All
+  # seventeen triggers are derived, none quoted from docs/agent-inventory.md,
+  # which covers the sixteen fork-only agents only. Most of these fire on an
+  # ARTIFACT the wave ships rather than on code, which is what their domains
+  # actually are; several will never fire on a pure-code repository, and that
+  # is the correct behaviour rather than a dead row. All are still seated in
+  # party mode; an initiated party is the full collective regardless.
+
+  - role: bmm-qa
+    skill: bmad-agent-qa
+    display: "Aviendha"
+    source: "derived-2026-09-14"
+    trigger: "the wave adds or changes a story file, an acceptance-criteria artifact, a Gherkin feature, or a traceability map"
+    note: "Caveat, recorded rather than hidden: Phase 3 moved her off grading this wave, so step 3 is still where she designs and step 7's evaluator is still deliberately not her. This row is the acceptance-mapping half of her authority, not a re-seat at the evaluator's chair."
+    paths:
+      - "**/stories/**"
+      - "**/*.feature"
+      - "**/acceptance*"
+      - "**/*_acceptance*"
+      - "**/traceability*"
+
+  - role: arch-security-reviewer
+    skill: bmad-agent-arch-security-reviewer
+    display: "Lan Mandragoran"
+    source: "derived-2026-09-14"
+    trigger: "the wave adds or changes a cryptographic call, key or secret handling, a trust-boundary crossing, or a named compliance control"
+    paths:
+      - "**/crypto*"
+      - "**/*encrypt*"
+      - "**/*decrypt*"
+      - "**/kms*"
+      - "**/vault*"
+      - "**/secrets*"
+      - "**/*_tls*"
+      - "**/*pii*"
+      - "**/threat-model*"
+      - "**/*gdpr*"
+      - "**/*hipaa*"
+      - "**/*pci*"
+    spec:
+      - "STRIDE"
+      - "threat model"
+      - "trust boundary"
+      - "least privilege"
+      - "defense in depth"
+
+  - role: arch-architecture-governor
+    skill: bmad-agent-arch-architecture-governor
+    display: "Sorilea"
+    source: "derived-2026-09-14"
+    trigger: "the wave adds or changes an ADR, a dependency-direction or module-boundary rule, or a lint, format or type-check standard"
+    note: "Note: a trigger on 'the wave cites an architecture decision' was rejected. Every ffbapp wave cites an AD-n, so it would fire always and mean nothing. These patterns fire on the rules themselves changing."
+    paths:
+      - "**/adr/**"
+      - "**/*adr-*.md"
+      - "**/decisions/**"
+      - "**/.importlinter"
+      - "**/importlinter*"
+      - "**/.editorconfig"
+      - "**/ruff.toml"
+      - "**/setup.cfg"
+      - "**/.eslintrc*"
+      - "**/tsconfig.json"
+      - "**/mypy.ini"
+      - "**/.pre-commit-config.yaml"
+    spec:
+      - "architecture decision record"
+      - "tech radar"
+      - "technical debt"
+      - "module boundary"
+
+  - role: bmm-tech-writer
+    skill: bmad-agent-tech-writer
+    display: "Loial"
+    source: "derived-2026-09-14"
+    trigger: "the wave adds or changes a README, a changelog, a contributing guide, or a documentation site page outside the wave's own bookkeeping"
+    paths:
+      - "README*"
+      - "CHANGELOG*"
+      - "CONTRIBUTING*"
+      - "**/*.rst"
+      - "**/mkdocs.yml"
+      - "**/docusaurus*"
+      - "docs/**"
+    spec:
+      - "user-facing documentation"
+      - "runbook"
+      - "how-to guide"
+
+  - role: arch-infrastructure-analyst
+    skill: bmad-agent-arch-infrastructure-analyst
+    display: "Verin Mathwin"
+    source: "derived-2026-09-14"
+    trigger: "the wave adds or changes an infrastructure requirements artifact, a feasibility assessment, or an integration inventory"
+    paths:
+      - "**/*-requirements.md"
+      - "**/requirements/**"
+      - "**/feasibility*"
+      - "**/integration-inventory*"
+      - "**/capacity-requirements*"
+      - "feasibility"
+      - "integration inventory"
+
+  - role: arch-cloud-architect
+    skill: bmad-agent-arch-cloud-architect
+    display: "Elayne Trakand"
+    source: "derived-2026-09-14"
+    trigger: "the wave adds or changes a cloud provider SDK call, a managed-service client, or a region or account configuration"
+    paths:
+      - "**/boto3*"
+      - "**/aws/**"
+      - "**/azure/**"
+      - "**/gcp/**"
+      - "**/*_s3*"
+      - "**/cloudformation/**"
+      - "**/*.cdk.ts"
+      - "**/bicep/**"
+      - "**/*region*config*"
+      - "**/google-cloud-*"
+    spec:
+      - "managed service"
+      - "multi-cloud"
+      - "availability zone"
+
+  - role: bmm-analyst
+    skill: bmad-agent-analyst
+    display: "Moiraine Damodred"
+    source: "derived-2026-09-14"
+    trigger: "the wave adds or changes a product brief, a market or domain research artifact, or a stated business requirement"
+    paths:
+      - "**/product-brief*"
+      - "**/brief-*.md"
+      - "**/research/**"
+      - "**/*-research-*.md"
+      - "**/competitive-*"
+    spec:
+      - "business requirement"
+      - "market research"
+      - "domain research"
+
+  - role: bmm-pm
+    skill: bmad-agent-pm
+    display: "Egwene al'Vere"
+    source: "derived-2026-09-14"
+    trigger: "the wave adds or changes the PRD, an epics document, or a numbered functional requirement"
+    paths:
+      - "**/prd.md"
+      - "**/PRD*"
+      - "**/epics.md"
+      - "**/addendum.md"
+      - "**/*-prd-*.md"
+
+  - role: bmm-architect
+    skill: bmad-agent-architect
+    display: "Perrin Aybara"
+    source: "derived-2026-09-14"
+    trigger: "the wave adds or changes an architecture spine, a solution design, or a component-boundary definition"
+    paths:
+      - "**/ARCHITECTURE*"
+      - "**/architecture/**"
+      - "**/*-architecture-*.md"
+      - "**/solution-design*"
+      - "**/component-map*"
+    spec:
+      - "architecture spine"
+      - "solution design"
+      - "component boundary"
+
+  - role: bmm-ux-designer
+    skill: bmad-agent-ux-designer
+    display: "Min Farshaw"
+    source: "derived-2026-09-14"
+    trigger: "the wave adds or changes a UX specification, a user flow, a wireframe, or an interaction spec"
+    paths:
+      - "**/ux/**"
+      - "**/DESIGN.md"
+      - "**/EXPERIENCE.md"
+      - "**/wireframe*"
+      - "**/user-flow*"
+      - "**/*-ux-*.md"
+      - "**/*.fig"
+    spec:
+      - "user flow"
+      - "wireframe"
+      - "interaction spec"
+      - "information architecture"
+
+  - role: cis-brainstorming-coach
+    skill: bmad-cis-agent-brainstorming-coach
+    display: "Siuan Sanche"
+    source: "derived-2026-09-14"
+    trigger: "the wave adds or changes a brainstorming or ideation artifact"
+    paths:
+      - "**/brainstorm*"
+      - "**/ideation*"
+      - "**/*-ideas-*.md"
+    spec:
+      - "brainstorming session"
+      - "ideation"
+
+  - role: cis-design-thinking-coach
+    skill: bmad-cis-agent-design-thinking-coach
+    display: "Nynaeve al'Meara"
+    source: "derived-2026-09-14"
+    trigger: "the wave adds or changes a design-thinking artifact: an empathy map, a journey map, or a persona definition"
+    paths:
+      - "**/design-thinking*"
+      - "**/empathy-map*"
+      - "**/journey-map*"
+      - "**/personas/**"
+      - "**/*-persona-*.md"
+    spec:
+      - "empathy map"
+      - "journey map"
+      - "user persona"
+
+  - role: cis-innovation-strategist
+    skill: bmad-cis-agent-innovation-strategist
+    display: "Logain Ablar"
+    source: "derived-2026-09-14"
+    trigger: "the wave adds or changes a business-model or disruption-strategy artifact"
+    paths:
+      - "**/business-model*"
+      - "**/innovation-*"
+      - "**/disruption*"
+      - "**/*-strategy-*.md"
+    spec:
+      - "business model"
+      - "disruption"
+      - "value proposition"
+
+  - role: cis-creative-problem-solver
+    skill: bmad-cis-agent-creative-problem-solver
+    display: "Birgitte Silverbow"
+    source: "derived-2026-09-14"
+    trigger: "the wave adds or changes a problem statement, a root-cause analysis, or a decision record for a contested trade-off"
+    paths:
+      - "**/problem-statement*"
+      - "**/root-cause*"
+      - "**/*5-whys*"
+      - "**/trade-off*"
+    spec:
+      - "root cause"
+      - "problem statement"
+      - "five whys"
+
+  - role: cis-storyteller
+    skill: bmad-cis-agent-storyteller
+    display: "Thom Merrilin"
+    source: "derived-2026-09-14"
+    trigger: "the wave adds or changes narrative or positioning copy: a pitch, a messaging document, or launch narrative"
+    paths:
+      - "**/pitch*"
+      - "**/messaging*"
+      - "**/narrative*"
+      - "**/copy/**"
+      - "**/*-positioning-*.md"
+    spec:
+      - "narrative arc"
+      - "positioning"
+      - "messaging"
+
+  - role: cis-presentation-master
+    skill: bmad-cis-agent-presentation-master
+    display: "Morgase Trakand"
+    source: "derived-2026-09-14"
+    trigger: "the wave adds or changes a presentation deck or slide source"
+    paths:
+      - "**/*.pptx"
+      - "**/*.key"
+      - "**/slides/**"
+      - "**/deck-*"
+      - "**/*-deck.md"
+      - "**/reveal*"
+      - "slide deck"
+
+  - role: bmm-dev
+    skill: bmad-agent-dev
+    display: "Mat Cauthon"
+    source: "none"
+    trigger: "he builds; he does not review"
+    inert: "the same ruling custom-web-designer got on 2026-09-14. Step 6 dispatches the coding subagents, and a builder reviewing its own build is exactly what Phase 3 separated when it moved step 7's review to a fresh-context evaluator with no writing tools. Every trigger drafted for him was a restatement of another row's: convention conformance is arch-architecture-governor, test adequacy is tea-murat. Overrule this and he is a second opinion on the diff he wrote."
 
   # --- Not among the sixteen. Two of the fixed three step 10 used to dispatch
   # unconditionally. docs/agent-inventory.md covers fork-only agents only, so

@@ -11,6 +11,7 @@ test_front_matter_*, test_negated_* and test_occurrence_threshold_*.
 """
 
 import json
+import re
 import subprocess
 import sys
 import tempfile
@@ -45,6 +46,11 @@ def roles(result):
     return {hit["role"] for hit in result["selected"]}
 
 
+def table_rows():
+    rows, _ = sr.load_table(TABLE)
+    return rows
+
+
 class TableIsWellFormed(unittest.TestCase):
     def test_check_passes_on_the_shipped_table(self):
         proc = subprocess.run([sys.executable, str(SCRIPT), "check"],
@@ -52,33 +58,45 @@ class TableIsWellFormed(unittest.TestCase):
         self.assertEqual(0, proc.returncode, proc.stderr)
         self.assertIn("ok", proc.stdout)
 
+    def test_the_table_covers_the_whole_roster(self):
+        roster = re.findall(r"^  - role: (\S+)",
+                            (SCRIPT.parents[3] / "config" / "agent-names.yaml").read_text(), re.M)
+        self.assertTrue(roster, "roster not found")
+        table = {e["role"] for e in table_rows()}
+        self.assertEqual(set(roster), table,
+                         "every agent in config/agent-names.yaml gets a row, and no others")
+
     def test_every_row_names_where_its_trigger_came_from(self):
-        for entry in sr.load_table(TABLE):
+        for entry in table_rows():
             self.assertTrue(entry.get("source"), f"{entry['role']} has no source")
 
     def test_a_row_that_cannot_fire_must_say_why(self):
         with tempfile.TemporaryDirectory() as tmp:
             bad = Path(tmp) / "t.yaml"
             bad.write_text(
-                "version: 1\nreviewers:\n"
+                "version: 1\n"
+                "fallback:\n  method: \"m\"\n  reviewers: \"2\"\n  source: \"s\"\n  brief: \"b\"\n  record_as: \"fallback\"\n"
+                "reviewers:\n"
                 "  - role: custom-x\n    skill: agent-x\n"
                 "    display: \"X\"\n    source: \"none\"\n    trigger: \"t\"\n"
             )
             with self.assertRaises(sr.TableError) as ctx:
-                sr.validate(sr.load_table(bad))
+                sr.validate(*sr.load_table(bad))
             self.assertIn("visible", str(ctx.exception))
 
     def test_an_inert_row_cannot_also_carry_patterns(self):
         with tempfile.TemporaryDirectory() as tmp:
             bad = Path(tmp) / "t.yaml"
             bad.write_text(
-                "version: 1\nreviewers:\n"
+                "version: 1\n"
+                "fallback:\n  method: \"m\"\n  reviewers: \"2\"\n  source: \"s\"\n  brief: \"b\"\n  record_as: \"fallback\"\n"
+                "reviewers:\n"
                 "  - role: custom-x\n    skill: agent-x\n"
                 "    display: \"X\"\n    source: \"none\"\n    trigger: \"t\"\n"
                 "    inert: \"because\"\n    paths:\n      - \"**/x*\"\n"
             )
             with self.assertRaises(sr.TableError):
-                sr.validate(sr.load_table(bad))
+                sr.validate(*sr.load_table(bad))
 
 
 class NoCap(unittest.TestCase):
@@ -106,7 +124,7 @@ class NoCap(unittest.TestCase):
         self.assertEqual({"custom-ml"}, roles(result))
 
     def test_an_empty_selection_is_an_answer_not_an_error(self):
-        proc, result = run(["README.md"])
+        proc, result = run(["src/contract/grammar.py"])
         self.assertEqual(0, proc.returncode)
         self.assertEqual(set(), roles(result))
 
@@ -208,13 +226,73 @@ class InertRows(unittest.TestCase):
             "src/billing/webhook.py", ".github/workflows/ci.yml",
         ])
         inert = {row["role"] for row in result["inert"]}
-        self.assertEqual({"custom-bizops", "custom-web-designer", "core-bmad-master"}, inert)
+        self.assertEqual(
+            {"custom-bizops", "custom-web-designer", "core-bmad-master", "bmm-dev"}, inert)
         self.assertFalse(inert & roles(result))
 
     def test_every_inert_row_states_a_reason(self):
-        _, result = run(["README.md"])
+        _, result = run(["src/contract/grammar.py"])
         for row in result["inert"]:
             self.assertTrue(row["reason"].strip(), row["role"])
+
+
+class StructuralVocabulary(unittest.TestCase):
+    """Rule 5: harness vocabulary appears in every spec and separates nothing."""
+
+    def test_acceptance_criteria_prose_does_not_dispatch_the_qa_seat(self):
+        spec = ("The acceptance criterion is quoted in full. A second acceptance "
+                "criterion follows, and the acceptance criteria are Given/When/Then.")
+        _, result = run(["src/engine/compiler.py"], spec)
+        self.assertNotIn("bmm-qa", roles(result))
+
+    def test_functional_requirement_prose_does_not_dispatch_the_pm_seat(self):
+        spec = ("FR-8 is the functional requirement this wave serves. The "
+                "functional requirement is quoted from the product requirement doc.")
+        _, result = run(["src/engine/compiler.py"], spec)
+        self.assertNotIn("bmm-pm", roles(result))
+
+    def test_a_word_the_project_has_redefined_is_not_a_trigger(self):
+        # ffbapp "prices" a touchdown and has a "presentation dial".
+        _, result = run(["tests/unit/test_compiler_piece_pricing.py"])
+        self.assertNotIn("custom-billing", roles(result))
+        self.assertNotIn("custom-growth", roles(result))
+
+    def test_a_fixture_readme_is_not_documentation(self):
+        _, result = run(["tests/fixtures/wave3c/README.md"])
+        self.assertNotIn("bmm-tech-writer", roles(result))
+
+
+class Fallback(unittest.TestCase):
+    """A wave nobody's trigger fires on still gets reviewed."""
+
+    def test_an_empty_selection_returns_the_fallback(self):
+        proc, result = run(["src/contract/grammar.py", "tests/unit/test_grammar.py"])
+        self.assertEqual(0, proc.returncode)
+        self.assertEqual(set(), roles(result))
+        self.assertIsNotNone(result["fallback"])
+        self.assertTrue(result["fallback"]["brief"])
+        self.assertEqual("fallback", result["fallback"]["record_as"])
+
+    def test_a_non_empty_selection_returns_no_fallback(self):
+        _, result = run(["src/engine/backtest.py"])
+        self.assertTrue(result["selected"])
+        self.assertIsNone(result["fallback"])
+
+    def test_the_fallback_is_never_merged_into_selected(self):
+        _, result = run(["src/contract/grammar.py"])
+        self.assertNotIn("fallback", roles(result))
+
+    def test_a_table_with_an_incomplete_fallback_is_refused(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            bad = Path(tmp) / "t.yaml"
+            bad.write_text(
+                "version: 1\nfallback:\n  method: \"x\"\nreviewers:\n"
+                "  - role: custom-x\n    skill: agent-x\n    display: \"X\"\n"
+                "    source: \"none\"\n    trigger: \"t\"\n    paths:\n      - \"**/x*\"\n"
+            )
+            with self.assertRaises(sr.TableError) as ctx:
+                sr.validate(*sr.load_table(bad))
+            self.assertIn("reviewed", str(ctx.exception))
 
 
 class Output(unittest.TestCase):
@@ -231,7 +309,7 @@ class Output(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             bad = Path(tmp) / "t.yaml"
             bad.write_text("version: 1\nreviewers:\n  - role: x\n      bad: indent\n")
-            proc, _ = run(["README.md"], table=bad)
+            proc, _ = run(["src/x.py"], table=bad)
             self.assertEqual(2, proc.returncode)
             self.assertIn("select_reviewers:", proc.stderr)
 
