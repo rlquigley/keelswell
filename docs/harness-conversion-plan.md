@@ -345,6 +345,11 @@ hand step every instance update has been.
 
 **Verify:** `resolve_party.py` returns all sixteen under role codes.
 
+**Done 2026-09-12** (attacktheseam/ffbapp#98). The nine skill
+directories and their `config.toml` tables renamed from persona to
+role codes; ffbapp's `main` now lists all fifteen custom agents under
+role codes, so 6.3 has nothing left to miss there.
+
 **Estimate:** one hour.
 
 ### 6.3 A reviewer-selection script, not a reviewer-selection rule
