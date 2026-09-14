@@ -1,0 +1,510 @@
+# Reviewer trigger table for bmad-dev-wave step 10.
+#
+# Phase 6.3 of docs/harness-conversion-plan.md. Read by select_reviewers.py,
+# which is the only thing that decides which reviewers a wave dispatches.
+# Before 6.3, step 10 hardcoded "security, cost, and platform" and no wave
+# skill referenced any of the sixteen fork-only agents at all.
+#
+# THE RULE IS NECESSITY, NOT A BUDGET. If eight domains are genuinely in the
+# diff, eight rows fire and eight reviewers are dispatched. If one is, one is.
+# There is no cap and no "top N most relevant" anywhere in this file or in the
+# script that reads it, because a cap means choosing which real gaps to skip
+# looking for. What keeps this affordable is trigger precision: every pattern
+# below is answerable yes or no from the changed-file list and the spec, with
+# no judgment. A trigger that needs interpretation is a wrong trigger.
+#
+# THE FIXED THREE LOSE THEIR EXEMPTION HERE. security (custom-appsec), cost
+# (arch-cost-optimizer) and platform (arch-platform-engineer) are ordinary
+# rows. A wave touching no infrastructure returns no platform reviewer.
+# Security is seated as custom-appsec rather than arch-security-reviewer
+# because custom-appsec is the seat docs/agent-inventory.md wrote a trigger
+# for; seating both would double-dispatch one domain.
+#
+# FIELDS
+#   role     the role code from config/agent-names.yaml. The key.
+#   skill    the skill to dispatch.
+#   display  the persona name, for the review record.
+#   trigger  the condition, in words.
+#   source   where `trigger` came from. Three values matter:
+#              docs/agent-inventory.md:<line>  quoted verbatim from the
+#                                              inventory's own Trigger line
+#              derived-2026-09-14              written for this table, not by
+#                                              the inventory; re-derive it
+#                                              when the inventory next runs
+#              none                            no trigger; the row is inert
+#   paths    fnmatch globs, tested against each changed path and, for a
+#            "**/"-prefixed pattern, against a top-level file too.
+#   spec     literal phrases matched against the spec text with a LEADING
+#            word boundary only, so "train" matches "training" but not
+#            "constraint". That case is real: wave 4A's test design contains
+#            "train" three times and all three are inside "constraint".
+#   inert    present only on a row that can never fire. Names why. A row with
+#            an `inert` key carries no `paths` and no `spec`.
+#
+# A row fires if ANY of its paths or spec patterns matches. Overlap between
+# rows is expected and correct: custom-growth and custom-billing both fire on
+# pricing, custom-accessibility and custom-design-critic both fire on a
+# rendered surface. Two reviewers on one wave is necessity, not a collision.
+
+version: 1
+
+reviewers:
+
+  # --- Group 1 of docs/agent-inventory.md: the six with an inventory trigger.
+
+  - role: custom-ml
+    skill: agent-ml
+    display: "Damer Flinn"
+    source: "docs/agent-inventory.md:89"
+    trigger: "the wave trains, scores, selects, or validates a model, or touches a train/test split, a backtest window, or a feature table"
+    paths:
+      - "**/backtest*"
+      - "**/*_backtest*"
+      - "**/train*"
+      - "**/*_train.py"
+      - "**/*split*"
+      - "**/*calibrat*"
+      - "**/features/**"
+      - "**/feature_*"
+      - "**/*_model.py"
+      - "**/models/*.py"
+      - "**/evaluation/**"
+    spec:
+      - "train/test split"
+      - "backtest"
+      - "holdout"
+      - "cross-validation"
+      - "feature table"
+      - "model selection"
+      - "temporal leakage"
+      - "proper scoring rule"
+
+  - role: custom-sre
+    skill: agent-sre
+    display: "Tam al'Thor"
+    source: "docs/agent-inventory.md:108"
+    trigger: "the wave adds or changes a long-running job, a run manifest, a scheduled task, a health probe, or anything that writes a ledger or spend record"
+    paths:
+      - "**/*runner*.py"
+      - "**/*manifest*"
+      - "**/*launcher*"
+      - "**/*scheduler*"
+      - "**/cron*"
+      - "**/celery*"
+      - "**/*worker*.py"
+      - "**/*health*"
+      - "**/*probe*"
+      - "**/ledger*"
+      - "**/*_ledger*"
+    spec:
+      - "run manifest"
+      - "scheduled task"
+      - "health probe"
+      - "long-running"
+      - "spend record"
+      - "ledger"
+
+  - role: custom-appsec
+    skill: agent-appsec
+    display: "Juilin Sandar"
+    source: "docs/agent-inventory.md:140"
+    trigger: "the wave handles user-supplied text that reaches a prompt, a query, or a filename; adds or changes an authorization boundary, an access token, a share link, or a webhook receiver; or adds a dependency"
+    paths:
+      - "**/auth.py"
+      - "**/auth/**"
+      - "**/*_auth.py"
+      - "**/authz*"
+      - "**/authn*"
+      - "**/permission*"
+      - "**/*grant*"
+      - "**/token.py"
+      - "**/tokens/**"
+      - "**/*_token.py"
+      - "**/session.py"
+      - "**/sessions/**"
+      - "**/*_session.py"
+      - "**/*credential*"
+      - "**/share_link*"
+      - "**/*invite*"
+      - "**/*webhook*"
+      - "**/*upload*"
+      - "**/*sanitiz*"
+      - "pyproject.toml"
+      - "requirements*.txt"
+      - "package.json"
+      - "package-lock.json"
+      - "uv.lock"
+      - "poetry.lock"
+      - "Gemfile*"
+      - "go.mod"
+      - "Cargo.toml"
+    spec:
+      - "user-supplied"
+      - "attacker-controlled"
+      - "authorization boundary"
+      - "access token"
+      - "share link"
+      - "prompt injection"
+      - "new dependency"
+
+  - role: custom-accessibility
+    skill: agent-accessibility
+    display: "Setalle Anan"
+    source: "docs/agent-inventory.md:193"
+    trigger: "the wave ships or changes a rendered surface: a template, a component, a stylesheet, a color token, a focus behaviour, or a form"
+    paths:
+      - "**/templates/**"
+      - "**/components/**"
+      - "**/*.html"
+      - "**/*.jinja"
+      - "**/*.jinja2"
+      - "**/*.vue"
+      - "**/*.jsx"
+      - "**/*.tsx"
+      - "**/*.svelte"
+      - "**/*.css"
+      - "**/*.scss"
+      - "**/*.sass"
+      - "**/*design-token*"
+      - "**/_tokens*"
+      - "**/tokens.css"
+      - "**/tokens.scss"
+      - "**/*theme*"
+      - "**/forms.py"
+      - "**/*_form.py"
+    spec:
+      - "WCAG"
+      - "screen reader"
+      - "focus outline"
+      - "focus ring"
+      - "keyboard navigation"
+      - "colour contrast"
+      - "color contrast"
+
+  - role: custom-billing
+    skill: agent-billing
+    display: "Bayle Domon"
+    source: "docs/agent-inventory.md:217"
+    trigger: "the wave adds or changes a payment provider call, a webhook receiver, a subscription state transition, an entitlement grant, an invoice, or a tax mapping"
+    paths:
+      - "**/billing/**"
+      - "**/*billing*"
+      - "**/*webhook*"
+      - "**/stripe*"
+      - "**/checkout*"
+      - "**/subscription*"
+      - "**/entitlement*"
+      - "**/invoice*"
+      - "**/taxes/**"
+      - "**/tax_*"
+      - "**/*_tax.py"
+      - "**/pricing/**"
+      - "**/pricing.py"
+      - "**/*_plan.py"
+    spec:
+      - "payment provider"
+      - "webhook"
+      - "subscription state"
+      - "entitlement"
+      - "invoice"
+      - "tax mapping"
+      - "idempotency"
+
+  - role: custom-bizops
+    skill: agent-bizops
+    display: "Basel Gill"
+    source: "docs/agent-inventory.md:165"
+    trigger: "invoked directly, not by a wave. Any act that names an owner (a filing, a payment account, a contract, a license), or a dated obligation coming due"
+    inert: "the inventory's own trigger says he is invoked directly, not by a wave. A dated filing obligation is not a condition in a diff, so no wave dispatches him and this script never returns him."
+
+  # --- Group 2 of docs/agent-inventory.md: useful, prompt-level value.
+  # Their entries end with a "Keep after an upgrade if" line, which describes a
+  # comparison you run after a model release, not a condition in a diff. The
+  # triggers below were written for this table on 2026-09-14 from each agent's
+  # own skill description. Re-derive them the next time the inventory runs.
+
+  - role: custom-analytics
+    skill: agent-analytics
+    display: "Hurin"
+    source: "derived-2026-09-14"
+    trigger: "the wave adds or changes an emitted analytics event, a metric or KPI definition, a dashboard, a warehouse or reporting table, or a funnel step"
+    paths:
+      - "**/analytics/**"
+      - "**/*_event.py"
+      - "**/events/**"
+      - "**/telemetry*"
+      - "**/metrics*"
+      - "**/*_metric.py"
+      - "**/*dashboard*"
+      - "**/warehouse/**"
+      - "**/dbt/**"
+      - "**/*.sql"
+    spec:
+      - "success metric"
+      - "KPI"
+      - "funnel"
+      - "instrumentation"
+      - "emitted event"
+      - "reporting table"
+
+  - role: custom-performance
+    skill: agent-performance
+    display: "Jain Farstrider"
+    source: "derived-2026-09-14"
+    trigger: "the wave adds or changes a cache, a connection pool, an autoscaling or rate-limit threshold, a queue or worker pool, a load or capacity test, or a stated latency budget"
+    paths:
+      - "**/*cache*"
+      - "**/*_cache.py"
+      - "**/redis*"
+      - "**/*pool*.py"
+      - "**/ratelimit*"
+      - "**/rate_limit*"
+      - "**/*throttl*"
+      - "**/*autoscal*"
+      - "**/*queue*"
+      - "**/*_queue.py"
+      - "**/loadtest*"
+      - "**/locustfile*"
+      - "**/k6/**"
+    spec:
+      - "latency budget"
+      - "p95"
+      - "p99"
+      - "throughput"
+      - "capacity test"
+      - "load shedding"
+      - "connection pool"
+      - "burst load"
+
+  - role: custom-legal
+    skill: agent-legal
+    display: "Gareth Bryne"
+    source: "derived-2026-09-14"
+    trigger: "the wave adds or changes a consent flow, a data-retention or deletion path, a terms-of-service or privacy document, a third-party license or attribution surface, or a jurisdiction-dependent rule"
+    paths:
+      - "**/*consent*"
+      - "**/*retention*"
+      - "**/*_deletion.py"
+      - "**/gdpr*"
+      - "**/*privacy*"
+      - "**/terms*"
+      - "**/LICENSE*"
+      - "**/NOTICE*"
+      - "**/attribution*"
+      - "**/*_jurisdiction*"
+    spec:
+      - "consent"
+      - "data retention"
+      - "right to deletion"
+      - "terms of service"
+      - "attribution requirement"
+      - "CC-BY"
+      - "jurisdiction"
+
+  - role: custom-growth
+    skill: agent-growth
+    display: "Tuon"
+    source: "derived-2026-09-14"
+    trigger: "the wave adds or changes a signup or onboarding step, a pricing or tier presentation, a referral or invite flow, a lifecycle email or notification sequence, or a churn or retention path"
+    paths:
+      - "**/*signup*"
+      - "**/onboarding*"
+      - "**/pricing/**"
+      - "**/pricing.py"
+      - "**/tiers*"
+      - "**/referral*"
+      - "**/*invite*"
+      - "**/lifecycle*"
+      - "**/*campaign*"
+      - "**/*_digest.py"
+    spec:
+      - "activation rate"
+      - "retention"
+      - "churn"
+      - "cohort"
+      - "onboarding"
+      - "referral"
+
+  - role: custom-llm
+    skill: agent-llm
+    display: "Talmanes Delovinde"
+    source: "derived-2026-09-14"
+    trigger: "the wave adds or changes a prompt template or system prompt, a call to a text-generation API, a retrieval or grounding path, an answer-quality eval, or a per-answer inference budget"
+    paths:
+      - "**/prompts/**"
+      - "**/*prompt*.py"
+      - "**/*prompt*.txt"
+      - "**/*prompt*.md"
+      - "**/llm/**"
+      - "**/*_llm.py"
+      - "**/*completion*"
+      - "**/*embedding*"
+      - "**/*retriev*"
+      - "**/*grounding*"
+      - "**/evals/**"
+      - "**/eval_*"
+    spec:
+      - "prompt template"
+      - "system prompt"
+      - "grounding"
+      - "hallucinat"
+      - "retrieval"
+      - "inference cost"
+      - "calibrated confidence"
+
+  - role: custom-mobile
+    skill: agent-mobile
+    display: "Egeanin Tamarath"
+    source: "derived-2026-09-14"
+    trigger: "the wave adds or changes an app-store metadata or disclosure file, an in-app-purchase call, a push-notification or background-task registration, a mobile build or signing configuration, or a release-channel definition"
+    paths:
+      - "**/Info.plist"
+      - "**/*.entitlements"
+      - "**/fastlane/**"
+      - "**/*.xcodeproj/**"
+      - "**/AndroidManifest.xml"
+      - "**/build.gradle*"
+      - "**/app-store*"
+      - "**/store-listing*"
+      - "**/*_iap.py"
+      - "**/push*"
+      - "**/apns*"
+      - "**/fcm*"
+    spec:
+      - "app store"
+      - "App Store review"
+      - "in-app purchase"
+      - "TestFlight"
+      - "push notification"
+      - "anti-steering"
+
+  - role: custom-marketing
+    skill: agent-marketing
+    display: "Aludra"
+    source: "derived-2026-09-14"
+    trigger: "the wave adds or changes a public landing or marketing page, a sitemap, robots file, or meta/OpenGraph tag, a store or directory listing text, or a campaign-attribution parameter"
+    paths:
+      - "**/*landing*"
+      - "**/marketing/**"
+      - "**/sitemap*"
+      - "**/robots.txt"
+      - "**/*_meta.html"
+      - "**/opengraph*"
+      - "**/og-image*"
+      - "**/manifest.webmanifest"
+    spec:
+      - "landing page"
+      - "SEO"
+      - "OpenGraph"
+      - "meta description"
+      - "canonical URL"
+      - "utm_"
+
+  # --- Group 3 of docs/agent-inventory.md: no answer. Two rows, one inert.
+
+  - role: custom-design-critic
+    skill: agent-design-critic
+    display: "Tarna Feir"
+    source: "derived-2026-09-14"
+    trigger: "the wave adds or changes a rendered surface: a template, page, view, component, stylesheet, or design token"
+    paths:
+      - "**/templates/**"
+      - "**/components/**"
+      - "**/pages/**"
+      - "**/views.py"
+      - "**/*.html"
+      - "**/*.jinja"
+      - "**/*.jinja2"
+      - "**/*.vue"
+      - "**/*.jsx"
+      - "**/*.tsx"
+      - "**/*.svelte"
+      - "**/*.css"
+      - "**/*.scss"
+      - "**/*.sass"
+      - "**/*design-token*"
+      - "**/_tokens*"
+      - "**/tokens.css"
+      - "**/tokens.scss"
+      - "**/*theme*"
+    spec:
+      - "rendered surface"
+      - "breakpoint"
+      - "dark mode"
+      - "design system"
+      - "visual system"
+
+  - role: custom-web-designer
+    skill: agent-web-designer
+    display: "Leane Sharif"
+    source: "none"
+    trigger: "she builds; she does not review"
+    inert: "a builder, not a reviewer. Item 6.4 dispatches her at step 6 to do the build-and-verify pass, before anything exists to review. Step 10 reviews what was built, so this script never returns her; her partner custom-design-critic is the step-10 half of that pair. Ruled 2026-09-14."
+
+  - role: core-bmad-master
+    skill: bmad-master
+    display: "Rand al'Thor"
+    source: "none"
+    trigger: "none nameable"
+    inert: "docs/agent-inventory.md calls this the only one of the sixteen for which no trigger is nameable: the router role it would fill is already filled by skill routing and by bmad-help. Item 6.4 resolves it by naming one request that should route to it, which is a sentence rather than a condition in a diff."
+
+  # --- Not among the sixteen. Two of the fixed three step 10 used to dispatch
+  # unconditionally. docs/agent-inventory.md covers fork-only agents only, so
+  # neither has an inventory trigger and both were written for this table.
+
+  - role: arch-platform-engineer
+    skill: bmad-agent-arch-platform-engineer
+    display: "Rhuarc"
+    source: "derived-2026-09-14"
+    trigger: "the wave adds or changes a CI or CD workflow, a container or orchestration manifest, an infrastructure-as-code file, a deployment or release configuration, or an observability target"
+    paths:
+      - ".github/workflows/**"
+      - "**/.gitlab-ci.yml"
+      - "**/Dockerfile*"
+      - "**/docker-compose*"
+      - "**/*.tf"
+      - "**/*.tfvars"
+      - "**/k8s/**"
+      - "**/kubernetes/**"
+      - "**/helm/**"
+      - "**/charts/**"
+      - "**/ansible/**"
+      - "**/Procfile"
+      - "**/fly.toml"
+      - "**/render.yaml"
+      - "**/serverless.yml"
+      - "**/*_deploy.sh"
+      - "**/deploy/**"
+      - "**/otel*"
+      - "**/prometheus*"
+      - "**/grafana/**"
+    spec:
+      - "CI pipeline"
+      - "deployment strategy"
+      - "infrastructure as code"
+      - "Kubernetes"
+      - "rollback"
+      - "observability"
+
+  - role: arch-cost-optimizer
+    skill: bmad-agent-arch-cost-optimizer
+    display: "Berelain sur Paendrag"
+    source: "derived-2026-09-14"
+    trigger: "the wave adds or changes a paid-service call, a compute or storage provisioning parameter, a spend or budget ceiling, a batch or scheduling window that changes spend, or a data-egress path"
+    paths:
+      - "**/*cost*"
+      - "**/*spend*"
+      - "**/*budget*"
+      - "**/*_quota.py"
+      - "**/*provision*"
+      - "**/instance_type*"
+      - "**/egress*"
+      - "**/*_egress*"
+    spec:
+      - "cost ceiling"
+      - "spend cap"
+      - "compute hours"
+      - "cost per"
+      - "egress"
+      - "reserved instance"
+      - "batch API"

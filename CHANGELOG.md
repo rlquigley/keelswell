@@ -3,6 +3,61 @@ All notable changes to Keelswell. Format: Keep a Changelog; versioning: semver.
 
 ## [Unreleased] - 2026-09-12
 ### Added
+- Reviewer selection is a script, not a paragraph (Phase 6.3 of
+  docs/harness-conversion-plan.md): bmad-dev-wave 1.5.0 -> 1.6.0, plus
+  `scripts/select_reviewers.py` and `scripts/reviewer-triggers.yaml`.
+  Step 10 stopped hardcoding "security, cost, and platform" and now asks the
+  script which reviewers the wave's own changed files and spec require. The
+  same logic as prose in SKILL.md would sit in the layer the transfer evidence
+  measures as the one that regresses across model families; a script and a
+  table are dispatch, which is the layer that carries. It lives under the
+  skill's own scripts/, the convention bmad-party-mode already uses, so it
+  travels with the skill and survives an upstream refresh; not _bmad/scripts/,
+  which the installer owns and wipes.
+  **The rule is necessity, not a budget.** Eight domains genuinely in the diff
+  return eight reviewers; one returns one. No cap, no maximum, no "top N",
+  because a cap means choosing which real gaps to skip looking for. The fixed
+  three lost their exemption in the same change: a wave touching no
+  infrastructure now returns no platform reviewer.
+  **Eighteen rows, and where each trigger came from.** Six quote
+  docs/agent-inventory.md's own Trigger line verbatim -- which is all sixteen
+  entries had; Group 2's seven end with a "Keep after an upgrade if" line and
+  Group 3's with "How to find out", neither of which is a condition in a diff.
+  Nine of those ten were written for this table and are marked
+  `derived-2026-09-14` so the next inventory pass can tell them apart, as were
+  arch-platform-engineer and arch-cost-optimizer, which are not fork-only
+  agents and never had inventory entries. Three rows are inert and say why:
+  custom-bizops (the inventory's own trigger says he is invoked directly, not
+  by a wave), custom-web-designer (a builder dispatched at step 6, not a
+  step-10 reviewer; her step-10 half is custom-design-critic), and
+  core-bmad-master (the inventory calls it the only one of the sixteen for
+  which no trigger is nameable).
+  **Four precision rules, each added because a real ffbapp wave proved it
+  necessary**, measured against all eighteen: a leading word boundary, because
+  wave 4A's spec contains "train" three times and all three are inside
+  "constraint"; front matter dropped, because a test design's
+  `inputDocuments:` names what the wave read rather than what it changed;
+  negated sentences discarded, because waves 3D, 4B, 5C and 5D each say "No
+  rendered surface exists in this wave" and a substring match read that as
+  proof one exists; and a two-occurrence floor, because "backtest" appears 39
+  times in wave 4B and exactly once in 3D, where it is a quotation of the
+  architecture spine's component list. Bookkeeping paths (`_bmad-output/`,
+  `docs/wave-*/`, TODO.md, HANDOFF.md) are excluded from the file list; a
+  session-wrap triage note was dispatching the security reviewer on five of
+  eighteen waves on the strength of the word "session" in a directory name.
+  Across the eighteen this took mean dispatches per wave from 3.6 to 1.9.
+  **Asserted under `--validate-only`** in both `skills/` and
+  `.claude/skills/`: the selector exists and is executable, bmad-dev-wave's
+  SKILL.md calls it, and `select_reviewers.py check` validates the table --
+  the same self-check shape Phase 3 gave the evaluator, so install.sh never
+  learns the table's schema. 26 stdlib tests.
+  **Party mode is untouched**: an initiated party is still the whole
+  collective, preserved by not setting `default_party`.
+  Two things this does not do. It does not decide what a load-bearing wave
+  with zero selected reviewers should get instead -- four of ffbapp's eighteen
+  return none, and whether those need a domain-less adversarial pass is an
+  open founder ruling. And it is inert on ffbapp until Phase 6.2 runs: that
+  instance still keys nine custom agents under pre-0.5.0 persona codes.
 - Agent inventory (Phase 5 of docs/harness-conversion-plan.md):
   `docs/agent-inventory.md` asks one question of each of the sixteen
   fork-only agents, what specific failure it prevents, and sorts the answers

@@ -382,6 +382,53 @@ reviewer, and a wave touching a webhook receiver dispatches
 `agent-billing`, both provable from the script's output before the
 wave runs.
 
+**Done 2026-09-14** (bmad-dev-wave 1.6.0). Both halves of the verify
+hold, as unit tests and against ffbapp's eighteen real waves: platform
+fires on 2 of 18, the two that touch `.github/workflows/` or a
+Dockerfile.
+
+Three things this item assumed that turned out to be false, recorded
+because each cost a decision:
+
+1. **Only six of the sixteen entries carry a Trigger line.** Group 2's
+   seven end with "Keep after an upgrade if" and Group 3's with "How to
+   find out"; neither is a condition in a diff. Nine were written for
+   the table and marked `derived-2026-09-14`; `core-bmad-master` was
+   not, because the inventory already ruled no trigger is nameable for
+   it.
+2. **Two of the fixed three are not in the inventory at all.** It
+   covers the sixteen fork-only agents; `arch-platform-engineer` and
+   `arch-cost-optimizer` come from the architecture pack, so their
+   triggers are derived too. Security is seated as `custom-appsec`, the
+   seat with the inventory trigger, rather than doubling with
+   `arch-security-reviewer`.
+3. **`custom-web-designer` is not a step-10 reviewer.** 6.4 dispatches
+   her at step 6 to build; step 10 reviews what was built. She is an
+   inert row and `custom-design-critic` is the step-10 half of that
+   pair. Ruled 2026-09-14.
+
+Precision was the whole cost. The first version dispatched 3.6
+reviewers per wave across the eighteen, and four of the classes were
+false: a substring match reading "No rendered surface exists in this
+wave" as proof one exists, `*egress*` matching "regression", a
+front-matter `inputDocuments:` list counted as subject matter, and a
+single quotation of the architecture spine counted as work. Fixing
+them took the mean to 1.9 without removing a single true positive.
+That is the predicted redistribution rather than a rise, which is what
+the plan said to check before concluding anything about the agents.
+
+Two things left open. **Four of eighteen waves return zero reviewers**
+(3A, 3C, 3D, 4A -- grammar ASTs, fixtures and contract registries that
+touch no reviewer's domain). Whether a load-bearing wave with an empty
+selection should still get a domain-less adversarial pass is a founder
+ruling, not the script's call; it is named in the skill rather than
+decided. And **wave 4A does not pull `agent-ml`**: its eleven files are
+a contract registry and its spec's only ML vocabulary is one
+"projection" and fourteen "scoring" that all mean fantasy league
+scoring rules. If 4A genuinely needed Damer Flinn, the inventory's
+trigger sentence does not say why, and by this item's own rule that
+makes the trigger wrong rather than the rule.
+
 **Estimate:** half a day.
 
 ### 6.4 One ablation wave for the three unanswered agents

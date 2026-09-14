@@ -251,6 +251,8 @@ allowlist_check() {
            .claude/skills/bmad-dev-wave/scripts/wave_status.py \
            .claude/skills/bmad-dev-wave/scripts/evaluate_wave.py \
            .claude/skills/bmad-dev-wave/scripts/wave_gate.py \
+           .claude/skills/bmad-dev-wave/scripts/select_reviewers.py \
+           .claude/skills/bmad-dev-wave/scripts/reviewer-triggers.yaml \
            .claude/hooks/wave-gate.sh .claude/hooks/wave-session-end.sh; do
     [ -e "$base/$f" ] || { echo "  allowlist gap: $base/$f missing"; gaps=1; }
   done
@@ -272,6 +274,7 @@ harness_check() {
   local gate="$root/bmad-close-epic/scripts/check_review_records.py"
   local vocab="$root/bmad-dev-wave/scripts/wave_status.py"
   local evaluate="$root/bmad-dev-wave/scripts/evaluate_wave.py"
+  local selector="$root/bmad-dev-wave/scripts/select_reviewers.py"
   echo "  Harness invariants under $root/:"
   if [ -x "$gate" ]; then echo "    gate script present and executable ... ok"
   else echo "    gate script present and executable ... FAIL ($gate)"; bad=1; fi
@@ -293,6 +296,22 @@ harness_check() {
   else
     echo "    evaluator subagent declares no writing tool ... FAIL"
     [ -f "$evaluate" ] && printf '%s\n' "$err" | sed 's/^/      /' || echo "      ($evaluate missing)"
+    bad=1
+  fi
+  # Phase 6.3: reviewer selection is a script, not a paragraph. Asserted for
+  # the same reason the wave_status.py grep below it is: if the selector can
+  # go missing and step 10 keeps working because the agent falls back on its
+  # own judgment, the selection never stopped being prose, it went dormant.
+  if [ -x "$selector" ]; then echo "    reviewer selector present and executable ... ok"
+  else echo "    reviewer selector present and executable ... FAIL ($selector)"; bad=1; fi
+  if grep -q 'scripts/select_reviewers.py' "$root/bmad-dev-wave/SKILL.md" 2>/dev/null; then
+    echo "    selector wired into bmad-dev-wave step 10 ... ok"
+  else echo "    selector wired into bmad-dev-wave step 10 ... FAIL ($root/bmad-dev-wave/SKILL.md does not call scripts/select_reviewers.py)"; bad=1; fi
+  if [ -f "$selector" ] && err=$(python3 "$selector" check 2>&1 >/dev/null); then
+    echo "    reviewer trigger table parses and is well formed ... ok"
+  else
+    echo "    reviewer trigger table parses and is well formed ... FAIL"
+    [ -f "$selector" ] && printf '%s\n' "$err" | sed 's/^/      /' || echo "      ($selector missing)"
     bad=1
   fi
   return "$bad"
