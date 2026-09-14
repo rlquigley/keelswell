@@ -425,6 +425,16 @@ capability.
 **Verify:** a fresh `--target-project` install produces the same
 roster before and after, count-asserted.
 
+**Done 2026-09-14.** Mechanical: H1, a provenance paragraph in the
+seven's wording, and the overview paragraph verbatim; frontmatter and
+procedure sections dropped. The eight are an older generation than the
+seven (one overview paragraph, no Role/Identity/Style lines), so they
+were not restructured. The installer risk named above did not exist:
+the roster is read from `module.yaml` only and `agents/` never reaches
+a target install. Verified anyway, count-asserted: 38 `[agents.*]`
+tables before and after with the same codes, a room of 38, the same
+sixteen fork-only agents, and `--validate-only` green on both trees.
+
 **Estimate:** two hours.
 
 ### Party mode is not in scope
