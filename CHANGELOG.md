@@ -3,6 +3,20 @@ All notable changes to Keelswell. Format: Keep a Changelog; versioning: semver.
 
 ## [Unreleased] - 2026-09-12
 ### Added
+- Two tests were looking in the wrong place (2026-09-14): both located a
+  fork-only file at a fixed `parents[N]`, which is right for exactly one of
+  the three trees these tests ship to -- the fork's `skills/`, the fork's
+  `.claude/skills/` mirror, and every instance's `.claude/skills/`. Phase 3's
+  `test_shipped_definition_is_safe` built `.claude/.claude/agents/` in the
+  other two and had been failing in the fork's own mirror, not just in
+  instances, since it was written; the invariant it asserts was being held in
+  the meantime by install.sh's own `evaluate_wave.py check`, which is why
+  nothing caught it. Phase 6.3's roster-coverage test had the same shape and
+  was skipping in the mirror where it could have asserted. Both now walk up
+  until they find the file, assert wherever it exists, and skip only where it
+  genuinely does not. All 142 pass in both fork trees; an instance runs 141
+  and skips the roster test, which is the one file an instance really does not
+  carry.
 - ffbapp refreshed to role codes, and given 6.3 (Phase 6.2 of
   docs/harness-conversion-plan.md, 2026-09-14): the nine custom agents still
   keyed under pre-0.5.0 persona codes (`agent-damer-flinn`,

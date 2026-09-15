@@ -51,6 +51,22 @@ def table_rows():
     return rows
 
 
+def find_roster():
+    """config/agent-names.yaml, found by walking up rather than at a fixed depth.
+
+    This file ships to three trees at two different depths -- the fork's
+    skills/, the fork's .claude/skills/ mirror, and every instance's
+    .claude/skills/ -- so a fixed parents[N] is right for at most one of them.
+    The fork's mirror has the roster two levels further up and would otherwise
+    skip an assertion it can actually make.
+    """
+    for parent in Path(__file__).resolve().parents:
+        candidate = parent / "config" / "agent-names.yaml"
+        if candidate.is_file():
+            return candidate
+    return None
+
+
 class TableIsWellFormed(unittest.TestCase):
     def test_check_passes_on_the_shipped_table(self):
         proc = subprocess.run([sys.executable, str(SCRIPT), "check"],
@@ -62,8 +78,8 @@ class TableIsWellFormed(unittest.TestCase):
         # The roster lives in the fork. An instance carries the skill but not
         # config/agent-names.yaml, so this asserts where it can and skips where
         # it cannot rather than failing every instance's test run.
-        names = SCRIPT.parents[3] / "config" / "agent-names.yaml"
-        if not names.is_file():
+        names = find_roster()
+        if names is None:
             self.skipTest("config/agent-names.yaml is fork-only; nothing to compare against here")
         roster = re.findall(r"^  - role: (\S+)", names.read_text(), re.M)
         self.assertTrue(roster, "roster not found")
