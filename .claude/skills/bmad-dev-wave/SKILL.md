@@ -30,7 +30,7 @@ output-locations:
   - <worktree>/.bmad-changed.txt            # reviewer-selection input, step 10
   - <worktree>/docs/stories/                # JIT story files
   - pull request against main via gh pr create
-version: 1.7.0
+version: 1.7.1
 ---
 
 # bmad-dev-wave
@@ -408,12 +408,19 @@ It is not the step-7 evaluator twice. That one reads: fresh context,
 Read/Glob/Grep, no Bash. This one executes, which is the standing party brief:
 a finding is proved by execution or by mutation, never by reading.
 
+**The generalist does not stand in for a specialist.** `bmm-dev` fires on any
+implementation diff -- 17 of ffbapp's 18 waves -- because he is the second
+opinion on code rather than an answer about a domain. A selection holding only
+generalists is treated as an empty one: the wave gets him *and* the fallback.
+Without that rule his row alone retires the fallback on the two waves that
+most need it, and "somebody read it" is not the same answer as "somebody
+attacked it".
+
 **The table is the whole roster.** All 38 agents in `config/agent-names.yaml`
 have a row, asserted by test, so a missing trigger is visible in one file
-rather than needing a count. Four rows are inert and each says why:
-custom-bizops and core-bmad-master because the inventory ruled so,
-custom-web-designer and bmm-dev because both build rather than review and a
-builder grading its own build is what Phase 3 separated.
+rather than needing a count. Three rows are inert and each says why:
+custom-bizops and core-bmad-master because the inventory ruled so, and
+custom-web-designer because she builds at step 6.
 
 **Party mode is unaffected.** Trigger selection is for this step only. When
 bmad-party-mode is initiated, every agent is in the room; that rule is
@@ -528,6 +535,15 @@ there is nothing to block.
   names. Do not retry the same write through a different tool.
 
 ## Version history
+- 1.7.1 (2026-09-14, founder instruction): `bmm-dev` gains a trigger and
+  becomes a second opinion on any implementation diff, which an earlier draft
+  had refused on a misreading -- Phase 3's ruling is about the same context
+  grading itself and about an evaluator that can write, and a step-10 dispatch
+  is neither. He is marked `generalist`, and a selection holding only
+  generalists still returns the fallback: he fires on 17 of 18 ffbapp waves, so
+  without that rule his row alone would retire the fallback on 3A and 3D. Rows
+  gain an optional `not_paths`, which narrows the candidate set before `paths`
+  is tested, so his row can say "production source, but not its tests".
 - 1.7.0 (2026-09-14, Phase 6.3 of docs/harness-conversion-plan.md, second
   pass): the trigger table becomes the whole 38-agent roster and gains a
   fallback. A sweep of every seat against the four ffbapp waves that selected

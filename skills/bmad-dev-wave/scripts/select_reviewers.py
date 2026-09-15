@@ -267,7 +267,7 @@ def validate(reviewers, fallback=None):
 
         has_patterns = bool(entry.get("paths") or entry.get("spec"))
         if entry.get("inert"):
-            if has_patterns:
+            if has_patterns or entry.get("not_paths"):
                 raise TableError(
                     f"{role}: an inert row cannot carry 'paths' or 'spec'; "
                     "a row either fires or it does not"
@@ -278,7 +278,9 @@ def validate(reviewers, fallback=None):
                 "cannot fire must say why, so a missing trigger is visible "
                 "rather than silent"
             )
-        for key in ("paths", "spec"):
+        if entry.get("generalist") not in (None, "yes"):
+            raise TableError(f"{role}: 'generalist' must be \"yes\" when present")
+        for key in ("paths", "spec", "not_paths"):
             if key in entry and not isinstance(entry[key], list):
                 raise TableError(f"{role}: '{key}' must be a list")
     return reviewers
@@ -347,9 +349,16 @@ def select(reviewers, changed_files, spec_text):
             inert.append(entry)
             continue
 
+        # `not_paths` narrows the candidate set before `paths` is tested, so a
+        # row can say "production source, but not its tests" without spelling
+        # out every directory a project might not have.
+        excluded = entry.get("not_paths", [])
+        candidates = [f for f in changed_files
+                      if not any(path_matches(x, [f]) for x in excluded)] if excluded else changed_files
+
         path_hits = []
         for pattern in entry.get("paths", []):
-            hits = path_matches(pattern, changed_files)
+            hits = path_matches(pattern, candidates)
             if hits:
                 path_hits.append({"pattern": pattern, "files": hits})
 
@@ -357,6 +366,7 @@ def select(reviewers, changed_files, spec_text):
 
         if path_hits or spec_hits:
             selected.append({
+                "generalist": entry.get("generalist") == "yes",
                 "role": entry["role"],
                 "skill": entry["skill"],
                 "display": entry["display"],
@@ -377,9 +387,17 @@ def resolve(reviewers, fallback, changed_files, spec_text):
     The fallback is returned, never merged into `selected`: a record that
     cannot tell a fired trigger from an empty selection cannot be checked
     against the table later.
+
+    "No row fired" and "only generalist rows fired" are the same case here.
+    bmm-dev fires on 17 of ffbapp's 18 waves by design -- he is the second
+    opinion on any implementation diff -- so treating him as an answer would
+    retire the fallback on the two waves that most need it. 3A's own review
+    was a mutation sweep plus an expressiveness pass, not one generalist
+    reading the diff, and it is what found that wave's two HIGH findings.
     """
     selected, skipped, inert = select(reviewers, changed_files, spec_text)
-    return selected, skipped, inert, (fallback if not selected else None)
+    specialists = [hit for hit in selected if not hit["generalist"]]
+    return selected, skipped, inert, (fallback if not specialists else None)
 
 
 # --------------------------------------------------------------------------
@@ -436,14 +454,18 @@ def render(selected, skipped, inert, fallback, wave, n_files, n_specs, n_ignored
     if not selected:
         lines.append("  No trigger in the table fires on this wave.")
         lines.append("")
-        if fallback:
+    if fallback:
+        if selected:
+            lines.append("Only generalist rows fired; no domain specialist answered.")
+        if True:
             lines.append(f"FALLBACK: {fallback['method']}, "
                          f"{fallback['reviewers']} reviewers  [{fallback['source']}]")
             lines.append(f"    {fallback['brief']}")
             lines.append(f"    record the review as: {fallback['record_as']}")
             lines.append("")
     for hit in selected:
-        lines.append(f"{hit['role']}  ({hit['skill']}, {hit['display']})  [{hit['source']}]")
+        tag = "  generalist" if hit["generalist"] else ""
+        lines.append(f"{hit['role']}  ({hit['skill']}, {hit['display']})  [{hit['source']}]{tag}")
         for match in hit["matched_paths"]:
             shown = ", ".join(match["files"][:3])
             extra = len(match["files"]) - 3

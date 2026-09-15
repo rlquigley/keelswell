@@ -447,6 +447,15 @@ sent them a cost reviewer instead. The remaining seventeen were given
 triggers on founder instruction rather than left inert; a test asserts
 the table and `config/agent-names.yaml` are the same set.
 
+**`bmm-dev` is seated after all** (founder instruction, same day). The
+draft that left him inert misread Phase 3: that ruling is about the
+same context grading itself and about an evaluator that can write, and
+a step-10 dispatch is a fresh subagent with neither property. He is the
+generalist second opinion, fires on 17 of 18, and is marked as such so
+a generalist-only selection still returns the fallback -- otherwise his
+row alone retires it on 3A and 3D, which are the two waves it exists
+for.
+
 **A fifth precision rule, and the measurement that forced it.**
 Structural BMAD vocabulary is never a trigger. A test design quotes its
 acceptance criteria and cites its functional requirements by

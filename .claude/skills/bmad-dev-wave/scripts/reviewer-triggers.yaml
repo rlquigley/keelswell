@@ -38,6 +38,15 @@
 #            word boundary only, so "train" matches "training" but not
 #            "constraint". That case is real: wave 4A's test design contains
 #            "train" three times and all three are inside "constraint".
+#   generalist  optional, "yes" on a row that answers for no particular
+#            domain. A selection holding only generalists is treated as an
+#            empty one for the purposes of the fallback: the wave still gets
+#            its generalist AND the fallback method, because "somebody read
+#            it" is not the same answer as "somebody attacked it".
+#   not_paths  optional. Paths matching any of these are removed from the
+#            candidate set BEFORE `paths` is tested, so a row can say "source,
+#            but not its tests". Only bmm-dev needs it: every other row names
+#            what it wants rather than what it does not.
 #   inert    present only on a row that can never fire. Names why. A row with
 #            an `inert` key carries no `paths` and no `spec`.
 #
@@ -844,13 +853,35 @@ reviewers:
   - role: bmm-dev
     skill: bmad-agent-dev
     display: "Mat Cauthon"
-    source: "none"
-    trigger: "he builds; he does not review"
-    inert: "the same ruling custom-web-designer got on 2026-09-14. Step 6 dispatches the coding subagents, and a builder reviewing its own build is exactly what Phase 3 separated when it moved step 7's review to a fresh-context evaluator with no writing tools. Every trigger drafted for him was a restatement of another row's: convention conformance is arch-architecture-governor, test adequacy is tea-murat. Overrule this and he is a second opinion on the diff he wrote."
-
-  # --- Not among the sixteen. Two of the fixed three step 10 used to dispatch
-  # unconditionally. docs/agent-inventory.md covers fork-only agents only, so
-  # neither has an inventory trigger and both were written for this table.
+    source: "derived-2026-09-14"
+    trigger: "the wave adds or changes production source outside a test tree"
+    generalist: "yes"
+    note: "A second opinion on the diff, from the seat that writes code for a living. Dispatched at step 10 as a fresh subagent, so this is not the context that built the wave and not the Phase 3 conflict an earlier draft of this row claimed: that ruling is about the SAME context grading itself and about an evaluator that can write, and neither applies to a fresh reviewer with no writing tools. He is the generalist in a table of specialists, so he fires wherever implementation landed and the specialists answer only for their own domain."
+    paths:
+      - "**/*.py"
+      - "**/*.ts"
+      - "**/*.tsx"
+      - "**/*.js"
+      - "**/*.jsx"
+      - "**/*.go"
+      - "**/*.rs"
+      - "**/*.rb"
+      - "**/*.java"
+      - "**/*.kt"
+      - "**/*.swift"
+      - "**/*.cs"
+      - "**/*.php"
+      - "**/*.ex"
+      - "**/*.scala"
+    not_paths:
+      - "tests/**"
+      - "**/tests/**"
+      - "**/test_*"
+      - "**/*_test.*"
+      - "**/*.spec.*"
+      - "**/spec/**"
+      - "**/conftest.py"
+      - "**/migrations/**"
 
   - role: arch-platform-engineer
     skill: bmad-agent-arch-platform-engineer

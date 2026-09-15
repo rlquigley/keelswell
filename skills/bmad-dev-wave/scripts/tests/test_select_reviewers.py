@@ -119,14 +119,14 @@ class NoCap(unittest.TestCase):
         self.assertEqual(len(result["selected"]),
                          len({h["role"] for h in result["selected"]}))
 
-    def test_one_domain_returns_one_reviewer(self):
+    def test_one_domain_returns_one_specialist(self):
         _, result = run(["src/engine/backtest.py"])
-        self.assertEqual({"custom-ml"}, roles(result))
+        specialists = {h["role"] for h in result["selected"] if not h["generalist"]}
+        self.assertEqual({"custom-ml"}, specialists)
 
     def test_an_empty_selection_is_an_answer_not_an_error(self):
-        proc, result = run(["src/contract/grammar.py"])
+        proc, result = run(["assets/logo.png"])
         self.assertEqual(0, proc.returncode)
-        self.assertEqual(set(), roles(result))
 
 
 class FixedThreeLoseTheirExemption(unittest.TestCase):
@@ -205,7 +205,7 @@ class PathPrecision(unittest.TestCase):
     def test_a_session_wrap_note_is_not_an_http_session(self):
         # `**/session*` fired the security reviewer on five of eighteen waves.
         _, result = run(["_bmad-output/session-wrap/2026-09-10T05-11-00Z/triage.md"])
-        self.assertEqual(set(), roles(result))
+        self.assertNotIn("custom-appsec", roles(result))
 
     def test_django_models_py_is_not_an_ml_model(self):
         _, result = run(["src/platform/compute/models.py"])
@@ -216,7 +216,7 @@ class PathPrecision(unittest.TestCase):
                          "src/engine/backtest.py"])
         self.assertEqual(3, result["ignored_file_count"])
         self.assertEqual(1, result["changed_file_count"])
-        self.assertEqual({"custom-ml"}, roles(result))
+        self.assertIn("custom-ml", roles(result))
 
 
 class InertRows(unittest.TestCase):
@@ -227,11 +227,11 @@ class InertRows(unittest.TestCase):
         ])
         inert = {row["role"] for row in result["inert"]}
         self.assertEqual(
-            {"custom-bizops", "custom-web-designer", "core-bmad-master", "bmm-dev"}, inert)
+            {"custom-bizops", "custom-web-designer", "core-bmad-master"}, inert)
         self.assertFalse(inert & roles(result))
 
     def test_every_inert_row_states_a_reason(self):
-        _, result = run(["src/contract/grammar.py"])
+        _, result = run(["assets/logo.png"])
         for row in result["inert"]:
             self.assertTrue(row["reason"].strip(), row["role"])
 
@@ -262,13 +262,46 @@ class StructuralVocabulary(unittest.TestCase):
         self.assertNotIn("bmm-tech-writer", roles(result))
 
 
+class Generalist(unittest.TestCase):
+    """bmm-dev answers for no domain, so he never stands in for one."""
+
+    def test_the_generalist_fires_on_any_implementation_diff(self):
+        _, result = run(["src/contract/grammar.py"])
+        self.assertIn("bmm-dev", roles(result))
+
+    def test_the_generalist_does_not_fire_on_tests_alone(self):
+        _, result = run(["tests/unit/test_grammar.py", "tests/db/conftest.py"])
+        self.assertNotIn("bmm-dev", roles(result))
+
+    def test_not_paths_removes_a_file_before_paths_is_tested(self):
+        _, result = run(["src/app/models.py", "src/app/migrations/0001_initial.py"])
+        hit = next(h for h in result["selected"] if h["role"] == "bmm-dev")
+        matched = [f for m in hit["matched_paths"] for f in m["files"]]
+        self.assertIn("src/app/models.py", matched)
+        self.assertNotIn("src/app/migrations/0001_initial.py", matched)
+
+    def test_a_generalist_only_selection_still_gets_the_fallback(self):
+        # Wave 3A: production Python, no specialist domain in the diff.
+        _, result = run(["src/contract/grammar.py", "src/contract/version.py"])
+        self.assertEqual({"bmm-dev"}, roles(result))
+        self.assertIsNotNone(result["fallback"])
+
+    def test_one_specialist_retires_the_fallback(self):
+        _, result = run(["src/engine/backtest.py"])
+        self.assertIn("custom-ml", roles(result))
+        self.assertIsNone(result["fallback"])
+
+    def test_only_bmm_dev_is_a_generalist(self):
+        generalists = [e["role"] for e in table_rows() if e.get("generalist")]
+        self.assertEqual(["bmm-dev"], generalists)
+
+
 class Fallback(unittest.TestCase):
-    """A wave nobody's trigger fires on still gets reviewed."""
+    """A wave no specialist's trigger fires on still gets attacked."""
 
     def test_an_empty_selection_returns_the_fallback(self):
-        proc, result = run(["src/contract/grammar.py", "tests/unit/test_grammar.py"])
+        proc, result = run(["assets/logo.png"])
         self.assertEqual(0, proc.returncode)
-        self.assertEqual(set(), roles(result))
         self.assertIsNotNone(result["fallback"])
         self.assertTrue(result["fallback"]["brief"])
         self.assertEqual("fallback", result["fallback"]["record_as"])
@@ -281,6 +314,7 @@ class Fallback(unittest.TestCase):
     def test_the_fallback_is_never_merged_into_selected(self):
         _, result = run(["src/contract/grammar.py"])
         self.assertNotIn("fallback", roles(result))
+        self.assertNotIn("fallback", [h["skill"] for h in result["selected"]])
 
     def test_a_table_with_an_incomplete_fallback_is_refused(self):
         with tempfile.TemporaryDirectory() as tmp:

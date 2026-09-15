@@ -3,6 +3,22 @@ All notable changes to Keelswell. Format: Keep a Changelog; versioning: semver.
 
 ## [Unreleased] - 2026-09-12
 ### Added
+- `bmm-dev` becomes a second opinion on the diff (2026-09-14, founder
+  instruction): bmad-dev-wave 1.7.0 -> 1.7.1. An earlier draft left him inert
+  on the grounds that a builder cannot review its own build; that was a
+  misreading and is corrected here. Phase 3's ruling is about the *same*
+  context grading itself and about an evaluator that can write, and a step-10
+  dispatch is a fresh subagent with neither property. He fires on any
+  implementation source outside a test tree -- 17 of ffbapp's 18 waves -- and
+  is marked `generalist` for exactly that reason: a selection holding only
+  generalist rows is treated as an empty one, so such a wave gets him *and*
+  the fallback. Without that rule his row alone retires the fallback on 3A and
+  3D, the two waves it was built for, and "somebody read it" is not the same
+  answer as "somebody attacked it". Rows gain an optional `not_paths`, applied
+  before `paths` so a row can say "production source, but not its tests";
+  only his row needs it. Mean dispatches per wave 3.2 -> 4.2 with the fallback
+  still firing on exactly two. 41 tests for this script, 142 across the wave
+  scripts.
 - The trigger table becomes the whole roster, and gains a fallback (Phase 6.3
   second pass, 2026-09-14): bmad-dev-wave 1.6.0 -> 1.7.0. A sweep of all 38
   seats in `config/agent-names.yaml` against the four ffbapp waves that
