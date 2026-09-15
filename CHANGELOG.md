@@ -3,6 +3,24 @@ All notable changes to Keelswell. Format: Keep a Changelog; versioning: semver.
 
 ## [Unreleased] - 2026-09-12
 ### Added
+- ffbapp refreshed to role codes, and given 6.3 (Phase 6.2 of
+  docs/harness-conversion-plan.md, 2026-09-14): the nine custom agents still
+  keyed under pre-0.5.0 persona codes (`agent-damer-flinn`,
+  `agent-juilin-sandar`, `agent-tam-althor`, `agent-setalle-anan`,
+  `agent-hurin`, `agent-gareth-bryne`, `agent-bayle-domon`,
+  `agent-jain-farstrider`, `agent-tuon`) move to role codes on the only
+  instance that runs waves, across three surfaces: skill directories,
+  `[agents.*]` tables, and the two help catalogs. Nothing was broken before --
+  config and directories agreed -- but 6.3 is written against role codes and
+  would have missed those nine. 6.3 shipped in the same commit for the same
+  reason. Verified by `resolve_party.py` (38 seats, all sixteen under role
+  codes), by every firing table row resolving to both a skill directory and a
+  config entry, and by a live run against ffbapp's real wave 4B diff returning
+  `agent-ml`. The new harness assertion caught ffbapp missing 6.3 before
+  anything else did, which is it earning its place on first use. A test
+  portability fix rides along: the roster-coverage test reads
+  `config/agent-names.yaml`, which is fork-only, and now skips in an instance
+  rather than failing there.
 - `bmm-dev` becomes a second opinion on the diff (2026-09-14, founder
   instruction): bmad-dev-wave 1.7.0 -> 1.7.1. An earlier draft left him inert
   on the grounds that a builder cannot review its own build; that was a

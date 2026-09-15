@@ -59,8 +59,13 @@ class TableIsWellFormed(unittest.TestCase):
         self.assertIn("ok", proc.stdout)
 
     def test_the_table_covers_the_whole_roster(self):
-        roster = re.findall(r"^  - role: (\S+)",
-                            (SCRIPT.parents[3] / "config" / "agent-names.yaml").read_text(), re.M)
+        # The roster lives in the fork. An instance carries the skill but not
+        # config/agent-names.yaml, so this asserts where it can and skips where
+        # it cannot rather than failing every instance's test run.
+        names = SCRIPT.parents[3] / "config" / "agent-names.yaml"
+        if not names.is_file():
+            self.skipTest("config/agent-names.yaml is fork-only; nothing to compare against here")
+        roster = re.findall(r"^  - role: (\S+)", names.read_text(), re.M)
         self.assertTrue(roster, "roster not found")
         table = {e["role"] for e in table_rows()}
         self.assertEqual(set(roster), table,

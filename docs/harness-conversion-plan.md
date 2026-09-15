@@ -345,6 +345,36 @@ hand step every instance update has been.
 
 **Verify:** `resolve_party.py` returns all sixteen under role codes.
 
+**Done 2026-09-14**, on ffbapp branch `keelswell/6-2-role-codes`
+(commit 18495ca), carrying 6.3 with it because 6.2 has nothing to be
+correct for on its own. Drift check first: the only difference between
+each instance skill and the fork's role-form copy was the `name:` and
+`description:` lines carrying the old code, so nothing local was lost.
+Three surfaces, not one -- the skill directories (`git mv`, so history
+follows), the `[agents.*]` tables in `_bmad/config.toml`, and the
+catalog rows in `_bmad/_config/bmad-help.csv` and
+`_bmad/keelswell/module-help.csv`. Display names and menu codes are
+unchanged: the six agents already in role form set the convention as a
+role-form skill id with a persona display name, which these rows
+already had.
+
+Verify passed and then some: `resolve_party.py` returns `"active":
+"installed"`, a room of 38, all sixteen under role codes; config.toml
+parses to 38 tables with zero stale codes; all 35 firing table rows
+resolve to both a skill directory and a config.toml entry; the catalog
+diffs are line-for-line swaps (9/9, 15/15, 9/9) with nothing added or
+removed; `install.sh --validate-only --target-project` is green; and a
+live run against ffbapp's real wave 4B diff returns `agent-ml` on
+`ffbapp/engine/backtest.py`, which is the thing 6.2 existed to unblock.
+
+Two notes for the next instance pass. The new harness assertion caught
+ffbapp missing 6.3 before anything else did, which is the assertion
+earning its place on its first real use. And
+`tests/test_evaluate_wave.py`'s `test_shipped_definition_is_safe`
+resolves `.claude/.claude/agents/` in an instance and fails there; it
+is a fork-layout assumption that arrived with Phases 1-4, left alone
+here and worth a separate fix.
+
 **Estimate:** one hour.
 
 ### 6.3 A reviewer-selection script, not a reviewer-selection rule
