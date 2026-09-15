@@ -345,35 +345,28 @@ hand step every instance update has been.
 
 **Verify:** `resolve_party.py` returns all sixteen under role codes.
 
-**Done 2026-09-14**, on ffbapp branch `keelswell/6-2-role-codes`
-(commit 18495ca), carrying 6.3 with it because 6.2 has nothing to be
-correct for on its own. Drift check first: the only difference between
-each instance skill and the fork's role-form copy was the `name:` and
-`description:` lines carrying the old code, so nothing local was lost.
-Three surfaces, not one -- the skill directories (`git mv`, so history
-follows), the `[agents.*]` tables in `_bmad/config.toml`, and the
-catalog rows in `_bmad/_config/bmad-help.csv` and
-`_bmad/keelswell/module-help.csv`. Display names and menu codes are
-unchanged: the six agents already in role form set the convention as a
-role-form skill id with a persona display name, which these rows
-already had.
+**Done 2026-09-12** (attacktheseam/ffbapp#98). The nine skill
+directories and their `config.toml` tables renamed from persona to
+role codes; ffbapp's `main` now lists all fifteen custom agents under
+role codes, so 6.3 has nothing left to miss there.
 
-Verify passed and then some: `resolve_party.py` returns `"active":
-"installed"`, a room of 38, all sixteen under role codes; config.toml
-parses to 38 tables with zero stale codes; all 35 firing table rows
-resolve to both a skill directory and a config.toml entry; the catalog
-diffs are line-for-line swaps (9/9, 15/15, 9/9) with nothing added or
-removed; `install.sh --validate-only --target-project` is green; and a
-live run against ffbapp's real wave 4B diff returns `agent-ml` on
-`ffbapp/engine/backtest.py`, which is the thing 6.2 existed to unblock.
+**green-ledger 2026-09-14** (local, ff-only merge at `eca6aae`). The
+second live instance needed the same nine, and it carries BOTH tool
+trees, so every rename and file copy is done twice. Four surfaces
+there, not three: `.claude/skills`, `.agents/skills`, the `[agents.*]`
+tables, and both help catalogs. Verified in both trees -- 38 tables,
+zero stale codes, every registered agent has a directory, all 35 firing
+trigger rows resolve to a directory and a config entry, the suite
+passes, and the fork's `--validate-only --target-project` is green.
+Both live instances now carry 6.2 and 6.3.
 
-Two notes for the next instance pass. The new harness assertion caught
-ffbapp missing 6.3 before anything else did, which is the assertion
-earning its place on its first real use. And
-`tests/test_evaluate_wave.py`'s `test_shipped_definition_is_safe`
-resolves `.claude/.claude/agents/` in an instance and fails there; it
-is a fork-layout assumption that arrived with Phases 1-4, left alone
-here and worth a separate fix.
+**A process lesson worth more than the item.** A later session redid
+ffbapp's rename from a branch that was seven commits behind `main`,
+found nine "stale" codes that `main` had not carried since #98, and
+produced a result byte-identical to it. The branch was checked for
+being *ahead* of main and not for being *behind*. Before any instance
+work: `git fetch` and check both directions, and read the plan's own
+Done markers first -- this one said 2026-09-12 and was not consulted.
 
 **Estimate:** one hour.
 
