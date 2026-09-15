@@ -13,8 +13,23 @@ SCRIPT = Path(__file__).resolve().parent.parent / "evaluate_wave.py"
 
 # The definition this fork actually ships, so a test that passes here is a
 # statement about the file bmad-dev-wave will really dispatch.
-SHIPPED = (Path(__file__).resolve().parents[4]
-           / ".claude" / "agents" / "keelswell-wave-evaluator.md")
+#
+# Found by walking up rather than by a fixed depth. This file ships to three
+# trees at two different depths -- the fork's skills/, the fork's
+# .claude/skills/ mirror, and every instance's .claude/skills/ -- and a
+# parents[4] that is right for the first builds ".claude/.claude/agents/" for
+# the other two. That silently reduced this assertion to a failing test
+# everywhere but one tree; install.sh's own `evaluate_wave.py check` is what
+# actually held the invariant in the meantime.
+def _find_shipped(start):
+    for parent in start.parents:
+        candidate = parent / ".claude" / "agents" / "keelswell-wave-evaluator.md"
+        if candidate.is_file():
+            return candidate
+    return None
+
+
+SHIPPED = _find_shipped(Path(__file__).resolve())
 
 WAVE_MAP = """# Wave Map
 
@@ -97,7 +112,8 @@ class TestCheck(Base):
 
     def test_shipped_definition_is_safe(self):
         """The real file, not a fixture. Done criterion (1)."""
-        self.assertTrue(SHIPPED.is_file(), f"missing {SHIPPED}")
+        if SHIPPED is None:
+            self.skipTest("no .claude/agents/keelswell-wave-evaluator.md above this tree")
         p = subprocess.run(
             [sys.executable, str(SCRIPT), "check",
              "--project-root", str(SHIPPED.parents[2])],

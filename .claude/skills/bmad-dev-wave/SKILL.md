@@ -27,9 +27,10 @@ output-locations:
   - <worktree>/docs/wave-<id>/verify-output.txt   # evaluator evidence, step 7
   - <worktree>/docs/wave-<id>/evaluation-<n>.md   # one per evaluator pass
   - <worktree>/docs/wave-<id>/review-party.md   # required, every wave (register row 51)
+  - <worktree>/.bmad-changed.txt            # reviewer-selection input, step 10
   - <worktree>/docs/stories/                # JIT story files
   - pull request against main via gh pr create
-version: 1.5.0
+version: 1.7.1
 ---
 
 # bmad-dev-wave
@@ -91,8 +92,9 @@ re-entered by /bmad-resume-wave.
 9.  Verify: run tests/verify-fast.sh in the worktree; on FAIL offer
     edit / demote / abort.
 10. Party-mode adversarial review -- load-bearing waves only (skipped by
-    --no-party): set the status to in-review, then dispatch security, cost,
-    and platform reviewers; block on
+    --no-party): set the status to in-review, ask scripts/select_reviewers.py
+    which reviewers this wave's own changes require (see The Reviewer
+    Selection) and dispatch exactly those; block on
     HIGH or CRITICAL findings. Write docs/wave-<id>/review-party.md before
     step 11, always, including when the review found nothing and when it did
     not run (see The Review Record).
@@ -358,6 +360,72 @@ the epic and the reason, which this preflight reads and accepts. Refusal
 names the epic, names the waves whose pull requests are merged, and points at
 /bmad-close-epic.
 
+## The Reviewer Selection
+
+Step 10 used to dispatch security, cost and platform on every load-bearing
+wave. Phase 6.3 of docs/harness-conversion-plan.md removed that exemption:
+those three are now ordinary rows in a table, and which reviewers a wave gets
+is decided from what the wave actually changed. Waves 4A and 4B landed
+ffbapp's model work with no ML reviewer under the old rule, and 4B is where
+the defect 5D eventually caught originated.
+
+The answer is not yours to derive. Ask the script:
+
+    git -C {worktree} diff --name-only main...HEAD > {worktree}/.bmad-changed.txt
+    python3 {skill-root}/scripts/select_reviewers.py select \
+        --wave <id> \
+        --changed-files {worktree}/.bmad-changed.txt \
+        --spec {worktree}/docs/wave-<id>/test-design.md \
+        --json
+
+Dispatch the `skill` of every entry in `selected`, and nothing else. Do not
+add a reviewer the script did not return, and do not drop one it did. Exit 2
+means the trigger table is malformed; quote its stderr and halt rather than
+choosing reviewers by hand, which is the behaviour 6.3 replaced.
+
+**Necessity, not a budget.** If eight rows fire, dispatch eight. If one fires,
+dispatch one. There is no cap in the script, none in the table, and none here,
+because a cap means choosing which real gaps to skip looking for. What keeps
+this affordable is trigger precision: every pattern in
+`scripts/reviewer-triggers.yaml` is answerable yes or no from the file list
+and the spec, with no judgment. A trigger needing interpretation is a wrong
+trigger, not a wrong rule -- fix the table, do not overrule its output.
+
+**Zero reviewers is a possible answer, and it is not zero review.** When no
+row fires, the JSON carries a `fallback` instead of an empty answer: a method
+rather than a seat, dispatched as plain subagents under the brief the table
+carries. Dispatch it exactly as written and record the review with
+`record_as`, never as though a trigger fired.
+
+The method is ffbapp's own. Waves 3A and 3D both ran real reviews under no
+persona's name -- "mutation-based correctness review", "specimen
+expressiveness review", "real-sheet execution review" -- and 3D's record says
+it ran "under the wave 3A pattern". That review found two HIGH findings on 3A
+that no seat in the table would have looked for. Waves 3C and 4A got no review
+at all and both are load-bearing. This block is why that cannot happen again.
+
+It is not the step-7 evaluator twice. That one reads: fresh context,
+Read/Glob/Grep, no Bash. This one executes, which is the standing party brief:
+a finding is proved by execution or by mutation, never by reading.
+
+**The generalist does not stand in for a specialist.** `bmm-dev` fires on any
+implementation diff -- 17 of ffbapp's 18 waves -- because he is the second
+opinion on code rather than an answer about a domain. A selection holding only
+generalists is treated as an empty one: the wave gets him *and* the fallback.
+Without that rule his row alone retires the fallback on the two waves that
+most need it, and "somebody read it" is not the same answer as "somebody
+attacked it".
+
+**The table is the whole roster.** All 38 agents in `config/agent-names.yaml`
+have a row, asserted by test, so a missing trigger is visible in one file
+rather than needing a count. Three rows are inert and each says why:
+custom-bizops and core-bmad-master because the inventory ruled so, and
+custom-web-designer because she builds at step 6.
+
+**Party mode is unaffected.** Trigger selection is for this step only. When
+bmad-party-mode is initiated, every agent is in the room; that rule is
+preserved by not setting `default_party`, and nothing here changes it.
+
 ## The Review Record
 Step 10 writes `docs/wave-<id>/review-party.md`. It is required for every
 wave, and it is the artifact rather than a courtesy: a finding that lives
@@ -372,6 +440,11 @@ sometimes an expected absence:
 - the review ran and found nothing: say so, and still record the reviewers,
   their domains, and what each attacked. Wave 5B's clean result is exactly
   what got lost by leaving it in a commit message;
+- the selector returned no reviewers and the fallback ran: say so, name the
+  method, and record the changed-file count and the spec files it read so the
+  empty answer can be re-derived. Mark it with the fallback's `record_as`, not
+  as a fired trigger: a record that cannot tell the two apart cannot be
+  checked against the table later;
 - the review did not run (the wave is not load-bearing, or --no-party): a
   short record naming which case applies and why. Under --no-party the record
   from the prior session must already exist on disk; if it does not, refuse
@@ -405,7 +478,10 @@ Agent value is re-earned after each model release rather than assumed
 in that: it proves something about a model nobody can name.
 
 Contents:
-- the reviewers dispatched and their disjoint domains;
+- the reviewers dispatched and their disjoint domains, and the trigger that
+  selected each one (paste `select_reviewers.py --json`'s `selected` block, or
+  its `role`/`trigger`/`source` fields). A record that names reviewers without
+  naming what put them there cannot be checked against the table later;
 - every finding, with its severity, and how it was proved -- by execution or
   by mutation, never by reading (the standing party-mode brief);
 - for each finding, how it was closed and how the close was verified.
@@ -459,6 +535,46 @@ there is nothing to block.
   names. Do not retry the same write through a different tool.
 
 ## Version history
+- 1.7.1 (2026-09-14, founder instruction): `bmm-dev` gains a trigger and
+  becomes a second opinion on any implementation diff, which an earlier draft
+  had refused on a misreading -- Phase 3's ruling is about the same context
+  grading itself and about an evaluator that can write, and a step-10 dispatch
+  is neither. He is marked `generalist`, and a selection holding only
+  generalists still returns the fallback: he fires on 17 of 18 ffbapp waves, so
+  without that rule his row alone would retire the fallback on 3A and 3D. Rows
+  gain an optional `not_paths`, which narrows the candidate set before `paths`
+  is tested, so his row can say "production source, but not its tests".
+- 1.7.0 (2026-09-14, Phase 6.3 of docs/harness-conversion-plan.md, second
+  pass): the trigger table becomes the whole 38-agent roster and gains a
+  fallback. A sweep of every seat against the four ffbapp waves that selected
+  nobody found three with a real trigger and no row -- tea-murat (fixtures,
+  conftest, verify scripts, CI lanes), arch-data-architect (migrations, models,
+  schema) and arch-integration-architect (routes, OpenAPI, protobuf) -- of
+  which the data architect had been missing from ten of eighteen waves that
+  changed database schema. The remaining seventeen were given triggers on
+  founder instruction and all but bmm-dev fire on an artifact rather than on
+  code. When no row fires at all the table's `fallback` is returned: the wave
+  3A pattern, two concurrent reviewers with disjoint mutation domains and a
+  held-back verification pass, which is the method ffbapp's own 3A and 3D
+  reviews used under no persona's name. A fifth precision rule is recorded:
+  structural BMAD vocabulary is never a trigger, because "acceptance criterion"
+  and "functional requirement" appear in every test design by construction and
+  fired bmm-qa and bmm-pm on nine of eighteen waves apiece before they were
+  dropped.
+- 1.6.0 (2026-09-14, Phase 6.3 of docs/harness-conversion-plan.md): step 10
+  stops hardcoding "security, cost, and platform" and asks
+  `scripts/select_reviewers.py` which reviewers the wave's own changed files
+  and spec require, against `scripts/reviewer-triggers.yaml`. The fixed three
+  become ordinary rows: a wave touching no infrastructure now returns no
+  platform reviewer. The rule is necessity, not a budget -- no cap anywhere,
+  because a cap means choosing which real gaps to skip looking for; what keeps
+  it affordable is that every trigger is answerable yes or no from the file
+  list without judgment. Six of the eighteen rows quote their trigger verbatim
+  from docs/agent-inventory.md, which is all the inventory wrote; eleven were
+  derived for this table and say so, and three are inert and say why. Nothing
+  about party mode changes: an initiated party is still the whole collective.
+  No stage and no step was added -- step 10 already existed and its reviewer
+  list changed hands, the same move Phase 3 made with step 7's review.
 - 1.5.0 (2026-09-12, Phase 6.1 of docs/harness-conversion-plan.md): the
   review record gains a required front-matter block carrying `model` and
   `effort`, the reviewers' rather than the orchestrator's. The record had

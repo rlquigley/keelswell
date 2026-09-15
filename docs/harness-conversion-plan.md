@@ -350,6 +350,24 @@ directories and their `config.toml` tables renamed from persona to
 role codes; ffbapp's `main` now lists all fifteen custom agents under
 role codes, so 6.3 has nothing left to miss there.
 
+**green-ledger 2026-09-14** (local, ff-only merge at `eca6aae`). The
+second live instance needed the same nine, and it carries BOTH tool
+trees, so every rename and file copy is done twice. Four surfaces
+there, not three: `.claude/skills`, `.agents/skills`, the `[agents.*]`
+tables, and both help catalogs. Verified in both trees -- 38 tables,
+zero stale codes, every registered agent has a directory, all 35 firing
+trigger rows resolve to a directory and a config entry, the suite
+passes, and the fork's `--validate-only --target-project` is green.
+Both live instances now carry 6.2 and 6.3.
+
+**A process lesson worth more than the item.** A later session redid
+ffbapp's rename from a branch that was seven commits behind `main`,
+found nine "stale" codes that `main` had not carried since #98, and
+produced a result byte-identical to it. The branch was checked for
+being *ahead* of main and not for being *behind*. Before any instance
+work: `git fetch` and check both directions, and read the plan's own
+Done markers first -- this one said 2026-09-12 and was not consulted.
+
 **Estimate:** one hour.
 
 ### 6.3 A reviewer-selection script, not a reviewer-selection rule
@@ -386,6 +404,93 @@ routes to the sixteen already declared.
 reviewer, and a wave touching a webhook receiver dispatches
 `agent-billing`, both provable from the script's output before the
 wave runs.
+
+**Done 2026-09-14** (bmad-dev-wave 1.6.0). Both halves of the verify
+hold, as unit tests and against ffbapp's eighteen real waves: platform
+fires on 2 of 18, the two that touch `.github/workflows/` or a
+Dockerfile.
+
+Three things this item assumed that turned out to be false, recorded
+because each cost a decision:
+
+1. **Only six of the sixteen entries carry a Trigger line.** Group 2's
+   seven end with "Keep after an upgrade if" and Group 3's with "How to
+   find out"; neither is a condition in a diff. Nine were written for
+   the table and marked `derived-2026-09-14`; `core-bmad-master` was
+   not, because the inventory already ruled no trigger is nameable for
+   it.
+2. **Two of the fixed three are not in the inventory at all.** It
+   covers the sixteen fork-only agents; `arch-platform-engineer` and
+   `arch-cost-optimizer` come from the architecture pack, so their
+   triggers are derived too. Security is seated as `custom-appsec`, the
+   seat with the inventory trigger, rather than doubling with
+   `arch-security-reviewer`.
+3. **`custom-web-designer` is not a step-10 reviewer.** 6.4 dispatches
+   her at step 6 to build; step 10 reviews what was built. She is an
+   inert row and `custom-design-critic` is the step-10 half of that
+   pair. Ruled 2026-09-14.
+
+Precision was the whole cost. The first version dispatched 3.6
+reviewers per wave across the eighteen, and four of the classes were
+false: a substring match reading "No rendered surface exists in this
+wave" as proof one exists, `*egress*` matching "regression", a
+front-matter `inputDocuments:` list counted as subject matter, and a
+single quotation of the architecture spine counted as work. Fixing
+them took the mean to 1.9 without removing a single true positive.
+That is the predicted redistribution rather than a rise, which is what
+the plan said to check before concluding anything about the agents.
+
+**Second pass, same day** (bmad-dev-wave 1.7.0). Both things left open
+above were settled by looking at what the four zero-reviewer waves
+actually got.
+
+**The zero case is a method, not a seat.** Waves 3A and 3D both ran
+real reviews and neither named a persona: their reviewers were
+"mutation-based correctness review", "specimen expressiveness review"
+and "real-sheet execution review", and 3D's record says it ran "under
+the wave 3A pattern". Across all ten ffbapp review records not one
+reviewer heading names an agent, which is the same finding as the
+inventory's fifteen-of-eighteen bare-domain count arriving from the
+other direction. That review found the two HIGH findings on 3A that no
+seat in the table would have looked for. Waves 3C and 4A had no review
+at all and both are load-bearing -- 3C was already on record, 4A was
+not. So the table gained a `fallback` carrying the 3A pattern, returned
+beside `selected` rather than merged into it.
+
+**Wave 4A needed no ML reviewer.** ffbapp's own wave map settles it:
+the 4A row reads "Projectable event-class registry with the CI mapping
+check against the grammar. **Not model code.**" The selector agrees
+with the map. 4A now selects `tea-murat` on its fixture set.
+
+**The table is the whole roster.** A sweep of all 38 seats found three
+with a real trigger and no row: `tea-murat`, `arch-data-architect` and
+`arch-integration-architect`. The data architect had been absent from
+ten of eighteen waves that changed database schema; the old fixed three
+sent them a cost reviewer instead. The remaining seventeen were given
+triggers on founder instruction rather than left inert; a test asserts
+the table and `config/agent-names.yaml` are the same set.
+
+**`bmm-dev` is seated after all** (founder instruction, same day). The
+draft that left him inert misread Phase 3: that ruling is about the
+same context grading itself and about an evaluator that can write, and
+a step-10 dispatch is a fresh subagent with neither property. He is the
+generalist second opinion, fires on 17 of 18, and is marked as such so
+a generalist-only selection still returns the fallback -- otherwise his
+row alone retires it on 3A and 3D, which are the two waves it exists
+for.
+
+**A fifth precision rule, and the measurement that forced it.**
+Structural BMAD vocabulary is never a trigger. A test design quotes its
+acceptance criteria and cites its functional requirements by
+construction, so seating those phrases fired `bmm-qa` and `bmm-pm` on
+nine of eighteen waves apiece. Adding the seventeen rows took the mean
+from 1.9 to 4.4; dropping the structural vocabulary took it to 3.2,
+with the fallback firing on exactly two waves. The plan's at-risk note
+asked for redistribution rather than a rise, and 3.2 against the old
+rule's fixed 3.0 is the closest honest reading of that: the same volume,
+aimed at what the diff holds. **`arch-cost-optimizer` now fires on none
+of the eighteen**, which is the sharpest evidence the fixed three were
+wrong.
 
 **Estimate:** half a day.
 
