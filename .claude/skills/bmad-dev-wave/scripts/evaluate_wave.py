@@ -453,8 +453,10 @@ def opening_prompt(project_root, label_wanted):
 
 
 def main():
+    # No prefix forms: wave_gate.py reads --wave by its full name.
     ap = argparse.ArgumentParser(
-        description="Dispatch, record and route on a wave's fresh-context evaluation.")
+        description="Dispatch, record and route on a wave's fresh-context evaluation.",
+        allow_abbrev=False)
     ap.add_argument("verb", choices=["check", "dispatch", "record", "opening-prompt"])
     ap.add_argument("--project-root", default=".", help="project root (default: cwd)")
     ap.add_argument("--wave", help="wave label as it appears in waves.md (e.g. 5D)")

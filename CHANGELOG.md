@@ -3,6 +3,59 @@ All notable changes to Keelswell. Format: Keep a Changelog; versioning: semver.
 
 ## [Unreleased] - 2026-09-12
 ### Added
+- The wave gate fails closed and parses Bash instead of searching it (R1 of
+  docs/reviews/harness-engineering-review-v1.md, 2026-09-29). bmad-dev-wave
+  1.7.1 -> 1.8.0. The review found five ways the Phase 4 hook let a guarded
+  call through with no decision: any exit but 2 (a missing script, an
+  exception, a bare relative path gone bad after a `cd`), a timeout, a tool
+  it did not match (Monitor; NotebookEdit, read by the wrong field), a
+  filename in another case, and a Bash shape its regexes did not see -- 8 of
+  the 11 in-review shapes in the review's E2b fixture passed, and one `echo`
+  was denied. Now `.claude/hooks/wave-gate.sh` turns a missing script, a
+  missing python3 and any exit but 0 or 2 into exit 2 with the fix on
+  stderr, and `wave_gate.py` exits 2 on any exception, on an event it cannot
+  read, and past a 20-second deadline. The template registers the hook as
+  `${CLAUDE_PROJECT_DIR}/.claude/hooks/wave-gate.sh` in exec form with a
+  30-second timeout, and matches Monitor. NotebookEdit is read by
+  `notebook_path`; guarded paths match without regard to case; the project
+  root is the checkout holding `.bmad/`, found from the session's cwd through
+  git's common directory, and a wave's evaluation records are read from its
+  worktree first, so the rules see the tree the skill writes from either
+  side. Bash and Monitor commands are parsed: here-documents split off,
+  comments dropped, words unquoted with shlex, assignments and wrappers
+  stripped, git's `-C` read, `cd` followed, and substitutions, `bash -c`,
+  `eval`, `xargs` and `find -exec` parsed as commands of their own. What the
+  parse cannot read it refuses: a `wave_status.py set` reached through
+  `python3 -c`, a here-document, a variable holding the command or a pipe
+  into a shell, and a `$` or backtick in its verb, `--status` or `--wave`.
+  One new rule, *lifecycle*: only `wave_status.py` writes, moves or deletes
+  `.bmad/wave-<id>/wave.md` (E2b's b15 was a `sed -i` on it). Both additions
+  sit inside R1 by RQ's ruling of 2026-09-28, which also admitted
+  `templates/settings.json.template` as a fork-owned seam.
+  `wave_status.py` and `evaluate_wave.py` set `allow_abbrev=False`, so
+  `--stat` and `--wav` no longer bind. Replaying E2b's 15 commands: all 11
+  in-review shapes denied; the echo, show, route and blocked calls allowed.
+  24 new tests (50 for the gate, 166 across bmad-dev-wave's scripts),
+  including the `.sh` wrapper itself run from a sibling worktree and from a
+  `.claude/worktrees/` checkout; the 154 that existed still pass, in both
+  trees. **Prediction, to be checked by R2's session.** Every path that let
+  a guarded call through without a decision now returns one. A matched call
+  costs 74 ms p50 against 48 before (n=20, one `git rev-parse` more). At
+  risk: a broken gate blocks every Write, Edit and Bash call until a human
+  repairs it outside the session, the intended direction; the refusal of
+  unreadable shapes also refuses a legitimate `wave_status.py set` written
+  through eval or `python3 -c` (the fix is the direct call), and an
+  `evaluate_wave.py record` fed by a here-document whose text names
+  `wave_status` and `set` (the documented `< file` form is untouched, and R3
+  retires the Bash route to `record`); a command naming
+  `.bmad/wave-<id>/wave.md` in anything but a plain read (`sed -n`, a `cp`
+  out) is refused. Not covered: a script file written earlier and run later,
+  and a renamed copy of `wave_status.py`, are not opened; R2's permission
+  rules and the review record are the backstops. Instances: ffbapp and
+  green-ledger register the hook by bare relative path in their own
+  `.claude/settings.json`, so reaching them is a hand step (copy the
+  wrapper and the three scripts, change the registration to the template's),
+  not part of this change.
 - Two tests were looking in the wrong place (2026-09-14): both located a
   fork-only file at a fixed `parents[N]`, which is right for exactly one of
   the three trees these tests ship to -- the fork's `skills/`, the fork's
