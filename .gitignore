@@ -82,3 +82,4 @@ _bmad/keelswell/*
 _bmad-output/distillator/
 _bmad/**/*.log
 _bmad/**/tmp/
+gitleaks-report.json
