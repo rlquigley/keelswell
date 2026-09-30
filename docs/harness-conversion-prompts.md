@@ -603,6 +603,161 @@ name what you think the installer will do with it. Wait for my
 go-ahead.
 ```
 
+## Harness review v1: the five do-now items
+
+`docs/reviews/harness-engineering-review-v1.md` (2026-09-27) ranked five
+structural items, R1 to R5, one pull request each, every item's session
+grading the previous item's prediction. R1 ran on 2026-09-28 from a
+five-item kickoff prompt RQ wrote by hand (not reproduced here) and is
+rlquigley/keelswell#23. From R2 on, each item gets its own prompt below,
+written by the session that finished the item before it, so the rulings
+and the prediction to grade travel with it.
+
+### R2: permission-layer backing for the merge halt and the blocked record
+
+Fable 5.1, effort `high`. Two hours of configuration plus a live check;
+the failure mode is a rule that looks right and never fires, so the
+verify step is the work.
+
+Run from the keelswell root. Requires #23 merged.
+
+```text
+You are implementing R2 of the Keelswell harness-engineering review, the
+second of five "do now" items, one pull request per item. R1 is open as
+rlquigley/keelswell#23 (branch claude/r1-gate-fails-closed); confirm it has
+merged before you branch, and branch from that main. The review is
+approved; do not re-plan it. Read these first, in order:
+
+1. docs/reviews/harness-engineering-review-v1.md, sections 1, 4 and 5
+   (the verdict, R1 to R10, the roadmap rulings). R2 is the item.
+2. docs/reviews/harness-review-v1-appendix-b.md: rows 2.6, 4.1 to 4.7, 5.1,
+   5.2, 6.1 to 6.3, 3.6 and "Definitive answers" 7 and 9. Every Claude Code
+   fact you rely on comes from there or from https://code.claude.com/docs;
+   verify against the docs before building on any row marked "not
+   runtime-verified". A docs mirror from 2026-09-28 may still sit in the
+   previous session's scratchpad; fetch fresh if not.
+3. docs/reviews/harness-review-v1-appendix-f.md, section 3 (the ffbapp
+   census: five unrequested `git reset --hard`, two via `git -C`) and the
+   E2a fixture (40 destructive-command strings, verbatim near the end).
+4. docs/harness-conversion-plan.md ("What tracking upstream constrains", the
+   three seams) and docs/upstream-refresh-runbook.md.
+5. The CHANGELOG [Unreleased] entry R1 wrote (top of the file): it carries
+   the prediction you grade first.
+6. The Keelswell auto-memory index at
+   ~/.claude/projects/-Users-ryanquigley-Projects-personal-keelswell/memory/MEMORY.md,
+   then keelswell-hook-writes-blocked, git-stage-explicitly-not-add-all,
+   keelswell-push-needs-sandbox-off, keelswell-project-structure.
+
+Your first message: your approach in five lines at most, your biggest
+uncertainty, R1's prediction restated with how you will grade it, and the
+four rulings below restated as you understand them. Then wait for RQ's go.
+
+Rulings already made (2026-09-28), restate them, do not reopen them:
+(a) templates/settings.json.template is a fork-owned seam, the whole file,
+    not permission rules only.
+(b) Keep bypass banned mechanically: permissions.disableBypassPermissionsMode
+    "disable" in the template. Drop the auto ban: no disableAutoMode; remove
+    forbidden_modes from core/config.yaml with a CHANGELOG line. Deny and
+    ask rules are the hard layer in acceptEdits and auto alike.
+(c) (R5's fixture location; not yours.)
+
+One new ruling to confirm before touching anything (proposed default in
+brackets; RQ decides):
+(d) The review's list has deny Edit(.bmad/**). That form also denies the
+    Write tool writing .bmad/wave-<id>/checkpoint.json, step-N.done and
+    step-4.5.pending, which dev-wave writes with whichever tool the agent
+    picks (SKILL.md names no tool). R1's lifecycle hook rule already guards
+    exactly .bmad/wave-<id>/wave.md. [Narrow the rule to
+    Edit(.bmad/**/wave.md); keep the markers unguarded at the permission
+    layer.]
+
+Grade R1's prediction first, before building. It said: every path that let a
+guarded call through without a decision now returns one; a matched call
+costs 74 ms p50 against 48; at risk were a broken gate blocking a session
+until a human repairs it, legitimate `wave_status.py set` calls written
+through eval or python3 -c being refused, `evaluate_wave.py record` fed by
+a here-document that names wave_status and set being refused, and any
+non-read command naming .bmad/wave-<id>/wave.md being refused; not covered
+were a script file written earlier and run later, and a renamed copy of
+wave_status.py. Grade it by re-running the E2b replay on merged main
+(skills/bmad-dev-wave/scripts/tests/test_wave_gate.py, TestE2bReplay),
+timing 20 matched calls, and reporting whether any at-risk case was hit in
+your own session's tool calls once the scratch instance runs under the
+hooks. Write the grade into the R2 CHANGELOG entry and the PR body.
+
+Standing rules, all from the fork's own record:
+- Work only in the fork-owned seams: the wave skills, skill-local scripts/,
+  install.sh phase 6, .claude/hooks and .claude/agents, plus
+  templates/settings.json.template per (a). R2's own list also names
+  core/config.yaml and the runbook; that list is the grant for those two.
+  Never _bmad/scripts/, never agents/, never an upstream-declared skill body.
+- Every change ships a predicted impact with at-risk regressions, in the
+  CHANGELOG [Unreleased] entry and the PR body; R3's session checks it.
+- Bump the version of every skill you change; mirror skills/ into
+  .claude/skills/ (diff -rq -x __pycache__ per skill must be empty); run the
+  unit tests in both trees (baseline after R1: 166 in bmad-dev-wave, 12 in
+  bmad-close-epic, both trees) and `./install.sh --validate-only
+  --skip-mcp-check` before every commit. Stage files by name, never git add
+  -A, and re-check the staged list against the commit message. The
+  gitleaks pre-commit hook runs; never bypass it.
+- Prose is ASCII with " -- " dashes. No em dashes anywhere.
+- Hook and settings files: prepare the exact content, then let the
+  permission prompt decide; R1's session was allowed to write both the
+  wrapper and the template registration, so try once. If a write is
+  refused, print the file contents and the path for RQ to apply by hand,
+  and carry on.
+- Do not add a stage, do not add a domain persona, do not build anything
+  that edits the harness on its own. R2 adds no hook rule: if the check
+  needs one (for the `git -C` and `bash -c` forms text rules miss, appendix
+  B row 4.3), that is a stop-and-ask, not a workaround.
+- Git: `git fetch`/`git push` failing with "signing failed ...
+  communication with agent failed" means 1Password is locked, not a
+  sandbox block; ask RQ to unlock and retry. The review docs under
+  docs/reviews/ may still be untracked; never stage them.
+- RQ merges and tags by hand. Halt after the PR is open and report: what
+  changed, the prediction, R1's grade, what R3 needs from the merge.
+
+R2. Permission-layer backing for the merge halt and the blocked record
+(templates/settings.json.template; core/config.yaml; a hand step for the
+two live instances recorded in the CHANGELOG and
+docs/upstream-refresh-runbook.md).
+Build: deny Bash(gh pr merge *), Bash(git push --force *),
+Bash(git push -f *), Bash(git reset --hard *), Bash(git clean -f*),
+Edit(**/docs/wave-*/evaluation-*.md), and per (d) the .bmad rule; ask
+Bash(git push *), Bash(git branch -D *), Bash(git worktree remove *),
+Bash(gh auth token*); permissions.disableBypassPermissionsMode "disable";
+per (b) remove forbidden_modes from core/config.yaml with a CHANGELOG line.
+Keep every wave_gate.py rule: Edit deny rules cover the tool, sed, tee and
+redirect forms, not evaluate_wave.py's own file I/O, which is the one
+legitimate writer (row 4.4). Rule order is deny, then ask, then allow;
+first match wins (row 4.1). Note row 4.3's limits (`git -C . push`,
+`bash -c`, /bin/rm are not matched) in the at-risk list, and that dev-wave
+step 11's push and merge-wave's `worktree remove` and `branch -D` now
+prompt on every wave, which is the intended cost.
+Verify: `./install.sh --target-project <scratch dir> ...` produces a
+settings.json that a fresh `claude` session honours: `gh pr merge` is
+denied, `git push` prompts, a Write to .bmad/wave-1/wave.md is denied,
+`python3 .claude/skills/bmad-dev-wave/scripts/evaluate_wave.py record`
+still writes. Caveat for the headless route: in `claude -p` a permission
+request that no hook decides is denied, so "prompts" shows as a denial
+there; the interactive prompt is RQ's to observe, or use
+--permission-prompt-tool if the docs support it on the installed CLI. On
+2026-09-28 `claude -p` on this machine failed with "OAuth session expired"
+and the CLI was 2.1.252 against docs for 2.1.283; RQ was asked to run
+/login and `claude update` before this session. If the session still
+cannot authenticate, unit-test the resolved settings.json (valid JSON,
+every rule present, hooks block unchanged from R1) and hand RQ the live
+check as exact commands. Record the hand step for ffbapp and green-ledger
+(their settings.json is hooks-only, registered by bare relative path; they
+also need R1's wrapper, the three scripts, and the exec-form registration)
+in the CHANGELOG and the runbook.
+
+What R3 will need from your merge: the permission block's final shape,
+since R3's SubagentStop hook and its "record only through the hook" gate
+rule sit beside it, and the scratch instance you built, which R3 reuses for
+its hook-written-record check.
+```
+
 ## Standing item: after every upstream pull
 
 Opus 5, effort `medium`. Event-triggered, not scheduled. Runs at step
