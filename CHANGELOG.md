@@ -23,9 +23,9 @@ All notable changes to Keelswell. Format: Keep a Changelog; versioning: semver.
   worktree first, so the rules see the tree the skill writes from either
   side. Bash and Monitor commands are parsed: here-documents split off,
   comments dropped, words unquoted with shlex, assignments and wrappers
-  stripped, git's `-C` read, `cd` followed, and substitutions, `bash -c`,
-  `eval`, `xargs` and `find -exec` parsed as commands of their own. What the
-  parse cannot read it refuses: a `wave_status.py set` reached through
+  stripped, git's `-C` read, `cd` followed, and substitutions, `bash -c` and
+  `eval` parsed as commands of their own. What the parse cannot read it
+  refuses: a `wave_status.py set` reached through
   `python3 -c`, a here-document, a variable holding the command or a pipe
   into a shell, and a `$` or backtick in its verb, `--status` or `--wave`.
   One new rule, *lifecycle*: only `wave_status.py` writes, moves or deletes

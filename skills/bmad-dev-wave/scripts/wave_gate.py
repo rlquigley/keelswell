@@ -106,8 +106,8 @@ LIFECYCLE_NAMED = re.compile(r"\.bmad/wave-[^/\s'\"]+/wave\.md", re.I)
 LIFECYCLE_DIR = re.compile(r"(?:^|/)\.bmad(?:/wave-[^/]+)?$", re.I)
 
 WAVE_STATUS_NAMED = re.compile(r"wave_status", re.I)
-# The verb as a word, or the function behind it.
-SET_WORD = re.compile(r"(?<![\w-])set(?:_status)?(?![\w-])")
+# The verb as a word, or the function behind it. Not Python's set( builtin.
+SET_WORD = re.compile(r"(?<![\w-])(?:set_status|set(?![\w(-]))")
 
 PENDING_MARKER = "step-4.5.pending"
 SESSION_FILE = "evaluation-session"
@@ -145,12 +145,9 @@ WRAPPERS = {"env", "command", "builtin", "exec", "nohup", "nice", "time", "timeo
 KEYWORDS = {"!", "{", "}", "if", "then", "elif", "else", "fi", "do", "done", "while",
             "until"}
 WRAPPER_VALUE_OPTS = {"-u", "-n", "-s", "-k", "-g", "-p", "-C", "-D", "-S"}
-UV_VALUE_OPTS = {"--with", "--project", "--python", "-p", "--directory", "--env-file",
-                 "--extra", "--group", "--package", "--index", "--from"}
 PRINTS = {"echo", "printf", "cat", "grep", "egrep", "fgrep", "rg", "ag", "ack"}
 # Commands whose every operand is a path they write, move away or delete.
-WRITES_ALL = {"tee", "rm", "unlink", "rmdir", "shred", "truncate", "touch", "mkdir", "mv",
-              "ed", "ex"}
+WRITES_ALL = {"tee", "rm", "unlink", "rmdir", "shred", "truncate", "touch", "mkdir", "mv"}
 # Commands whose last operand is the path they write.
 WRITES_LAST = {"cp", "install", "ln", "rsync", "scp", "ditto"}
 REMOVERS = {"rm", "rmdir", "unlink", "shred", "mv"}
@@ -283,13 +280,6 @@ def _unwrap(words):
         if argv[0] in KEYWORDS:
             argv = argv[1:]
             continue
-        if name == "uv" and argv[1:2] == ["run"]:
-            argv = argv[2:]
-            while argv and argv[0].startswith("-"):
-                opt = argv.pop(0)
-                if opt in UV_VALUE_OPTS and argv:
-                    argv.pop(0)
-            continue
         if name not in WRAPPERS:
             break
         argv = argv[1:]
@@ -312,7 +302,6 @@ class Simple:
         self.stdin = None     # here-document or here-string text
         self.piped_to = None  # the command its stdout feeds
         self.nested = set()   # indexes of words parsed as commands of their own
-        self.stdin_nested = False
         self.argv = []
 
     @property
@@ -411,8 +400,9 @@ class Shell:
         return out, stray
 
     def _nested(self, sc, env, depth):
-        """Commands `sc` runs that its own words do not show: substitutions,
-        `bash -c`, `eval`, here-documents fed to a shell, xargs, find -exec."""
+        """Commands `sc` runs that its own words do not show: $(...), backticks,
+        `bash -c` and `eval`. Anything else that runs text it is handed stays
+        unread, and the rules treat what it names as unreadable."""
         found = []
 
         def run(text):
@@ -423,10 +413,9 @@ class Shell:
         for word in sc.words + sc.assigns + [t for _, t in sc.redirects]:
             for text in _substitutions(word)[0]:
                 run(text)
-        argv, name = sc.argv, sc.name
-        start = len(sc.words) - len(argv)
-        args = argv[1:]
-        if name in SHELLS:
+        start = len(sc.words) - len(sc.argv)
+        args = sc.argv[1:]
+        if sc.name in SHELLS:
             for j, a in enumerate(args):
                 if a.startswith("-") and not a.startswith("--") and "c" in a[1:]:
                     if j + 1 < len(args):
@@ -435,27 +424,9 @@ class Shell:
                     break
                 if not a.startswith("-"):
                     break  # a script file: not opened
-            else:
-                if sc.stdin is not None:
-                    sc.stdin_nested = True
-                    run(sc.stdin)
-        elif name == "eval":
+        elif sc.name == "eval":
             sc.nested.update(range(start + 1, len(sc.words)))
             run(_expand(" ".join(args), env))
-        elif name == "xargs":
-            j = 0
-            while j < len(args) and args[j].startswith("-"):
-                j += 2 if args[j] in ("-n", "-I", "-L", "-P", "-d", "-s", "-E") else 1
-            sc.nested.update(range(start + 1, len(sc.words)))
-            if args[j:]:
-                run(shlex.join(args[j:]))
-        elif name == "find":
-            for j, a in enumerate(args):
-                if a in ("-exec", "-execdir", "-ok", "-okdir"):
-                    end = next((e for e in range(j + 1, len(args)) if args[e] in (";", "+")),
-                               len(args))
-                    sc.nested.update(range(start + 2 + j, start + 1 + end))
-                    run(shlex.join(args[j + 1:end]))
         return found
 
     # ---- what the command does
@@ -496,14 +467,6 @@ class Shell:
                 a.startswith("--in-place") or (a.startswith("-") and not a.startswith("--")
                                                and "i" in a[1:]) for a in args):
             tokens += operands
-        elif name == "dd":
-            tokens += [a[3:] for a in args if a.startswith("of=")]
-        elif name in ("curl", "wget"):
-            for j, a in enumerate(args[:-1]):
-                if a in ("-o", "--output", "-O", "--output-document"):
-                    tokens.append(args[j + 1])
-            tokens += [a.split("=", 1)[1] for a in args
-                       if a.startswith(("--output=", "--output-document="))]
         paths = [p for t in tokens for p in _paths(_expand(t, env), sc.cwd)]
         git = self.git(sc)
         if git and git[0] in GIT_PATH_WRITES:
@@ -635,7 +598,7 @@ class Shell:
             # accounted for there; `git commit -m "$(cat <<'EOF' ...)"` is fine.
             texts += [_substitutions(w)[1] for j, w in enumerate(sc.words) if j not in sc.nested]
             texts += [t for _, t in sc.redirects]
-            if sc.stdin is not None and not sc.stdin_nested:
+            if sc.stdin is not None:
                 texts.append(sc.stdin)
         return texts
 

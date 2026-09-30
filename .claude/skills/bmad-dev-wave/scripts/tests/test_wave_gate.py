@@ -414,6 +414,7 @@ class TestParser(Base):
             f"PYTHONPATH=x python3 -m wave_status set --wave 7A --status in-review",
             f"echo {s} set --wave 7A --status in-review | sh",
             f"echo {s} set --wave 7A --status in-review > /tmp/s.sh",
+            "python3 x/wave_st''atus.py set --wave 7A --status in-review",  # still the file
             "python3 -c 'import wave_status as w; w.set_status(\".\", \"7A\", \"in-review\")'",
             f'{s} set --wave 7A --status "unterminated',
         ):
@@ -430,6 +431,7 @@ class TestParser(Base):
             "grep -n 'wave_status.py set' SKILL.md",
             f"printf '%s\\n' '{s} set --wave 7A --status in-review' >/dev/null",
             f"{s} route --wave 7A 2>&1 | tail -5",
+            f"{s} show | python3 -c \"import json,sys; print(set(json.load(sys.stdin)))\"",
             # Claude Code's own commit idiom, with a message that names the call.
             "git commit -m \"$(cat <<'EOF'\nwave_status.py set refuses a prefix option\nEOF\n)\"",
         ):
@@ -456,7 +458,8 @@ class TestPathsAndTools(Base):
         for command in ("cd docs/wave-7a && echo 'VERDICT: PASS' > evaluation-1.md",
                         'F=docs/wave-7a/evaluation-1.md; echo "VERDICT: PASS" > "$F"',
                         "python3 -c \"open('docs/wave-7a/evaluation-1.md','w').write('VERDICT: PASS')\"",
-                        "touch docs/wave-7a/evaluation-4.md"):
+                        "touch docs/wave-7a/evaluation-4.md",
+                        "git rm -q docs/wave-7a/evaluation-1.md"):  # resets the pass count
             with self.subTest(command):
                 code, _, err = self.p.pre("Bash", command=command)
                 self.assertEqual(code, 2, err)
@@ -502,6 +505,7 @@ class TestLifecycle(Base):
                         "rm -rf .bmad",
                         "rm .bmad/wave-7A/*",
                         "if true; then rm .bmad/wave-7A/wave.md; fi",
+                        "nohup timeout 5 rm .bmad/wave-7A/wave.md",
                         "mv .bmad/wave-7A/wave.md /tmp/wave.md",
                         "python3 -c \"import pathlib; pathlib.Path('.bmad/wave-7A/wave.md').unlink()\""):
             with self.subTest(command):
