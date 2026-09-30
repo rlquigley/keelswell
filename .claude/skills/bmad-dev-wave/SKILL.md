@@ -30,7 +30,7 @@ output-locations:
   - <worktree>/.bmad-changed.txt            # reviewer-selection input, step 10
   - <worktree>/docs/stories/                # JIT story files
   - pull request against main via gh pr create
-version: 1.7.1
+version: 1.8.0
 ---
 
 # bmad-dev-wave
@@ -306,7 +306,7 @@ Phase 4 of docs/harness-conversion-plan.md. Every rule above was a script's
 exit code that this skill was asked to obey; two hooks now make the tool
 calls that would cross a rule fail on their own. The rules live in
 `scripts/wave_gate.py`, the wrappers in `.claude/hooks/wave-gate.sh`
-(PreToolUse on Write, Edit, MultiEdit, NotebookEdit and Bash) and
+(PreToolUse on Write, Edit, MultiEdit, NotebookEdit, Bash and Monitor) and
 `.claude/hooks/wave-session-end.sh` (SessionEnd), and install.sh registers
 both in a target project's `.claude/settings.json` and asserts all of it under
 `--validate-only`.
@@ -318,6 +318,9 @@ What the PreToolUse hook denies, reading only what is on disk:
   run by the hook at the moment the artifact would be written.
 - **verdict**: any write to `docs/wave-<id>/evaluation-<n>.md` that is not
   `evaluate_wave.py record`. A verdict typed by the agent it grades is not one.
+- **lifecycle**: any write, move or delete of `.bmad/wave-<id>/wave.md` (or of
+  the directory holding it) that is not `wave_status.py`. Blocked is sticky
+  only if the session it blocks cannot edit the record.
 - **review**: `wave_status.py set --status in-review` for a wave whose latest
   evaluation is not PASS. There is no way into the review stage except through
   step 7's evaluator.
@@ -325,10 +328,23 @@ What the PreToolUse hook denies, reading only what is on disk:
   into that wave's worktree by this session. The findings open the next
   session; the hook remembers which session recorded the verdict.
 
+Paths match without regard to case, as the filesystem and the record reader
+do. The hook finds `.bmad/` in the main checkout and a wave's evaluation
+records in its worktree, whichever of the two the session is rooted in.
+
 A denial arrives as the hook's stderr, naming the rule and the remedy. Do not
-route around it through another tool: Bash is matched on the command's text,
-so a redirect through a variable or a here-doc is not seen, and taking that
-route is the exact obedience failure the hook exists to remove.
+route around it. Bash is parsed the way the shell reads it, not searched as
+text: quotes, variables set in the same command, `cd`, `git -C`, `eval`,
+`bash -c` and substitutions are all followed. What the parse cannot read, it
+refuses: a `wave_status.py set` reached through `python3 -c`, a here-document,
+a variable holding the command, or a pipe into a shell is denied even when the
+call would have been allowed. Call `wave_status.py` directly with literal
+values; that is the only shape the gate reads.
+
+The hook fails closed. If its script is missing, python3 is missing, or the
+script errors or runs past its deadline, every call it matches is denied with
+the fix on stderr. That is not something to work around from inside the
+session: stop and tell the human, who repairs it outside the session.
 
 What the SessionEnd hook does: a wave whose `.bmad/wave-<id>/step-4.5.pending`
 marker is present when the session ends is set to `blocked`, reason recorded,
@@ -535,6 +551,19 @@ there is nothing to block.
   names. Do not retry the same write through a different tool.
 
 ## Version history
+- 1.8.0 (2026-09-29, R1 of docs/reviews/harness-engineering-review-v1.md):
+  the hook fails closed and stops matching text. Any error in the gate, a
+  missing script or python3, and a run past its deadline now deny instead of
+  letting the call through; the hook is registered by
+  `${CLAUDE_PROJECT_DIR}` in exec form with a timeout, and also matches
+  Monitor. Bash is parsed rather than searched: the 11 in-review shapes of
+  the review's E2b fixture are all denied (3 were before) and its echo is no
+  longer. NotebookEdit is read by `notebook_path`, paths match without regard
+  to case, and `.bmad/` is found from the session's cwd through git, so a
+  worktree-rooted session is checked like a main-rooted one. New lifecycle
+  rule: only `wave_status.py` writes `.bmad/wave-<id>/wave.md`.
+  `wave_status.py` and `evaluate_wave.py` no longer accept `--stat` or
+  `--wav` for `--status` and `--wave`.
 - 1.7.1 (2026-09-14, founder instruction): `bmm-dev` gains a trigger and
   becomes a second opinion on any implementation diff, which an earlier draft
   had refused on a misreading -- Phase 3's ruling is about the same context

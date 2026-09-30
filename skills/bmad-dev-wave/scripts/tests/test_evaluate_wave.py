@@ -298,6 +298,14 @@ class TestRecord(Base):
         self.assertEqual(out["verdict"], "UPSTREAM_CAUSE")
         self.assertIn("do not run a fourth pass", err)
 
+    def test_prefix_options_do_not_bind(self):
+        # The gate reads --wave by its full name (R1).
+        p = self.project()
+        code, _, err = p.run("record", "--wav", "5D", stdin="VERDICT: PASS\n")
+        self.assertEqual(code, 2)
+        self.assertIn("unrecognized arguments", err)
+        self.assertFalse((p.root / "docs" / "wave-5d").exists())
+
     def test_unparseable_verdict_is_refused(self):
         """The verdict is the evaluator's word or it is nothing."""
         p = self.project()

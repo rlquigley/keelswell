@@ -634,7 +634,10 @@ def show(project_root, label=None):
 # ------------------------------------------------------------------ main
 
 def main():
-    ap = argparse.ArgumentParser(description="Wave lifecycle status: read, write, route.")
+    # No prefix forms: wave_gate.py reads --status and --wave by their full
+    # names, so `--stat` binding to --status would be a spelling it cannot see.
+    ap = argparse.ArgumentParser(description="Wave lifecycle status: read, write, route.",
+                                 allow_abbrev=False)
     ap.add_argument("verb", choices=["route", "set", "show"])
     ap.add_argument("--project-root", default=".", help="project root (default: cwd)")
     ap.add_argument("--wave", help="wave label as it appears in waves.md (e.g. 5D)")

@@ -469,6 +469,15 @@ class Structural(unittest.TestCase):
         with project() as p:
             self.assertEqual(p.set("9Z", "draft")[0], 2)
 
+    def test_prefix_options_do_not_bind(self):
+        # The gate reads --status and --wave by their full names; a prefix
+        # argparse would accept is a spelling the gate cannot see (R1).
+        with project() as p:
+            code, _, err = p.run("set", "--wav", "7A", "--stat", "in-review")
+            self.assertEqual(code, 2)
+            self.assertIn("unrecognized arguments", err)
+            self.assertFalse((p.root / ".bmad" / "wave-7A" / "wave.md").exists())
+
 
 class Show(unittest.TestCase):
 
