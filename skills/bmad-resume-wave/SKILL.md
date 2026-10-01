@@ -7,27 +7,22 @@ description: |
   --from-step set to the chosen step. Refuses to act on dirty worktrees,
   already-completed waves, or contradictory state. Re-runs the open-questions
   gate against current memory.
-tools:
-  - Read
-  - Glob
-  - Grep
-  - Bash
-  - SlashCommand
-when-to-use:
-  - User invokes /bmad-resume-wave directly with a wave ID
-  - Previous /bmad-dev-wave session was interrupted (crash, timeout,
-    accidental /clear, machine reboot) and the wave has uncommitted or
-    partially-committed state
-  - /bmad-wrap surfaces an in-progress wave at session-end and the next
-    session needs to pick it up
-when-not-to-use:
-  - Wave has not yet been started (use /bmad-dev-wave from step 1)
-  - Wave is already complete and merged (no recovery needed)
-  - Wave ID does not appear in waves.md (refuse with not-found error)
-outputs:
-  - .bmad/wave-<id>/resume-from-step-<N>.json
-  - the re-dispatch's opening prompt, from any open evaluator findings
-version: 1.3.0
+allowed-tools: Read Glob Grep Bash Skill(bmad-dev-wave *)
+when_to_use: |
+  When the user invokes /bmad-resume-wave with a wave ID; when a previous
+  /bmad-dev-wave session was interrupted (crash, timeout, accidental /clear,
+  machine reboot) and the wave has uncommitted or partially-committed state;
+  or when /bmad-wrap surfaced an in-progress wave at session end and the next
+  session needs to pick it up.
+metadata:
+  version: 1.4.0
+  when-not-to-use:
+    - Wave has not yet been started (use /bmad-dev-wave from step 1)
+    - Wave is already complete and merged (no recovery needed)
+    - Wave ID does not appear in waves.md (refuse with not-found error)
+  outputs:
+    - .bmad/wave-<id>/resume-from-step-<N>.json
+    - the re-dispatch's opening prompt, from any open evaluator findings
 ---
 
 # bmad-resume-wave
@@ -152,6 +147,14 @@ a `done` wave's follow-up review pass back into a resumption.
   delete the record. Do not resume against a guess at what it said.
 
 ## Version history
+- 1.4.0 (2026-10-01, R4 of docs/reviews/harness-engineering-review-v1.md):
+  frontmatter only. `tools:` is a subagent field and did nothing in a skill;
+  it is now `allowed-tools: Read Glob Grep Bash Skill(bmad-dev-wave *)`, which
+  pre-approves those tools for the turn that invokes this skill and restricts
+  nothing. `SlashCommand`, not a current tool, is gone: the Skill tool runs
+  /bmad-dev-wave. `when-to-use` is `when_to_use`, the field Claude Code reads,
+  as one string; `version`, `when-not-to-use` and `outputs` sit under
+  `metadata:`.
 - 1.3.0 (2026-09-11, Phase 4 of docs/harness-conversion-plan.md): names the
   step-4.5 pending marker and the SessionEnd block it produces, so a resumed
   wave blocked for an unanswered question is read as that and not as drift.

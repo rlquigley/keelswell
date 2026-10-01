@@ -3,6 +3,164 @@ All notable changes to Keelswell. Format: Keep a Changelog; versioning: semver.
 
 ## [Unreleased] - 2026-09-12
 ### Added
+- The configuration that configured nothing is deleted, and a subagent's
+  model and effort bind where Claude Code reads them: its definition's
+  frontmatter (R4 of docs/reviews/harness-engineering-review-v1.md,
+  2026-10-01). bmad-dev-wave 1.9.0 -> 1.10.0, bmad-resume-wave 1.3.0 ->
+  1.4.0, bmad-create-wave 1.1.0 -> 1.1.1, bmad-merge-wave 1.2.0 -> 1.2.1,
+  bmad-status-wave 1.2.0 -> 1.2.1, bmad-close-epic 1.4.0 -> 1.4.1, bmad-wrap
+  1.9.0 -> 1.9.1. The review found 7 of the settings template's 13 keys were
+  not Claude Code settings, 8 SKILL.md keys nothing read, no effort setting
+  that took effect anywhere, and reviewers following the session's model in
+  7 of ffbapp's 18 waves. Five parts, in the review's order. (1) The
+  template loses `contextWindow`, `subagentModels`, `subagentReasoning`,
+  `skillsPaths`, `agentNamesFile` and `mcpServers`, and `reasoningEffort`
+  becomes `effortLevel`, the key it was meant to be. The `permissions` and
+  `hooks` blocks are untouched. The resolver fills `model` and `effortLevel`
+  from one row of the tier table and substitutes nothing else. (2) Skill
+  frontmatter, all seven wave skills: `when-to-use` is `when_to_use`, the
+  one field name with an underscore, so it reaches the skill listing
+  (resume-wave's was a list and is now one string). The skill version now
+  lives at `metadata.version`. The other keys nothing reads moved under
+  `metadata:` too, not into the body: `output-locations`, `inputs`,
+  `outputs`, `exit-codes`, `when-not-to-use`. resume-wave's `tools:`, a
+  subagent field, is `allowed-tools: Read Glob Grep Bash Skill(bmad-dev-wave
+  *)`; that pre-approves those tools for the turn that invokes the skill and
+  restricts nothing, and drops `SlashCommand`, not a current tool. (3)
+  install.sh no longer creates `~/.claude/projects/<basename>/memory`. The
+  step is deleted, not fixed: the real directory is named from the project's
+  absolute path and Claude Code creates it. (4) `.agents/skills`: see
+  Removed, below. (5) The binding. Two definitions,
+  `.claude/agents/keelswell-wave-coder.md` (claude-sonnet-5-5, effort high)
+  and `.claude/agents/keelswell-wave-reviewer.md` (claude-opus-5-5, effort
+  high), and the evaluator moves from the `opus` alias to claude-opus-5-5.
+  Dev-wave dispatches coders at step 6 and reviewers at step 10 by
+  `subagent_type`, persona and fallback reviewers alike, under a new
+  section, The Routing; The Review Record copies its `model` and `effort`
+  from the reviewer's definition. `core/config.yaml` is the tier table: two
+  tiers, three roles (`orchestrator`, `coding`, `adversarial`), each role's
+  `effort`, and the definitions each role binds under `agents:`. Its
+  permissions, parallelism and context blocks are gone; the parallel cap (4)
+  is written into step 6. A new phase-6 check, `routing_check`, reads the
+  table and each named definition and exits 7 naming the one whose `name`,
+  `model` or `effort` differs. It repairs nothing and generates nothing.
+  `CLAUDE_CODE_SUBAGENT_MODEL_FORCE=1` is documented in
+  docs/upstream-refresh-runbook.md as the override that ignores every
+  definition's model, with the re-pin procedure.
+  **Rulings by RQ, 2026-10-01.** (f) Delete six keys, rename one;
+  `effortLevel` is filled from the orchestrator row. (g) Two definitions,
+  checked and not generated; neither carries a `tools:` line, so both
+  inherit every tool, the reviewer included, because it proves a finding by
+  mutation and execution; step 3's test-design subagent is left alone. (h)
+  Full model ids, re-pinned per release with a line here; the `fast` tier
+  and the `research` and `fallback` roles are deleted because nothing bound
+  to them. (i) The fork's `.agents/skills` is deleted in its own commit.
+  **"Do not add agents".** R4 touches that rule by its letter, not its
+  rationale. The two files are role definitions for dispatches dev-wave
+  already made, not domain personas: no roster entry, no `module.yaml` line,
+  nothing under `agents/`, no row in the trigger table. A reviewer's persona
+  is still the skill `select_reviewers.py` returned.
+  **What was measured, CLI 2.1.287, 2026-10-01.** A fresh `--target-project`
+  install from this branch: settings.json parses, its top-level keys are
+  `$schema`, two `$comment_` keys, `model`, `effortLevel`, `permissions` and
+  `hooks`, and against R3's it differs in the seven keys removed,
+  `effortLevel` added, and `model` (claude-opus-4-8 to claude-opus-5-5, from
+  ruling h); `hooks` and `permissions` are equal. Two headless sessions in
+  that instance, each dispatching both definitions by name with no `model`
+  parameter. Sonnet parent, acceptEdits: the coder's messages came from
+  claude-sonnet-5-5 and the reviewer's from claude-opus-5-5; `agent_type` on
+  their hook events was the definition's name and `effort.level` high; the
+  main thread's effort was high, from `effortLevel` (Sonnet 5.5 defaults to
+  medium). No `--model`, auto, `--effort low`: the session ran on
+  claude-opus-5-5 from the settings' `model` at effort low, the coder on
+  claude-sonnet-5-5 and the reviewer on claude-opus-5-5, both at effort high
+  on PreToolUse, on both SubagentHandback events and on SubagentStop. So a
+  definition's model holds under a parent of either family and its effort
+  holds against the session's. The reviewer loaded `agent-appsec` with the
+  Skill tool and named its persona in both modes, with no prompt and no
+  denial. `--validate-only` exits 0 in the fork and in the instance; with
+  the reviewer's `model:` edited to `opus` it exits 7 naming the file and
+  what it declares, and the same with the coder's file missing.
+  `when_to_use`: the session that built this reloaded its skill listing
+  after the mirror step and each of the seven now reads "description -
+  when_to_use"; 1,713 characters across the seven, the longest entry 964 of
+  the 1,536 cap. The upstream installer (6.12.0) reads `name` and
+  `description` from a SKILL.md and nothing else, and the fresh install's
+  phase 4 exited 0. 231 tests in bmad-dev-wave (227 before) and 12 in
+  bmad-close-epic, both trees.
+  **Prediction, to be checked by R5's session.** In a fresh instance, and in
+  any instance that carries the three definitions and dev-wave 1.10.0: every
+  step-6 coder runs on claude-sonnet-5-5 and every step-10 reviewer and the
+  evaluator on claude-opus-5-5, all at effort high, whatever the session's
+  model and effort; every review record written from here on says `model:
+  claude-opus-5-5` and `effort: high`; a definition edited away from the
+  table fails validation by name. A fresh instance's sessions start on
+  claude-opus-5-5 at effort high. The seven wave skills' listing entries
+  carry their `when_to_use`. Nothing changes in a live instance until the
+  hand step, and nothing there changes in settings.json at all.
+  **At risk.** (1) The Agent tool's per-invocation `model` parameter
+  outranks a definition. The Routing says not to pass one; nothing refuses
+  it, and an `Agent(model:...)` deny rule would apply to every Agent call.
+  (2) Dispatch by name is prose. A session can still send a general-purpose
+  subagent, which follows the session's model; R5's reviewer-dispatch eval
+  is the first grader. (3) Neither definition restricts tools. A reviewer
+  can edit, and one that does not restore a mutation leaves it in the
+  worktree; the gate and the permission rules apply to it as to the session.
+  (4) The reviewer's persona depends on the Skill tool. It loaded unprompted
+  in acceptEdits and in auto, once each, one skill; a Skill ask or deny
+  rule, or default mode, was not measured. (5) In auto mode every
+  subagent's hand-back runs R3's hook, 37 ms, which exits at once for any
+  agent but the evaluator; a parallel wave now makes one per coder. (6)
+  `effortLevel` in a project file sets every session's effort in a fresh
+  instance, which costs more than the medium default; `--effort` and
+  `CLAUDE_CODE_EFFORT_LEVEL` still outrank it. (7) A full model id goes
+  stale without an error when its model retires, is not the id other
+  providers use, and Sonnet 5.5 needs CLI 2.1.284 or later. (8) An instance
+  that takes dev-wave 1.10.0 without the definitions has nothing to dispatch
+  by name; validation exits 7 until they are copied. (9) resume-wave's
+  `allowed-tools` now pre-approves Bash for the turn that invokes it, where
+  `tools:` approved nothing; deny and ask rules still come first. (10)
+  Reviewers now cost Opus at effort high in a session that ran them cheaper.
+  (11) Step 3's test-design subagent, and any other dispatch, still follows
+  the session.
+  **R3's prediction, graded.** Holds. R3's live check again, five of five,
+  Sonnet parent: both real runs were written by the hook (pass 6 from
+  SubagentStop in acceptEdits, pass 7 from PostToolUse on SubagentHandback
+  in auto), header naming hook, session and subagent, no `record` call in
+  either transcript; a two-word reply with no verdict was blocked and the
+  second report recorded; a PASS under a `[HIGH]` heading was denied before
+  the hand-over and the second recorded; a forged event piped to `record`
+  from Bash was denied by the gate. `effort.level` read high on all ten
+  evaluator events, both modes. `dispatch` ran only after `verify` stamped
+  HEAD in every run. Cost: one evaluator run each, one sent-back round in
+  each synthetic run, none in the real ones; hook time not re-measured. Its
+  at-risk list: (1) stands, the synthetic runs again recorded what the
+  prompt asked for; (5) this session's 63 Bash, Write and Edit calls,
+  replayed, 0 refused, against R3's 4 and 2 of 66; (9) the evaluator ran in
+  the background in all four runs and the parent waited; (10) one denied
+  hand-over in auto, no pause; (7) green-ledger still has no
+  `tests/verify-fast.sh`; (2), (3), (4), (6) and (8) not exercised. One
+  thing the prediction did not cover, found by the evaluator itself: with
+  five NEEDS_WORK records on disk both real passes returned UPSTREAM_CAUSE
+  (exit 4, as designed) and both named the pass count as the cause.
+  `dispatch` re-dispatches a HEAD that has not changed since the newest
+  record, and re-dispatches after an UPSTREAM_CAUSE with no fix on record,
+  and each round advances the count. Not built here. The instance grade is
+  not gradable: the R3 hand step is not applied to either instance (RQ,
+  2026-10-01), so no wave has run under the hooks.
+  **Instances.** ffbapp and green-ledger need the runbook's hand step, now
+  one pass for R3 and R4: the seven wave skills, the two wrappers, the three
+  definitions (`cp .claude/agents/*.md`), the R3 registrations, and a
+  `tests/verify-fast.sh`. R4 itself asks nothing of an instance's
+  settings.json. Until then `--validate-only --target-project` exits 7 and
+  names the missing definitions beside what R3 needs.
+  **Named, not built.** The hook rule for the `git -C` and `bash -c` forms
+  the permission rules miss is still the unscheduled sixth do-now item
+  (RQ, 2026-10-01). Left as found, outside R4's list: `Task` in dev-wave's
+  `allowed-tools` (an alias of Agent, which needs no permission), "extra"
+  in bmad-wrap's description (the level is xhigh), the `fork:` block of
+  `core/config.yaml` (read by nothing), and docs/harness-conversion-plan.md
+  and `.gitleaks.toml`, which still mention `.agents/skills`.
 - The evaluator's evidence and its record are written by scripts and a hook,
   not by the builder (R3 of docs/reviews/harness-engineering-review-v1.md,
   2026-10-01). bmad-dev-wave 1.8.2 -> 1.9.0. The review found three prose

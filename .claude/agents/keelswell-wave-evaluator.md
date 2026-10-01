@@ -8,7 +8,7 @@ tools:
   - Read
   - Glob
   - Grep
-model: opus
+model: claude-opus-5-5
 effort: high
 ---
 

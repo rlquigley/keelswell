@@ -6,7 +6,7 @@ description: >
   worktree via an absolute git -C path, deletes the local branch, archives
   the wave checkpoint, marks the wave done in its lifecycle record, and
   verifies the cleanup. Idempotent across re-invocation.
-when-to-use: |
+when_to_use: |
   After a wave's PR is merged on the remote (any merge style), including when
   /bmad-status-wave shows a merged-with-worktree row. Not for abandoning an
   unmerged wave -- delete that branch and worktree manually.
@@ -16,10 +16,11 @@ allowed-tools:
   - Grep
   - Bash
   - Write
-inputs:
-  - wave-id (positional, required)
-  - --verbose (optional; full git output instead of one line per step)
-version: 1.2.0
+metadata:
+  version: 1.2.1
+  inputs:
+    - wave-id (positional, required)
+    - --verbose (optional; full git output instead of one line per step)
 ---
 
 # bmad-merge-wave
@@ -152,6 +153,11 @@ cleaned up; nothing to do", exit 0. A merged remote branch left undeleted is
 reported, not refused.
 
 ## Version history
+- 1.2.1 (2026-10-01, R4 of docs/reviews/harness-engineering-review-v1.md):
+  frontmatter only. `when-to-use` is `when_to_use`, the field Claude
+  Code reads, so it now reaches the skill listing; `version` and `inputs` sit under
+  `metadata:`, which Claude Code leaves to the fork's own tooling. Nothing in
+  the body changed.
 - 1.2.0 (2026-09-11, Phase 2 of docs/harness-conversion-plan.md): step 5 marks
   the wave `done` in its lifecycle record once cleanup verifies, making this
   skill the only writer of that terminal status. The record survives the

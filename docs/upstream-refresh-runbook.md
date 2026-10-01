@@ -121,24 +121,36 @@ only into a fresh target. So what `templates/settings.json.template`
 carries for the harness reaches a live instance by hand: the gate's
 registration (R1 of docs/reviews/harness-engineering-review-v1.md), the
 permission block (R2) and the evaluator hook's three registrations (R3).
+R4 adds nothing to an instance's settings: what it changed in the
+template (seven dead keys gone, `effortLevel` in place of
+`reasoningEffort`) sits outside the `hooks` and `permissions` blocks,
+which are all a live instance carries. R4 reaches an instance as files:
+the seven wave skills and the three subagent definitions.
 As of 2026-10-01 both live instances (ffbapp, green-ledger) carry R1 and
-R2 and not R3: the template's first PreToolUse entry and its permission
-block, the wrappers wave-gate.sh and wave-session-end.sh, and
+R2 and neither R3 nor R4: the template's first PreToolUse entry and its
+permission block, the wrappers wave-gate.sh and wave-session-end.sh, and
 bmad-dev-wave 1.8.2. Both were byte-identical to fork commit 3436373 on
 that date, so the copy below overwrites nothing local; re-check that
 before copying (`git show <commit>:<path> | diff - <instance copy>`) and
-stop on drift.
+stop on drift. One pass of the steps below covers R3 and R4 together.
 
 From the fork on main, per instance:
 
-1. Skill, wrappers and the evaluator definition. The skill goes into
+1. Skills, wrappers and the subagent definitions. The skills go into
    every tool tree the instance has (green-ledger also carries `.agents/skills`):
-       cp -R skills/bmad-dev-wave/. <instance>/.claude/skills/bmad-dev-wave/
+       for s in bmad-create-wave bmad-dev-wave bmad-merge-wave bmad-resume-wave \
+                bmad-status-wave bmad-close-epic bmad-wrap; do
+         cp -R skills/$s/. <instance>/.claude/skills/$s/
+       done
        cp .claude/hooks/wave-gate.sh .claude/hooks/wave-evaluator-record.sh \
           <instance>/.claude/hooks/
-       cp .claude/agents/keelswell-wave-evaluator.md <instance>/.claude/agents/
-   The definition carries `effort: high` since R3, and the new skill's
-   `dispatch` refuses one that does not.
+       cp .claude/agents/*.md <instance>/.claude/agents/
+   Three definitions travel: keelswell-wave-evaluator.md (`effort: high`
+   since R3, which the new skill's `dispatch` refuses to go without, and
+   a full model id since R4), and R4's keelswell-wave-coder.md and
+   keelswell-wave-reviewer.md, which dev-wave 1.10.0 dispatches by name at
+   steps 6 and 10. All seven wave skills changed in R4 (frontmatter; see
+   the CHANGELOG), so all seven are copied.
 2. Settings. In `<instance>/.claude/settings.json`, make the `hooks`
    block carry the template's entries for the harness: the two
    PreToolUse entries (wave-gate.sh on the file and shell tools, exec
@@ -161,10 +173,12 @@ From the fork on main, per instance:
    --target-project <instance>` exits 0. Until steps 1 and 2 are done it
    exits 7 and names every missing wrapper, registration and rule, which
    is the list to paste (measured on both instances, 2026-10-01: the
-   wrapper, its registration, and the three events). Then
-   `diff -rq -x __pycache__ skills/bmad-dev-wave
-   <instance>/.claude/skills/bmad-dev-wave` prints nothing, and the
-   instance's own unit tests pass.
+   wrapper, its registration, and the three events). Since R4 it also
+   names any definition that is missing or whose `model:` or `effort:`
+   differs from the fork's `core/config.yaml`. Then
+   `diff -rq -x __pycache__ skills/<skill>
+   <instance>/.claude/skills/<skill>` prints nothing for each of the
+   seven, and the instance's own unit tests pass.
 5. Commit in the instance: ffbapp by pull request, green-ledger on a
    branch merged ff-only (it has no remote).
 
@@ -199,6 +213,59 @@ What to expect afterwards:
   in the main checkout is not stopped by them from writing a sibling
   worktree's `docs/wave-<id>/evaluation-<n>.md`; the hook's verdict rule
   is what covers that path.
+- Since R4 a wave's coders run at claude-sonnet-5-5 and its reviewers
+  and evaluator at claude-opus-5-5, all at effort high, whatever model
+  the session is on. A session on a cheaper model now pays for Opus
+  reviewers; a session on a newer one no longer lends them its model.
+- The session's own effort is unchanged in a live instance. A fresh
+  `--target-project` install gets `"effortLevel": "high"`, which in a
+  project file "applies to every model"
+  (https://code.claude.com/docs/en/settings-reference#effortlevel); an
+  instance that wants it adds that line by hand.
+
+## Subagent routing: the tier table, the re-pin and the override
+
+`core/config.yaml` is the tier table and nothing else: two tiers
+(`frontier`, `workhorse`), each a full model id, and three roles, each a
+tier and an effort. The `orchestrator` row fills `model` and
+`effortLevel` in a fresh instance's settings.json. The `coding` and
+`adversarial` rows name the definitions under `.claude/agents/` that
+must carry them: keelswell-wave-coder, and keelswell-wave-reviewer and
+keelswell-wave-evaluator. `install.sh` phase 6 reads both sides and
+exits 7 naming the definition that differs. Nothing generates the
+definitions and nothing repairs them.
+
+Re-pin at each model release, in one commit: the tier's `model:` in
+`core/config.yaml`, the `model:` line of every definition on that tier,
+the model string in dev-wave's The Review Record, and a CHANGELOG line.
+`./install.sh --validate-only --skip-mcp-check` exits 0 only when the
+table and the definitions agree. A full id does not follow a release
+and does not warn when its model retires; the retirement dates are at
+https://platform.claude.com/docs/en/about-claude/models/overview
+(on 2026-10-01: Opus 5.5 "Not sooner than September 22, 2027", Sonnet
+5.5 "Not sooner than September 28, 2027").
+
+What outranks a definition's `model:`
+(https://code.claude.com/docs/en/sub-agents#choose-a-model):
+
+- The Agent tool's per-invocation `model` parameter. Dev-wave's The
+  Routing tells the session not to pass one; nothing enforces that. An
+  `Agent(model:...)` deny rule would, and would apply to every Agent
+  call in the instance, so none is shipped.
+- `CLAUDE_CODE_SUBAGENT_MODEL_FORCE=1`, the deliberate override. While
+  it is on, "Claude Code ignores the `model` field of every subagent
+  definition" and the session cannot pass one either. Set it with
+  `CLAUDE_CODE_SUBAGENT_MODEL=<alias or id>` and every subagent runs on
+  that model; set it alone and they run on the session's. Use it to run
+  a whole wave on one model on purpose (a cost cap, a model under
+  test), in the shell or the `env` block of `.claude/settings.local.json`,
+  and write the model that ran into the wave's review record. Requires
+  Claude Code v2.1.257 or later.
+
+`CLAUDE_CODE_SUBAGENT_MODEL` by itself is only a default: a definition's
+`model:` outranks it. `effort:` has no such override; frontmatter effort
+yields only to the `CLAUDE_CODE_EFFORT_LEVEL` environment variable and
+to a `maxEffortLevel` cap.
 
 ## Known limitation (F-10, closed for documented installs)
 

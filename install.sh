@@ -178,23 +178,19 @@ resolve_templates_into() {
   local T="$1"
   local ts; ts=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
   local pname; pname=$(basename "$T")
-  # settings.json: resolve MODEL_*/REASONING_* from core/config.yaml tiers.
+  # settings.json: resolve the session's model and effortLevel from the
+  # orchestrator row of core/config.yaml. Subagents take theirs from their
+  # own definitions under .claude/agents/ (routing_check, phase 6).
   python3 - "$T" "$pname" <<'PY'
 import sys, yaml, pathlib
 target, pname = sys.argv[1], sys.argv[2]
 cfg = yaml.safe_load(open("core/config.yaml"))
-tiers = {k: v["model"] for k, v in cfg["model_tiers"].items()}
-rm = cfg["role_models"]
-def model(role): return tiers[rm[role]["tier"]]
-def reas(role): return rm[role]["reasoning"]
+role = cfg["role_models"]["orchestrator"]
 t = open("templates/settings.json.template").read()
 subs = {
   "PROJECT_NAME_PLACEHOLDER": pname,
-  "MODEL_ORCHESTRATOR": model("orchestrator"), "REASONING_ORCHESTRATOR": reas("orchestrator"),
-  "MODEL_RESEARCH": model("research"), "REASONING_RESEARCH": reas("research"),
-  "MODEL_CODING": model("coding"), "REASONING_CODING": reas("coding"),
-  "MODEL_ADVERSARIAL": model("adversarial"), "REASONING_ADVERSARIAL": reas("adversarial"),
-  "MODEL_FALLBACK": model("fallback"),
+  "MODEL_ORCHESTRATOR": cfg["model_tiers"][role["tier"]]["model"],
+  "EFFORT_ORCHESTRATOR": role["effort"],
 }
 for k, v in subs.items(): t = t.replace(k, v)
 p = pathlib.Path(target) / ".claude"; p.mkdir(parents=True, exist_ok=True)
@@ -219,9 +215,6 @@ PY
   # live here without colliding with an upstream module.yaml declaration.
   cp .claude/agents/*.md "$T/.claude/agents/"
   echo "  Subagent definitions: $(ls -1 .claude/agents/*.md | wc -l | tr -d ' ') copied to $T/.claude/agents/"
-  local slug; slug=$(basename "$T")
-  mkdir -p "$HOME/.claude/projects/$slug/memory"
-  echo "  Auto-memory directory: ~/.claude/projects/$slug/memory/ ... done"
   # Leftover-token exhaustiveness check
   if grep -l "{user_name}\|{init_timestamp}" "$T/CLAUDE.md" "$T/TODO.md" "$T/HANDOFF.md" >/dev/null 2>&1; then
     echo "  ERROR: unresolved template tokens remain"; exit 7
@@ -397,6 +390,50 @@ sys.exit(bad)
 PY
 }
 
+routing_check() {
+  # $1: the project root. R4 of docs/reviews/harness-engineering-review-v1.md:
+  # a subagent's model and effort bind in its definition's frontmatter and
+  # nowhere else, so every definition core/config.yaml names must carry its
+  # row's model and effort, as written. A definition edited away from the
+  # table, or a table re-pinned without its definitions, fails here by name.
+  local base="$1"
+  echo "  Subagent routing in $base/.claude/agents/ (reference: core/config.yaml):"
+  python3 - "$base" <<'PY'
+import pathlib, re, sys, yaml
+cfg = yaml.safe_load(open("core/config.yaml"))
+bad = 0
+for role, row in cfg["role_models"].items():
+    model, effort = cfg["model_tiers"][row["tier"]]["model"], row["effort"]
+    if not model.startswith("claude-"):
+        print(f"    {role}: the table pins a full model id ... FAIL ({model!r} is an alias)")
+        bad = 1
+    for name in row.get("agents") or []:
+        path = pathlib.Path(sys.argv[1]) / ".claude" / "agents" / f"{name}.md"
+        what = f"    {name} runs at {model}, effort {effort}"
+        try:
+            front = yaml.safe_load(re.match(r"---\n(.*?)\n---\n", path.read_text(encoding="utf-8"), re.S).group(1))
+        except (OSError, AttributeError, yaml.YAMLError) as e:
+            print(f"{what} ... FAIL ({path}: no readable frontmatter: {e})")
+            bad = 1
+            continue
+        got = {k: front.get(k) for k in ("name", "model", "effort")}
+        if got == {"name": name, "model": model, "effort": effort}:
+            print(f"{what} ... ok")
+        else:
+            print(f"{what} ... FAIL ({path} declares name: {got['name']}, "
+                  f"model: {got['model']}, effort: {got['effort']})")
+            bad = 1
+# The session's own effort is a settings key, and a settings file takes four levels.
+effort = cfg["role_models"]["orchestrator"]["effort"]
+if effort in ("low", "medium", "high", "xhigh"):
+    print(f"    orchestrator effort is a level effortLevel accepts ({effort}) ... ok")
+else:
+    print(f"    orchestrator effort is a level effortLevel accepts ... FAIL ({effort!r})")
+    bad = 1
+sys.exit(bad)
+PY
+}
+
 phase6_validation() {
   echo "[6/6] Validation ..."
   [ "$DRY_RUN" -eq 1 ] && { echo "  DRY-RUN: skipped"; return; }
@@ -411,6 +448,7 @@ phase6_validation() {
   harness_check "$base/.claude/skills" "$base" || harness_bad=1
   hooks_check "$base" || harness_bad=1
   permissions_check "$base" || harness_bad=1
+  routing_check "$base" || harness_bad=1
   if [ "$harness_bad" -ne 0 ]; then
     echo "  ERROR: harness invariant failed (named above). Nothing was repaired; restore the file and re-run --validate-only."; exit 7
   fi
