@@ -334,6 +334,45 @@ hooks_check() {
   return "$bad"
 }
 
+permissions_check() {
+  # $1: the project root. R2 of docs/reviews/harness-engineering-review-v1.md:
+  # the template's deny and ask rules and its bypass lock back the merge halt,
+  # the verdict rule and the lifecycle record where the hook does not run, so
+  # an instance's settings.json must carry every one of them. An instance may
+  # add rules of its own. As with the hooks, the fork has no settings.json, so
+  # there the template is read against itself, which still fails if it stops
+  # parsing or loses a list.
+  local settings="$1/.claude/settings.json" reference="templates/settings.json.template"
+  [ -f "$settings" ] || settings="$reference"
+  echo "  Permission rules in $settings (reference: $reference):"
+  python3 - "$reference" "$settings" <<'PY'
+import json, sys
+def permissions(path):
+    try:
+        return json.load(open(path)).get("permissions") or {}
+    except (OSError, ValueError) as e:
+        print(f"    {path} parses as JSON ... FAIL ({e})")
+        sys.exit(1)
+want, got, bad = permissions(sys.argv[1]), permissions(sys.argv[2]), 0
+for kind in ("deny", "ask"):
+    rules = want.get(kind) or []
+    missing = [r for r in rules if r not in (got.get(kind) or [])]
+    if rules and not missing:
+        print(f"    every template {kind} rule present ({len(rules)}) ... ok")
+    else:
+        why = "missing: " + ", ".join(missing) if rules else "the template declares none"
+        print(f"    every template {kind} rule present ... FAIL ({why})")
+        bad = 1
+lock = "disableBypassPermissionsMode"
+if want.get(lock) == "disable" and got.get(lock) == "disable":
+    print("    bypassPermissions mode disabled ... ok")
+else:
+    print(f'    bypassPermissions mode disabled ... FAIL (permissions.{lock} is not "disable")')
+    bad = 1
+sys.exit(bad)
+PY
+}
+
 phase6_validation() {
   echo "[6/6] Validation ..."
   [ "$DRY_RUN" -eq 1 ] && { echo "  DRY-RUN: skipped"; return; }
@@ -347,6 +386,7 @@ phase6_validation() {
   harness_check skills "$FORK_ROOT" || harness_bad=1
   harness_check "$base/.claude/skills" "$base" || harness_bad=1
   hooks_check "$base" || harness_bad=1
+  permissions_check "$base" || harness_bad=1
   if [ "$harness_bad" -ne 0 ]; then
     echo "  ERROR: harness invariant failed (named above). Nothing was repaired; restore the file and re-run --validate-only."; exit 7
   fi

@@ -3,6 +3,139 @@ All notable changes to Keelswell. Format: Keep a Changelog; versioning: semver.
 
 ## [Unreleased] - 2026-09-12
 ### Added
+- The merge halt, the verdict rule and the lifecycle record get a
+  permission-layer backing (R2 of
+  docs/reviews/harness-engineering-review-v1.md, 2026-10-01).
+  bmad-dev-wave 1.8.0 -> 1.8.1, a test only. The review found nothing
+  guarding a merge, a force push or a hard reset in any mode: the instance
+  template set `acceptEdits` and no rule, ffbapp's personal allow list
+  pre-approves `gh pr *`, and five `git reset --hard` in ffbapp's record
+  followed no human instruction. `templates/settings.json.template` now
+  carries rules Claude Code enforces itself, whatever the model does and
+  whether or not a hook runs. Deny: `Bash(gh pr merge *)`,
+  `Bash(git push --force *)`, `Bash(git push -f *)`,
+  `Bash(git reset --hard *)`, `Bash(git clean -f*)`,
+  `Edit(/**/docs/wave-*/evaluation-*.md)`, `Edit(/.bmad/**/wave.md)`. Ask:
+  `Bash(git push *)`, `Bash(git branch -D *)`,
+  `Bash(git worktree remove *)`, `Bash(gh auth token*)`. And
+  `permissions.disableBypassPermissionsMode: "disable"`. Every
+  `wave_gate.py` rule stays: an Edit rule stops the Write and Edit tools,
+  `sed`, `tee` and a redirect, and not a script's own file I/O, which is
+  how `evaluate_wave.py record` and `wave_status.py set` still write.
+  Four rulings by RQ shape it. The whole template file is a fork-owned
+  seam (2026-09-28). Bypass stays banned, now mechanically; the auto ban
+  is dropped, with no `disableAutoMode`, and deny and ask rules are the
+  hard layer in acceptEdits and auto alike (2026-09-28; see Changed). The
+  lifecycle rule locks `wave.md` only, not `.bmad/**` as the review wrote
+  it: an Edit deny also stops the Write tool and a redirect, and dev-wave
+  writes `checkpoint.json`, `step-N.done` and `step-4.5.pending` there
+  with whichever tool it picks (2026-10-01). Both Edit rules carry a
+  leading slash, which the review's did not: a pattern without one is
+  matched from the session's current directory, which a `cd` moves, and
+  one with it from the project root (2026-10-01; the permissions page
+  says so, and the 2.1.252 CLI resolves an unanchored pattern against the
+  live cwd). `install.sh` phase 6 gains a check that reads and never
+  repairs: an instance's settings.json must carry every deny and ask rule
+  the template declares, and the bypass lock, or validation exits 7
+  naming what is missing. Six new tests pin the block (172 across
+  bmad-dev-wave's scripts and 12 in bmad-close-epic, both trees).
+  **What was checked, and what was not.** A `--target-project` install
+  resolves a settings.json that parses, carries the seven deny and four
+  ask rules and the lock, and differs from R1's in `permissions` only;
+  the template's hooks lines are untouched. The two Edit patterns were
+  run through node-ignore 7.0.11, the gitignore matcher the 2.1.252 CLI
+  calls: 16 of 16 paths as intended, `wave.md` and evaluation records
+  denied (an upper-case `EVALUATION-3.md` included), the three markers
+  not. `evaluate_wave.py record` writes in the scratch instance. The live
+  check ran on 2026-10-01 under CLI 2.1.287: five headless `claude -p`
+  calls in the scratch instance, each passing an allow rule for its own
+  command so that only the block could stop it. `gh pr merge 1` was
+  denied; `git push` was denied, a prompt nobody answers being a denial
+  in `-p`; a Write to `.bmad/probe/wave.md`, a path the hook does not
+  match, was denied by the rule alone, and one to `.bmad/wave-1/wave.md`
+  left no file; a Write to `.bmad/wave-1A/step-3.done` went through;
+  `record` wrote `evaluation-2.md`. Five of five as wanted. Still
+  unobserved: the prompt as a prompt, which only an interactive session
+  shows.
+  **Prediction, to be checked by R3's session.** In an instance that
+  carries the block, `gh pr merge` is refused in every mode; a plain
+  `git push`, `git branch -D`, `git worktree remove` and `gh auth token`
+  prompt in every mode, auto included; the Write and Edit tools,
+  `sed -i`, `tee` and a redirect cannot change a lifecycle or evaluation
+  record under the project root with every hook off; bypassPermissions
+  cannot be entered. Two sets of numbers, both from an emulation of the
+  documented matching rules and not from the runtime. On the review's E2a
+  fixture the rules deny 5 and prompt on 4 of the 14 destructive strings
+  that are git or gh shapes, miss the other 5 (a here-document script, a
+  quoted flag, a printf substitution, an alias, base64 into sh), and
+  leave the 13 that are not (`rm -rf`, DROP TABLE, `dd`) alone by design;
+  of 13 safe look-alikes they deny 2 (`gh pr merge --help`,
+  `git clean -fdn`) and prompt on 1, an ordinary push. On ffbapp's 10,451
+  recorded Bash calls they deny 8 (5 `gh pr merge`, 3 of the 5 resets)
+  and prompt on 231, 212 of them pushes, across 71 of 91 main sessions:
+  a median of 3 prompts in such a session, at most 12. That is the cost,
+  and it is the intended one.
+  **At risk.** (1) Forms a text rule does not match: `git -C <path>`,
+  `git -c key=value`, `bash -c`, a binary by absolute path, a quoted
+  word, a force flag after the remote or `--force-with-lease` (both
+  prompt instead), a script written and then run. In ffbapp's record
+  `git -C` hides 2 of the 5 resets, 53 of some 300 pushes, 27 of 41
+  worktree removals and 13 of 16 `branch -D`, and `git -c` hides 35 more
+  pushes. bmad-merge-wave writes its steps 3 and 4 as
+  `git -C MAIN_REPO ...`, so its worktree removal and branch deletion do
+  not prompt because of these rules; they fall to the session's mode. A
+  model that is refused can reach for the same forms. Reading them takes
+  a hook rule on R1's parser, which R2 was told not to add. (2) In
+  `claude -p` a prompt nobody answers is a denial, so the four ask rules
+  stop an unattended wave at its push. (3) With bypass locked,
+  `--dangerously-skip-permissions` is rejected inside an instance; the
+  bmad-eval-runner adapter uses it (R5). (4) The Edit rules stop at the
+  project root: a sibling worktree's evaluation record, and a
+  worktree-rooted session writing the main checkout's `.bmad/`, are
+  outside them, and `rm`, `mv` and `cp` are not among the file commands
+  the docs say an Edit rule sees. The hook's verdict and lifecycle rules
+  cover those, within the limit graded below. (5) No rule covers
+  `rm -rf`, and acceptEdits approves `rm` inside the project. (6)
+  `./install.sh --validate-only --target-project` exits 7 on ffbapp and
+  green-ledger until the hand step is done (measured 2026-10-01).
+  **R1's prediction, graded.** "Every path that let a guarded call
+  through without a decision now returns one": true of the five paths R1
+  named (the E2b replay on merged main dd1e531 denies all 11 in-review
+  shapes and allows the other 4, in both trees) and false of one it did
+  not test. `_prepass` marks a newline as an operator with the newline
+  inside the mark, shlex splits the mark there, and the halves are read
+  as words, so a newline never ends a command. A guarded action on a
+  second line passes whenever the first line is a command whose operands
+  are not writes: 8 of 10 two-line shapes tried exit 0 (`echo x`, then
+  the in-review `set`, a `sed -i` on `wave.md`, an `rm` of it, a `cp`
+  over an evaluation record). The same defect refuses ordinary work: a
+  `mkdir`, `rm` or `touch` followed by a second line crashes the gate
+  (`ValueError: embedded null character`), denied as FAILED CLOSED, and
+  a direct literal `wave_status.py set` on a second line is refused as
+  unreadable. Replayed from a scratch cwd, ffbapp's 10,451 recorded
+  calls hit that crash 61 times. Marking the newline as `;` in a scratch
+  copy denies 10 of 10, allows 7 of 7 ordinary two-line commands, clears
+  the 61 and keeps the suite green; it is not applied here, being R1's
+  file and not R2's subject. "74 ms p50 against 48": measured 48 ms
+  against 39 (n=20, twice, 2026-10-01, the wrapper in exec form against
+  the 9caab2e gate), so the direction holds and the added cost is 9 ms,
+  not 26. At risk, checked by replaying this session's own 64 Bash,
+  Write and Edit calls through the gate: 5 would have been refused, none
+  of them a guarded action. Two were predicted (a `for` loop that puts
+  the verb in a variable; a here-document whose text names
+  `.bmad/wave-<id>/wave.md`), one is the verdict rule's twin of a
+  predicted case (`node -e` naming an evaluation path), and two are the
+  newline defect. Not hit: a broken gate needing a human, and `record`
+  fed by a here-document. Not covered then or now: a script written
+  earlier and run later, and a renamed `wave_status.py`.
+  **Instances.** ffbapp and green-ledger hold a hooks-only settings.json
+  that names the wrapper by bare relative path, and bmad-dev-wave 1.7.1
+  (byte-identical to fork 9caab2e on 2026-10-01). Reaching them is a
+  hand step, written out in docs/upstream-refresh-runbook.md: copy the
+  skill and the wrapper, take the template's PreToolUse entry, add the
+  permission block without `defaultMode`, then run `--validate-only
+  --target-project`. Apply it once the newline defect is fixed, or the
+  instances inherit it.
 - The wave gate fails closed and parses Bash instead of searching it (R1 of
   docs/reviews/harness-engineering-review-v1.md, 2026-09-29). bmad-dev-wave
   1.7.1 -> 1.8.0. The review found five ways the Phase 4 hook let a guarded
@@ -464,6 +597,12 @@ All notable changes to Keelswell. Format: Keep a Changelog; versioning: semver.
   post-rule.
 
 ### Changed
+- `core/config.yaml` no longer declares `permissions.forbidden_modes` (R2,
+  2026-10-01). Nothing read it. The bypass half of the ban is now
+  `permissions.disableBypassPermissionsMode: "disable"` in the settings
+  template, which Claude Code enforces; the auto half is dropped by RQ's
+  ruling of 2026-09-28, since bmad-wrap suggests auto and deny and ask
+  rules bind in it as they do in acceptEdits.
 - Eight `agents/custom-*.md` files collapsed to persona descriptors (Phase
   6.5 of docs/harness-conversion-plan.md): accessibility, analytics,
   design-critic, growth, legal, ml, sre, web-designer. Each was
