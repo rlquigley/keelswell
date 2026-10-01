@@ -88,7 +88,7 @@ version: 1
 # 3C and 4A had no review at all, and both are marked load-bearing in ffbapp's
 # own wave map. That is the failure this block exists to stop.
 #
-# This is not the step-7 evaluator a second time. That one reads: fresh
+# This is not the step-8 evaluator a second time. That one reads: fresh
 # context, Read/Glob/Grep, no Bash. This one executes -- the standing party
 # brief is that a finding is proved by execution or by mutation, never by
 # reading.
@@ -587,7 +587,7 @@ reviewers:
     display: "Aviendha"
     source: "derived-2026-09-14"
     trigger: "the wave adds or changes a story file, an acceptance-criteria artifact, a Gherkin feature, or a traceability map"
-    note: "Caveat, recorded rather than hidden: Phase 3 moved her off grading this wave, so step 3 is still where she designs and step 7's evaluator is still deliberately not her. This row is the acceptance-mapping half of her authority, not a re-seat at the evaluator's chair."
+    note: "Caveat, recorded rather than hidden: Phase 3 moved her off grading this wave, so step 3 is still where she designs and step 8's evaluator is still deliberately not her. This row is the acceptance-mapping half of her authority, not a re-seat at the evaluator's chair."
     paths:
       - "**/stories/**"
       - "**/*.feature"

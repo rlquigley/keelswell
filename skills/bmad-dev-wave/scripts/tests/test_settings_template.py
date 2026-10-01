@@ -12,6 +12,9 @@ The template is fork-only. An instance carries the resolved
 .claude/settings.json instead, and `./install.sh --validate-only
 --target-project <instance>` checks that file against the template, so these
 skip there.
+
+R3 adds the evaluator hook's three registrations beside R1's entry, which
+stays as R1 wrote it.
 """
 
 import json
@@ -94,14 +97,32 @@ class TestSettingsTemplate(unittest.TestCase):
         self.assertEqual(self.permissions.get("defaultMode"), "acceptEdits")
 
     def test_the_gate_registration_is_r1s(self):
-        self.assertEqual(self.settings["hooks"]["PreToolUse"], [{
+        # First, and unchanged. R3's entry sits after it (RQ, 2026-10-01).
+        self.assertEqual(self.settings["hooks"]["PreToolUse"][0], {
             "matcher": "Write|Edit|MultiEdit|NotebookEdit|Bash|Monitor",
             "hooks": [{"type": "command",
                        "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/wave-gate.sh",
                        "args": [], "timeout": 30}],
-        }])
+        })
+        gates = [h for entry in self.settings["hooks"]["PreToolUse"] for h in entry["hooks"]
+                 if h["command"].endswith("wave-gate.sh")]
+        self.assertEqual(len(gates), 1)
         ends = [h["command"] for entry in self.settings["hooks"]["SessionEnd"] for h in entry["hooks"]]
         self.assertIn(".claude/hooks/wave-session-end.sh", ends)
+
+    def test_the_evaluator_hook_is_registered_on_its_three_events(self):
+        # SubagentStop carries the report outside auto mode. In auto mode it goes
+        # through SubagentHandback: PreToolUse can still send a bad one back, and
+        # PostToolUse records the one that landed.
+        hook = {"type": "command",
+                "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/wave-evaluator-record.sh",
+                "args": [], "timeout": 30}
+        for event, matcher in (("SubagentStop", "keelswell-wave-evaluator"),
+                               ("PreToolUse", "SubagentHandback"),
+                               ("PostToolUse", "SubagentHandback")):
+            with self.subTest(event):
+                self.assertIn({"matcher": matcher, "hooks": [hook]},
+                              self.settings["hooks"][event])
 
 
 if __name__ == "__main__":

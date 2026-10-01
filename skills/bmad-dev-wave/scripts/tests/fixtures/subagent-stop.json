@@ -1,0 +1,27 @@
+{
+ "session_id": "a4feaa8d-52f0-408c-b5bd-8322c5d9c55a",
+ "transcript_path": "/Users/rq/.claude/projects/-scratch-instance/a4feaa8d-52f0-408c-b5bd-8322c5d9c55a.jsonl",
+ "cwd": "/scratch/instance",
+ "scratchpad_dir": "/scratch/-scratch-instance/a4feaa8d-52f0-408c-b5bd-8322c5d9c55a/scratchpad",
+ "prompt_id": "695a1b46-00e6-40a3-a8fc-ff11613906d3",
+ "permission_mode": "acceptEdits",
+ "agent_id": "a8db4a5c9aebb2afb",
+ "agent_type": "keelswell-wave-evaluator",
+ "effort": {
+  "level": "high"
+ },
+ "hook_event_name": "SubagentStop",
+ "stop_hook_active": false,
+ "agent_transcript_path": "/Users/rq/.claude/projects/-scratch-instance/a4feaa8d-52f0-408c-b5bd-8322c5d9c55a/subagents/agent-a8db4a5c9aebb2afb.jsonl",
+ "last_assistant_message": "VERDICT: NEEDS_WORK\nWAVE: 1A\nPASS: 1\n\n## Evidence read\n- `_bmad-output/planning-artifacts/waves.md`: row 1A is serial and contains only story 1.1, on branch `wave-1a-calc`. Row 1B was never built and is out of scope.\n- `docs/stories/1.1.md`: AC-1 says `calc.subtract(a, b)` returns `a - b`. AC-2 says `calc.subtract` raises `TypeError` when either argument is a string.\n- `docs/wave-1a/test-design.md`: one test is mapped to each clause. AC-2 is mapped only to `subtract(\"5\", 3)`.\n- `docs/wave-1a/wave-diff.patch`: adds the story file, the test design, `subtract` in `src/calc.py`, and the `TestSubtract` class in `tests/test_calc.py`.\n- `docs/wave-1a/verify-output.txt`: stamped `bash tests/verify-fast.sh`, exit 0, head 4255d3fc. Three tests ran, all ok, including `test_strings_rejected` and `test_subtract`.\n- `tests/verify-fast.sh`: `python3 -m unittest discover -s tests -v`. Its exit code is Python's, so the stamp's `exit=0` really is the suite result.\n- `src/calc.py` and `tests/test_calc.py` at HEAD: they match the diff exactly.\n- Prior `docs/wave-1a/evaluation-*.md`: there are none, which fits pass 1.\n\n## Findings\n### [MEDIUM] AC-2's \"either argument\" is tested only with a string first argument, and the test cannot tell whether the guard exists\n- Where: tests/test_calc.py:15 (`test_strings_rejected`); the guard is at src/calc.py:6\n- What: AC-2 requires a `TypeError` when *either* argument is a string. The only test calls `calc.subtract(\"5\", 3)`, so a string second argument is never checked. That one case also raises `TypeError` in Python even without the guard, because `\"5\" - 3` is itself a `TypeError`. The test therefore checks how Python handles `str - int`, not the `isinstance` check at src/calc.py:6.\n- How it shows: suppose someone later drops the `isinstance(b, str)` half of the check, or replaces the body with conversion (for example `return float(a) - float(b)` with the guard kept only on `a`). Then `subtract(5, \"3\")` returns `2.0` instead of raising, and the suite stays green. AC-2 is broken for the second argument and nothing flags it.\n- Proof: deleting src/calc.py:6-7 completely leaves `test_strings_rejected` passing, because the bare `a - b` raises `TypeError` for `\"5\" - 3`. The `float(a) - float(b)` mutation above, with only the `isinstance(a, str)` check kept, also leaves the suite green. I have no Bash, so this is UNPROVEN by execution. The test that would prove it is `assertRaises(TypeError)` on `calc.subtract(5, \"3\")`, plus a string-string case, run against the mutation above.\n\n## Not findings\n- AC-1 is covered by `test_subtract`, which asserts `subtract(5, 3) == 2` (tests/test_calc.py:13). An empty function returning `None`, or `a + b` (which gives 8), would turn it red, so the test can fail. It covers only one value pair, which is normal for a clause this simple.\n- AC-2 behaves correctly at HEAD. The implementation at src/calc.py:6-8 raises for a string in either position, so the finding above is about test coverage, not wrong behaviour.\n- Scope is clean. The diff touches only `src/calc.py`, `tests/test_calc.py`, the story file and the test design, and all of them belong to story 1.1. There are no edits outside the wave.\n- The untracked `docs/wave-1a/verify-output.txt` and `docs/wave-1a/wave-diff.patch` are evidence for this evaluation, not part of the wave.\n- `sys.path.insert(0, \"src\")` at tests/test_calc.py:2 only works when the suite runs from the repo root. `verify-fast.sh` does run it from there, and the stamp shows the import succeeded. This was not touched by this wave.\n- `bool` arguments, and `None` or other non-string non-numbers, are outside AC-2's wording, which names only strings. That is not a defect against this story.",
+ "background_tasks": [
+  {
+   "id": "a8db4a5c9aebb2afb",
+   "type": "subagent",
+   "status": "running",
+   "description": "Evaluate wave 1A",
+   "agent_type": "keelswell-wave-evaluator"
+  }
+ ],
+ "session_crons": []
+}

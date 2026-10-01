@@ -1,0 +1,26 @@
+{
+ "session_id": "fadacda4-ec06-4cd5-9c2e-511ee8bc8c5a",
+ "transcript_path": "/Users/rq/.claude/projects/-scratch-instance/fadacda4-ec06-4cd5-9c2e-511ee8bc8c5a.jsonl",
+ "cwd": "/scratch/instance",
+ "scratchpad_dir": "/scratch/-scratch-instance/fadacda4-ec06-4cd5-9c2e-511ee8bc8c5a/scratchpad",
+ "prompt_id": "83404d9d-6f00-4d6a-80ac-f67fcd3f3394",
+ "permission_mode": "auto",
+ "agent_id": "a5f1eed2fc809cede",
+ "agent_type": "keelswell-wave-evaluator",
+ "effort": {
+  "level": "high"
+ },
+ "hook_event_name": "SubagentStop",
+ "stop_hook_active": false,
+ "agent_transcript_path": "/Users/rq/.claude/projects/-scratch-instance/fadacda4-ec06-4cd5-9c2e-511ee8bc8c5a/subagents/agent-a5f1eed2fc809cede.jsonl",
+ "background_tasks": [
+  {
+   "id": "a5f1eed2fc809cede",
+   "type": "subagent",
+   "status": "running",
+   "description": "Evaluate wave 1A pass 2",
+   "agent_type": "keelswell-wave-evaluator"
+  }
+ ],
+ "session_crons": []
+}

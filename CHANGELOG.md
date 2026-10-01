@@ -3,6 +3,156 @@ All notable changes to Keelswell. Format: Keep a Changelog; versioning: semver.
 
 ## [Unreleased] - 2026-09-12
 ### Added
+- The evaluator's evidence and its record are written by scripts and a hook,
+  not by the builder (R3 of docs/reviews/harness-engineering-review-v1.md,
+  2026-10-01). bmad-dev-wave 1.8.2 -> 1.9.0. The review found three prose
+  links at the evaluation step: the evidence the evaluator is shown was
+  written by the builder, `record` parsed whatever text the builder piped
+  in, and nothing checked a verdict against the severities listed under it.
+  Five parts, in the review's order. (a) The record is hook-written.
+  `.claude/hooks/wave-evaluator-record.sh` runs `evaluate_wave.py record` on
+  the `keelswell-wave-evaluator` subagent's own report and writes
+  `docs/wave-<id>/evaluation-<n>.md` with a header naming the hook, the
+  session and the subagent. The pass count, the third-pass rule and the exit
+  codes are as before; the exit code now comes from a read-only `verdict`
+  verb. (b) `evaluate_wave.py verify` runs `tests/verify-fast.sh` from the
+  worktree root and stamps the first line of `verify-output.txt` with the
+  command, the exit code, HEAD and the time. `dispatch` writes
+  `wave-diff.patch` itself, from the branch's merge-base with main, read
+  from git: everything changed since, committed or not, untracked files
+  included. It exits 3 when the verify output is missing, unstamped or
+  stamped at another HEAD, where it printed a notice. (c) A parser, not a
+  model, refuses a report with no `VERDICT:` line, with two, with a verdict
+  outside the list, or a PASS under which any `### [SEVERITY]` heading is
+  not trivial. The ladder is read from the evaluator definition (its `-
+  **NAME** --` bullets and the sentence naming the trivial one), never
+  retyped, and `check` refuses a definition it can no longer read it from.
+  (d) The definition sets `effort: high`, asserted by `check`, which also
+  refuses `memory:` (it grants Write and Edit whatever the tool list says).
+  (e) The three loop defects. Dev-wave's steps 7 to 9 are reordered, none
+  added: 7 is test expansion and verify, 8 the evaluation, 9 the checkpoint
+  preview. The pass count restarts after an UPSTREAM_CAUSE whose fix is on
+  record, as a lifecycle history line written by `wave_status.py set
+  --status in-progress --reason "upstream fix: <artifact>"` after that
+  record; `dispatch` reports `rule_pass` beside `pass_number`. A fix made at
+  step 10 routes back through steps 7 and 8, where the stale stamp is
+  refused and a `review-party.md` dated on or after the latest evaluation
+  joins the evidence.
+  **Rulings by RQ, 2026-10-01.** (e) `dispatch` leaves
+  `.bmad/wave-<id>/evaluation-pending` holding the session id (from
+  `CLAUDE_CODE_SESSION_ID`), the pass number and the worktree path; the hook
+  records to the one marker its session left and deletes it. No marker, or
+  two, and it writes nothing. (f) The Bash route to `record` is retired.
+  `record` now takes the hook event on stdin, and a sixth gate rule, record,
+  denies any Bash or Monitor call of it, in the shapes the gate reads and
+  the ones it cannot, as the review rule does for `set`. The hook writes the
+  `evaluation-session` marker the in-place rule reads, which the gate used
+  to note when it saw `record` go by. (g) The verify command is
+  `tests/verify-fast.sh` and nothing else; no config key. (h) A third
+  registration, asked for mid-session on a measurement: the kickoff allowed
+  SubagentStop and PostToolUse on SubagentHandback, and in auto mode neither
+  can send a bad report back (below), so PreToolUse on SubagentHandback was
+  added. R1's PreToolUse entry is unchanged and first; its test now says so
+  instead of pinning the whole list.
+  **What was measured, CLI 2.1.287, 2026-10-01.** Where the report travels.
+  Outside auto mode it is `last_assistant_message` on SubagentStop, and a
+  block decision there starts a second round. In auto mode the subagent
+  reports through SubagentHandback, SubagentStop then carries no
+  `last_assistant_message` key at all, and neither a block on PostToolUse
+  nor a block on SubagentStop does anything: the hand-over has happened. An
+  exit 2 on PreToolUse for that tool does: the evaluator sent a second
+  report. All three events carry the parent's session id, equal to
+  `CLAUDE_CODE_SESSION_ID` in its Bash calls. The live check, in a fresh
+  `--target-project` instance with a one-story wave on its own branch, six
+  headless sessions with a Sonnet parent (Haiku cannot run auto mode).
+  acceptEdits: verify, dispatch, the evaluator, verdict; the hook wrote
+  `evaluation-1.md` from SubagentStop, header naming it, marker gone, no
+  `record` call in the transcript, no denial. auto: the same, written by
+  PostToolUse on SubagentHandback as `evaluation-2.md`, once. Both real
+  verdicts were NEEDS_WORK on a defect in the fixture nobody planted: AC-2
+  says either argument and the test covers one. A first reply of two words
+  with no verdict was blocked and the second attempt recorded. A PASS
+  carrying a `[HIGH]` heading was denied before the hand-over and the second
+  report recorded. `echo <forged event> | evaluate_wave.py record` from Bash
+  was denied by the gate. Report size: 3,714 to 18,072 characters on
+  SubagentStop and 4,643 to 10,732 on the hand-back, every record identical
+  to the event's text, so the 10,000-character cap documented for
+  `additionalContext` applies to neither field. Effort: the evaluator's
+  events said `medium` under the definition on main and `high` under this
+  one, in both modes. The hook costs 37 ms p50 for another subagent's
+  hand-back and 44 ms for the evaluator's (n=20). 227 tests across
+  bmad-dev-wave's scripts (176 before) and 12 in bmad-close-epic, both
+  trees; three replay hook events recorded from the live run, paths
+  shortened.
+  **Prediction, to be checked by R4's session.** In an instance that carries
+  the three registrations: every evaluation record written from here on has
+  the hook's header, and none is written by a session; `evaluate_wave.py
+  record` from Bash or Monitor is refused; a report with no verdict, two, or
+  a PASS above LOW never reaches disk; the evaluator runs at effort high
+  whatever the session's is; `dispatch` refuses evidence that `verify` did
+  not stamp at the worktree's HEAD. One evaluation costs one evaluator run
+  plus at most two sent-back rounds, and about 40 ms of hook time per event.
+  **At risk.** (1) The dispatch prompt is still the builder's. The synthetic
+  runs prove it: told to, the evaluator returned NEEDS_WORK with a finding
+  titled "wiring test". The hook settles who wrote the text, not what the
+  evaluator was asked. (2) The marker is writable by a session (the
+  2026-10-01 ruling keeps `.bmad` markers writable). A forged one still
+  needs a real evaluator subagent in the same session and a wave in the map.
+  (3) Where the gate is not registered, `record` can be fed a forged event
+  from Bash; the header then lies. That is every tree R1's rules do not
+  reach either. (4) The stamp reads HEAD, so an uncommitted edit after
+  verify is not seen. (5) False refusals. A report that starts a line with
+  another record's `VERDICT:` is sent back. The record rule refuses a
+  command that names evaluate_wave and holds the bare word record where the
+  gate cannot place it: of this session's 66 Bash, Write and Edit calls,
+  replayed, 4 would have been refused by it, all here-documents editing
+  these files, and 2 more by the review rule for the same reason. (6) It
+  fails toward no record: a missing wrapper, script or python3, or a
+  worktree cut before the registration, records nothing, `verdict` exits 3
+  and the wave cannot enter review. (7) A project with no
+  `tests/verify-fast.sh` cannot pass step 7; green-ledger has none. (8)
+  Waves in flight: an unstamped `verify-output.txt` is refused by name and
+  `verify` repairs it. A wave paused between the old steps 7 and 10
+  re-enters by markers that meant another step; neither instance has one
+  (ffbapp 20 waves, green-ledger 0, 2026-10-01). (9) The evaluator ran in
+  the background in both real runs and the parent waited for it; a parent
+  that does not wait reads `verdict` exit 3. (10) In auto mode a sent-back
+  hand-over is a denied tool call. Auto mode pauses after 3 consecutive
+  classifier blocks, and whether a hook's denial counts toward that is not
+  documented; the cap here is two.
+  **R2's prediction, graded.** Holds, with two corrections. R2's live check
+  again on 2.1.287: five of five. In a session that really started in auto
+  (Sonnet), `gh pr merge` was denied and `git push`, `git branch -D` and
+  `git worktree remove` were denied as unanswered prompts, as in
+  acceptEdits; the probe branch survived. A redirect, `tee` and `sed -i`
+  onto `.bmad/probe/wave.md`, a path the hook does not match, were each
+  denied by the Edit rule alone and the file kept its content. The prompt as
+  a prompt, seen by RQ in an interactive session: "Permission rule Bash(git
+  push *) requires confirmation" for `git push 2>&1`. Correction one: bypass
+  is not rejected. `--dangerously-skip-permissions` and `--permission-mode
+  bypassPermissions` both start the session in acceptEdits with no error, so
+  "cannot be entered" holds and at-risk (3) should read "is ignored": the
+  eval-runner adapter (R5) will not fail fast, it will run with every
+  unanswered prompt a denial. Correction two: `--permission-mode auto` on
+  Haiku starts in `default`, so R2's `live-check.sh`, which uses Haiku,
+  cannot exercise auto. Not re-measured: `gh auth token` (a failed rule
+  would have put a token in a transcript), the forms text rules miss, and
+  the Edit rules beyond the project root. This session met no prompt or
+  denial of its own, because the fork registers no hooks; of its child
+  sessions' calls the only denials were the intended ones.
+  **1.8.2's prediction, graded.** Holds. TestNewline and TestE2bReplay pass
+  on merged main in both trees. Of this session's 66 replayed calls none was
+  refused for a newline, two-line and here-document commands included.
+  **Instances.** ffbapp and green-ledger carry R1 and R2 at 1.8.2,
+  byte-identical to fork 3436373. `./install.sh --validate-only
+  --target-project` now exits 7 on both and names what R3 needs: the
+  wrapper, its registration, and the three events. The hand step in
+  docs/upstream-refresh-runbook.md is extended: copy the skill, both
+  wrappers and the evaluator definition, paste the template's three entries,
+  and give green-ledger a `tests/verify-fast.sh`. Not built, by the
+  2026-10-01 ruling: a hook rule on R1's parser for the `git -C` and `bash
+  -c` forms the permission rules miss. It is a sixth do-now item for RQ to
+  schedule.
 - The merge halt, the verdict rule and the lifecycle record get a
   permission-layer backing (R2 of
   docs/reviews/harness-engineering-review-v1.md, 2026-10-01).

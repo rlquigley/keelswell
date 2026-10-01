@@ -118,36 +118,54 @@ resolvers.
 Nothing rewrites an existing instance's `.claude/settings.json`: a
 refresh never touches it and `install.sh --target-project` writes one
 only into a fresh target. So what `templates/settings.json.template`
-carries for the harness reaches a live instance by hand: the hook
-registration (R1 of docs/reviews/harness-engineering-review-v1.md) and
-the permission block (R2). As of 2026-10-01 both live instances (ffbapp,
-green-ledger) hold a hooks-only settings.json that names the wrapper by
-bare relative path, plus the wrapper and wave scripts of bmad-dev-wave
-1.7.1. Both were byte-identical to fork commit 9caab2e on that date, so
-the copy below overwrites nothing local; re-check that before copying
-(`git show <commit>:<path> | diff - <instance copy>`) and stop on drift.
+carries for the harness reaches a live instance by hand: the gate's
+registration (R1 of docs/reviews/harness-engineering-review-v1.md), the
+permission block (R2) and the evaluator hook's three registrations (R3).
+As of 2026-10-01 both live instances (ffbapp, green-ledger) carry R1 and
+R2 and not R3: the template's first PreToolUse entry and its permission
+block, the wrappers wave-gate.sh and wave-session-end.sh, and
+bmad-dev-wave 1.8.2. Both were byte-identical to fork commit 3436373 on
+that date, so the copy below overwrites nothing local; re-check that
+before copying (`git show <commit>:<path> | diff - <instance copy>`) and
+stop on drift.
 
 From the fork on main, per instance:
 
-1. Skill and wrapper, into every tool tree the instance has
-   (green-ledger also carries `.agents/skills`):
+1. Skill, wrappers and the evaluator definition. The skill goes into
+   every tool tree the instance has (green-ledger also carries `.agents/skills`):
        cp -R skills/bmad-dev-wave/. <instance>/.claude/skills/bmad-dev-wave/
-       cp .claude/hooks/wave-gate.sh <instance>/.claude/hooks/wave-gate.sh
-2. Settings. In `<instance>/.claude/settings.json`, replace the
-   PreToolUse entry with the template's (exec form on
-   `${CLAUDE_PROJECT_DIR}`, `"args": []`, `"timeout": 30`, Monitor in
-   the matcher) and add a `permissions` object holding the template's
-   `deny` list, `ask` list and `"disableBypassPermissionsMode":
-   "disable"`. Leave out `defaultMode`, `model` and the template's other
-   keys: an instance keeps its own mode and model. The instance may add
-   rules of its own; it may not drop one of the template's.
-3. Check. `./install.sh --validate-only --skip-mcp-check
-   --target-project <instance>` exits 0. Until step 2 is done it exits 7
-   and names every missing rule, which is the list to paste. Then
+       cp .claude/hooks/wave-gate.sh .claude/hooks/wave-evaluator-record.sh \
+          <instance>/.claude/hooks/
+       cp .claude/agents/keelswell-wave-evaluator.md <instance>/.claude/agents/
+   The definition carries `effort: high` since R3, and the new skill's
+   `dispatch` refuses one that does not.
+2. Settings. In `<instance>/.claude/settings.json`, make the `hooks`
+   block carry the template's entries for the harness: the two
+   PreToolUse entries (wave-gate.sh on the file and shell tools, exec
+   form on `${CLAUDE_PROJECT_DIR}`, `"args": []`, `"timeout": 30`,
+   Monitor in the matcher; wave-evaluator-record.sh on
+   `SubagentHandback`), the PostToolUse entry on `SubagentHandback`, and
+   the SubagentStop entry on `keelswell-wave-evaluator`. The three R3
+   entries are one line each in the template; paste them as they stand.
+   Add a `permissions` object holding the template's `deny` list, `ask`
+   list and `"disableBypassPermissionsMode": "disable"`. Leave out
+   `defaultMode`, `model` and the template's other keys: an instance
+   keeps its own mode and model. The instance may add rules and hooks of
+   its own; it may not drop one of the template's.
+3. The verify script. Step 7 runs `tests/verify-fast.sh` from the
+   worktree root and nothing else, and `evaluate_wave.py verify` exits 3
+   without it. ffbapp has one; green-ledger had none on 2026-10-01. A
+   project whose suite lives elsewhere gives the file one line that
+   calls it.
+4. Check. `./install.sh --validate-only --skip-mcp-check
+   --target-project <instance>` exits 0. Until steps 1 and 2 are done it
+   exits 7 and names every missing wrapper, registration and rule, which
+   is the list to paste (measured on both instances, 2026-10-01: the
+   wrapper, its registration, and the three events). Then
    `diff -rq -x __pycache__ skills/bmad-dev-wave
    <instance>/.claude/skills/bmad-dev-wave` prints nothing, and the
    instance's own unit tests pass.
-4. Commit in the instance: ffbapp by pull request, green-ledger on a
+5. Commit in the instance: ffbapp by pull request, green-ledger on a
    branch merged ff-only (it has no remote).
 
 What to expect afterwards:
@@ -158,8 +176,20 @@ What to expect afterwards:
   `gh pr merge`, and `gh auth token` and a plain `git worktree remove`
   prompt despite `Bash(gh auth *)` and `Bash(git worktree *)`.
 - A worktree reads the settings.json of its own checkout. One cut before
-  the instance's commit has neither the rules nor the new registration
-  until it takes the instance's main.
+  the instance's commit has neither the rules nor the new registrations
+  until it takes the instance's main. A session rooted there gets no
+  evaluator record at all: nothing writes one, `evaluate_wave.py verdict`
+  exits 3, and the review rule keeps the wave out of review.
+- No session records a verdict. Step 8 runs `evaluate_wave.py dispatch`,
+  dispatches the evaluator, and reads `evaluate_wave.py verdict`; the
+  hook writes `evaluation-<n>.md` in between. `evaluate_wave.py record`
+  from Bash is denied by the gate. In auto mode a report the hook sends
+  back shows up as a denied SubagentHandback call, twice at most.
+- A wave whose `verify-output.txt` was written by hand, or before R3,
+  carries no stamp, and `dispatch` exits 3 until `verify` has run. Dev-wave's
+  steps 7 to 9 changed order (7 verify, 8 evaluation, 9 preview), so a
+  wave paused between the old steps 7 and 10 re-enters by markers that
+  meant something else; neither instance had one on 2026-10-01.
 - The Bash rules match the command as written. They do not match
   `git -C <path> ...`, `git -c key=value ...`, `bash -c '...'`, a binary
   named by absolute path or a quoted subcommand. bmad-merge-wave writes

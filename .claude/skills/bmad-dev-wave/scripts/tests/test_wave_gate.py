@@ -25,6 +25,7 @@ def find_up(rel):
 
 
 HOOK = find_up(Path(".claude") / "hooks" / "wave-gate.sh")
+RECORD_HOOK = find_up(Path(".claude") / "hooks" / "wave-evaluator-record.sh")
 
 # Appendix F of docs/reviews/harness-engineering-review-v1.md, fixture-e2b.json,
 # verbatim: the 15 review-rule shapes, labelled yes where the command sets a
@@ -127,8 +128,9 @@ class Project:
         shutil.copy(CLOSURE_GATE, closure / CLOSURE_GATE.name)
         hooks = self.root / ".claude" / "hooks"
         hooks.mkdir(parents=True)
-        shutil.copy(HOOK, hooks / "wave-gate.sh")
-        (hooks / "wave-gate.sh").chmod(0o755)
+        for wrapper in (HOOK, RECORD_HOOK):
+            shutil.copy(wrapper, hooks / wrapper.name)
+            (hooks / wrapper.name).chmod(0o755)
         git(self.root, "add", "-A")
         git(self.root, "commit", "-q", "-m", "harness", when=POST_RULE)
         return scripts / "wave_gate.py"
@@ -164,6 +166,10 @@ class Project:
 
     def record(self, wave):
         return (self.root / ".bmad" / f"wave-{wave}" / "wave.md")
+
+    def recorded_by(self, wave, session):
+        """What the evaluator hook leaves: the session whose evaluator it recorded."""
+        (self.bmad(wave) / "evaluation-session").write_text(session + "\n")
 
 
 class Base(unittest.TestCase):
@@ -228,10 +234,57 @@ class TestVerdict(Base):
             code, _, _ = self.p.pre("Bash", command=command)
             self.assertEqual(code, 2, command)
 
-    def test_the_record_verb_itself_is_allowed(self):
-        code, _, err = self.p.pre(
-            "Bash", command="python3 x/evaluate_wave.py record --project-root . --wave 7A < out.txt")
-        self.assertEqual(code, 0, err)
+
+class TestRecord(Base):
+    """R3: `record` is the evaluator hook's entry point, and no session calls it."""
+
+    EW = "python3 .claude/skills/bmad-dev-wave/scripts/evaluate_wave.py"
+    EVENT = '{"hook_event_name": "SubagentStop", "agent_type": "keelswell-wave-evaluator"}'
+
+    def denied(self, command, tool="Bash"):
+        code, _, err = self.p.pre(tool, command=command)
+        self.assertEqual(code, 2, command)
+        self.assertIn("DENIED (record)", err, command)
+        return err
+
+    def test_a_direct_call_is_denied_and_names_the_hook(self):
+        err = self.denied(f"{self.EW} record --project-root . --wave 7A < out.txt")
+        self.assertIn("evaluator hook's entry point", err)
+        self.assertIn("evaluate_wave.py verdict", err)
+
+    def test_a_forged_event_piped_in_is_denied(self):
+        self.denied(f"echo '{self.EVENT}' | {self.EW} record")
+        self.denied(f"{self.EW} record <<'EOF'\n{self.EVENT}\nEOF")
+
+    def test_monitor_is_read_as_bash_is(self):
+        self.denied(f"{self.EW} record", tool="Monitor")
+
+    def test_shapes_the_gate_cannot_read_are_denied(self):
+        for command in (
+                f"V=record; {self.EW} $V",
+                f'CMD="{self.EW} record"; eval "$CMD"',
+                "cd .claude/skills/bmad-dev-wave/scripts && python3 evaluate_wave.py record",
+                f"echo x\n{self.EW} record",
+                'python3 -c "import evaluate_wave; evaluate_wave.record({})"',
+                "python3 - <<'EOF'\nimport evaluate_wave\nevaluate_wave.record({})\nEOF",
+                f"echo '{self.EVENT}' | bash -c '{self.EW} record'",
+                f"{self.EW} 'rec''ord'"):
+            self.denied(command)
+
+    def test_the_other_verbs_are_allowed(self):
+        for verb in ("check", "verify", "dispatch", "verdict", "opening-prompt"):
+            code, _, err = self.p.pre("Bash", command=f"{self.EW} {verb} --project-root . --wave 7A")
+            self.assertEqual(code, 0, err)
+
+    def test_reading_and_printing_are_allowed(self):
+        for command in (
+                'echo "the hook runs evaluate_wave.py record"',
+                "grep -n record .claude/skills/bmad-dev-wave/scripts/evaluate_wave.py",
+                f"{self.EW} dispatch --project-root . --wave 7A | "
+                "python3 -c \"import json, sys; print(json.load(sys.stdin)['record_to'])\"",
+                'git commit -m "record the decision"'):
+            code, _, err = self.p.pre("Bash", command=command)
+            self.assertEqual(code, 0, command + "\n" + err)
 
 
 class TestReview(Base):
@@ -272,16 +325,9 @@ class TestReview(Base):
 
 
 class TestInPlace(Base):
-    RECORD = "python3 x/scripts/evaluate_wave.py record --project-root . --wave 7A < out.txt"
-
-    def test_record_notes_the_recording_session(self):
-        code, _, err = self.p.pre("Bash", session="s1", command=self.RECORD)
-        self.assertEqual(code, 0, err)
-        self.assertEqual((self.p.root / ".bmad" / "wave-7A" / "evaluation-session").read_text().strip(), "s1")
-
     def test_recording_session_cannot_edit_the_worktree_after_needs_work(self):
         wt = self.p.worktree("7A")
-        self.p.pre("Bash", session="s1", command=self.RECORD)
+        self.p.recorded_by("7A", "s1")
         self.p.evaluation("7A", 1, "NEEDS_WORK")
         code, _, err = self.p.pre("Write", session="s1", file_path=str(wt / "src" / "x.py"))
         self.assertEqual(code, 2)
@@ -290,21 +336,21 @@ class TestInPlace(Base):
 
     def test_a_later_session_can_edit_the_worktree(self):
         wt = self.p.worktree("7A")
-        self.p.pre("Bash", session="s1", command=self.RECORD)
+        self.p.recorded_by("7A", "s1")
         self.p.evaluation("7A", 1, "NEEDS_WORK")
         code, _, err = self.p.pre("Write", session="s2", file_path=str(wt / "src" / "x.py"))
         self.assertEqual(code, 0, err)
 
     def test_recording_session_can_still_edit_outside_the_worktree(self):
         self.p.worktree("7A")
-        self.p.pre("Bash", session="s1", command=self.RECORD)
+        self.p.recorded_by("7A", "s1")
         self.p.evaluation("7A", 1, "NEEDS_WORK")
         code, _, err = self.p.pre("Write", session="s1", file_path="HANDOFF.md")
         self.assertEqual(code, 0, err)
 
     def test_bash_writes_into_the_worktree_denied_reads_allowed(self):
         wt = self.p.worktree("7A")
-        self.p.pre("Bash", session="s1", command=self.RECORD)
+        self.p.recorded_by("7A", "s1")
         self.p.evaluation("7A", 1, "NEEDS_WORK")
         code, _, err = self.p.pre("Bash", session="s1", command=f"sed -i '' 's/a/b/' {wt}/x.py")
         self.assertEqual(code, 2)
@@ -315,13 +361,13 @@ class TestInPlace(Base):
 
     def test_pass_releases_the_session(self):
         wt = self.p.worktree("7A")
-        self.p.pre("Bash", session="s1", command=self.RECORD)
+        self.p.recorded_by("7A", "s1")
         self.p.evaluation("7A", 1, "PASS")
         code, _, err = self.p.pre("Write", session="s1", file_path=str(wt / "src" / "x.py"))
         self.assertEqual(code, 0, err)
 
     def test_no_worktree_means_nothing_to_guard(self):
-        self.p.pre("Bash", session="s1", command=self.RECORD)
+        self.p.recorded_by("7A", "s1")
         self.p.evaluation("7A", 1, "NEEDS_WORK")
         code, _, err = self.p.pre("Write", session="s1", file_path="src/x.py")
         self.assertEqual(code, 0, err)
@@ -593,7 +639,8 @@ class TestFailsClosed(Base):
         self.assertLess(time.monotonic() - start, 15)
 
 
-@unittest.skipIf(HOOK is None, "no .claude/hooks/wave-gate.sh above this test tree")
+@unittest.skipIf(HOOK is None or RECORD_HOOK is None,
+                 "no .claude/hooks/ wrappers above this test tree")
 class TestWrapper(Base):
     """R1's check: the .sh wrapper itself, from each checkout layout a wave runs in."""
 
@@ -611,7 +658,7 @@ class TestWrapper(Base):
             code, _, err = self.p.wrapped("Bash", self.p.root, cwd, command=self.SET)
             self.assertEqual(code, 2, err)
             self.assertIn("no evaluation on disk", err)
-        # Step 7 records in the worktree; a session on either side now reads it.
+        # Step 8's hook records in the worktree; a session on either side now reads it.
         self.p.evaluation("7A", 1, "PASS", where=wt)
         for cwd in (self.p.root, wt):
             code, _, err = self.p.wrapped("Bash", self.p.root, cwd, command=self.SET)
@@ -647,8 +694,62 @@ class TestWrapper(Base):
         self.assertEqual(code, 2)
         self.assertIn("install.sh --validate-only", err)
 
-    def test_no_python3_denies(self):
+    def evaluator_stop(self, cwd, text="VERDICT: PASS\n\n## Findings\nNone.\n", path=None):
+        """The record wrapper, the way Claude Code runs it on SubagentStop."""
+        env = dict(os.environ, CLAUDE_PROJECT_DIR=str(self.p.root))
+        if path is not None:
+            env["PATH"] = path
+        event = {"session_id": "s1", "cwd": str(cwd), "hook_event_name": "SubagentStop",
+                 "agent_id": "a1", "agent_type": "keelswell-wave-evaluator",
+                 "last_assistant_message": text}
+        p = subprocess.run([str(self.p.root / ".claude" / "hooks" / "wave-evaluator-record.sh")],
+                           input=json.dumps(event), capture_output=True, text=True,
+                           env=env, cwd=str(cwd))
+        return p.returncode, p.stdout, p.stderr
+
+    def pending(self, wt):
+        (self.p.root / ".bmad" / "wave-7A" / "evaluation-pending").write_text(json.dumps({
+            "session_id": "s1", "wave": "7A", "pass_number": 1, "project_root": str(wt),
+            "rounds": 0}))
+
+    def test_the_record_wrapper_writes_in_the_worktree_from_either_side(self):
+        wt = self.p.sibling("7A")
+        for n, cwd in enumerate((self.p.root, wt), 1):
+            self.pending(wt)
+            (wt / "docs" / "wave-7a" / "evaluation-1.md").unlink(missing_ok=True)
+            code, out, err = self.evaluator_stop(cwd)
+            self.assertEqual((code, out), (0, ""), err)
+            self.assertIn("Written by the evaluator hook",
+                          (wt / "docs" / "wave-7a" / "evaluation-1.md").read_text())
+            self.assertEqual((self.p.root / ".bmad" / "wave-7A" / "evaluation-session").read_text(),
+                             "s1\n")
+        # What the hook wrote is what opens the review stage.
+        code, _, err = self.p.wrapped("Bash", self.p.root, wt, command=self.SET)
+        self.assertEqual(code, 0, err)
+
+    def test_the_record_wrapper_sends_back_a_report_with_no_verdict(self):
+        self.pending(self.p.root)
+        code, out, _ = self.evaluator_stop(self.p.root, text="looks fine\n")
+        self.assertEqual(code, 0)
+        self.assertEqual(json.loads(out)["decision"], "block")
+
+    def test_a_missing_script_or_python3_records_nothing_and_never_exits_two(self):
+        self.pending(self.p.root)
         bin_dir = self.p.base / "bin"
+        bin_dir.mkdir()
+        (bin_dir / "bash").symlink_to("/bin/bash")
+        (bin_dir / "git").symlink_to(shutil.which("git"))
+        code, _, err = self.evaluator_stop(self.p.root, path=str(bin_dir))
+        self.assertEqual(code, 1, err)
+        self.assertIn("python3", err)
+        (self.gate.parent / "evaluate_wave.py").unlink()
+        code, _, err = self.evaluator_stop(self.p.root)
+        self.assertEqual(code, 1, err)
+        self.assertIn("install.sh --validate-only", err)
+        self.assertFalse((self.p.root / "docs" / "wave-7a").exists())
+
+    def test_no_python3_denies(self):
+        bin_dir = self.p.base / "bin2"
         bin_dir.mkdir()
         (bin_dir / "bash").symlink_to("/bin/bash")
         code, _, err = self.p.wrapped("Bash", self.p.root, self.p.root, path=str(bin_dir), command="ls")
