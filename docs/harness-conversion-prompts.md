@@ -758,6 +758,246 @@ rule sit beside it, and the scratch instance you built, which R3 reuses for
 its hook-written-record check.
 ```
 
+### R3: the evaluator's dispatch, evidence and record become script work
+
+Fable 5.1, effort `high`. One day. The failure mode is a record that
+looks hook-written and was not, so the live dispatch in the scratch
+instance is the check; the unit tests only say the hook would write.
+
+Run from the keelswell root. Requires #24 and #25 merged (both landed
+2026-10-01; main 528d344).
+
+```text
+You are implementing R3 of the Keelswell harness-engineering review, the
+third of five "do now" items, one pull request per item. R2 is merged as
+rlquigley/keelswell#24 and the R1 parser fix as #25 (main 528d344,
+bmad-dev-wave 1.8.2); confirm both are in main before you branch, and
+branch from that main. The review is approved; do not re-plan it. Read
+these first, in order:
+
+1. docs/reviews/harness-engineering-review-v1.md, sections 1, 4 and 5. R3 is
+   the item; its parts (a) to (e) are the build list below.
+2. docs/reviews/harness-review-v1-appendix-b.md: rows 1.13, 1.14, 2.2, 2.5,
+   3.5, 3.6, 8.1 to 8.5, 9.3, 19.1, 19.2 and "Definitive answers" 1, 7, 8
+   and 9. Then the raw docs, never a summary: `curl -sL
+   https://code.claude.com/docs/en/hooks.md` and read "SubagentStop", "Stop
+   decision control" and "Common input fields"; sub-agents.md for `effort`
+   and SubagentHandback. Row 1.14 predates one fact that changes the
+   design: on CLI 2.1.271 and later a subagent that runs with the
+   SubagentHandback tool (added in auto mode whatever its tool list says)
+   delivers its report through that tool, and `last_assistant_message` then
+   holds only its closing text. The report is the tool call's `message`
+   input, which a PreToolUse or PostToolUse hook matched on SubagentHandback
+   sees. WebFetch summaries of these pages have been wrong before (a
+   Boolean where the page says the string "disable"); grep the markdown.
+3. skills/bmad-dev-wave/SKILL.md, "The Evaluator" and "The Hooks";
+   scripts/evaluate_wave.py (`dispatch`, `record`, `opening-prompt`,
+   `read_verdict`); scripts/wave_gate.py (`verdict_rule`,
+   `note_recording_session`, `in_place_rule`);
+   .claude/agents/keelswell-wave-evaluator.md (its severity ladder and the
+   `### [SEVERITY] <title>` and `VERDICT:` formats are what (c) parses).
+4. docs/harness-conversion-plan.md ("What tracking upstream constrains")
+   and docs/upstream-refresh-runbook.md, whose last section is the instance
+   hand step you extend.
+5. The CHANGELOG [Unreleased] entries R2 wrote: the Added entry at the top
+   carries R2's prediction and the Fixed entry for 1.8.2 the parser's; you
+   grade both first.
+6. The auto-memory index at
+   ~/.claude/projects/-Users-ryanquigley-Projects-personal-keelswell/memory/MEMORY.md,
+   then keelswell-harness-review-v1, keelswell-hook-writes-blocked,
+   git-stage-explicitly-not-add-all, keelswell-push-needs-sandbox-off,
+   claude-docs-raw-markdown, rq-adhd-communication.
+
+Your first message: your approach in five lines at most, your biggest
+uncertainty, R2's prediction restated with how you will grade it, and the
+rulings below restated as you understand them. Then wait for RQ's go. When
+a ruling needs RQ, write the plain story of the choice first, then the
+options with the recommended one first; RQ answered R2's two that way
+inside a minute.
+
+Rulings already made, restate them, do not reopen them:
+(a) 2026-09-28: templates/settings.json.template is a fork-owned seam, the
+    whole file. Your hook registrations go there, beside R1's PreToolUse
+    entry and R2's permission block. test_settings_template.py pins the
+    PreToolUse entry exactly and only requires wave-session-end.sh under
+    SessionEnd, so new events beside them break nothing. Do not change the
+    PreToolUse entry.
+(b) 2026-09-28: deny and ask rules are the hard layer in acceptEdits and
+    auto alike; bypass is locked by the template. install.sh phase 6 makes
+    every deny and ask rule in the template required in every instance, so
+    a rule you add there is one the hand step must carry.
+(c) 2026-10-01: the lifecycle Edit rule locks `.bmad/**/wave.md` only, and
+    dev-wave's step markers stay writable at the permission layer. Both
+    Edit rules carry a leading slash (project-root anchor); any new Edit
+    rule is written the same way.
+(d) 2026-10-01: a hook rule on R1's parser for the `git -C` and `bash -c`
+    forms the text rules miss is not R3's. It is a sixth do-now item for RQ
+    to schedule: name it in your report, do not build it.
+
+Three new rulings to confirm before touching anything (proposed default in
+brackets; RQ decides):
+(e) How the hook knows which wave a finished evaluator graded. SubagentStop
+    carries agent_type, agent_id, agent_transcript_path and
+    last_assistant_message, not the wave. [`dispatch` writes
+    .bmad/wave-<id>/evaluation-pending holding the session id and the pass
+    number before the Agent call; the hook reads the one pending marker
+    whose session id matches, records to that wave, and deletes the marker.
+    No marker: the hook writes nothing and prints why to stderr. This is
+    the shape note_recording_session already uses for in-place.]
+(f) The Bash route to `record`. [Retired: a new wave_gate rule, "record",
+    denies any Bash or Monitor command that calls evaluate_wave.py record,
+    naming the hook as the one writer; the hook calls the Python function
+    directly, and also writes the evaluation-session marker that
+    note_recording_session wrote, or in-place goes blind. The `< file` form
+    R1 kept goes with it, and "The Evaluator" in SKILL.md changes to match.]
+(g) Where the verify command comes from. dev-wave step 9 names
+    tests/verify-fast.sh in the worktree and nothing else does. [Run
+    tests/verify-fast.sh from the worktree root when it exists, else exit 3
+    naming the missing script. No new config key. verify-output.txt's first
+    line is a stamp: command, exit code, HEAD SHA, UTC time.]
+
+Grade R2's prediction first, before building. It said: in an instance that
+carries the block, `gh pr merge` is refused in every mode; a plain
+`git push`, `git branch -D`, `git worktree remove` and `gh auth token`
+prompt in every mode, auto included; the Write and Edit tools, `sed -i`,
+`tee` and a redirect cannot change a lifecycle or evaluation record under
+the project root with every hook off; bypassPermissions cannot be entered.
+At risk were the forms text rules miss (`git -C`, `git -c`, `bash -c`, an
+absolute-path binary, a quoted word, a force flag after the remote),
+headless prompts becoming denials, `--dangerously-skip-permissions`
+rejected inside an instance, the Edit rules stopping at the project root,
+no `rm -rf` rule, and validation exiting 7 on the instances until the hand
+step. The 1.8.2 entry predicted that every newline now splits a command as
+`;` does, the only other parse change being an empty command dropped
+between two operators. Grade them by: (1) the scratch instance's live check
+again on the current CLI (script and instance paths below; the instance is
+a git repo with wave 1A in-progress and two PASS records; rebuild steps are
+in the #24 body), plus two calls it lacks: `claude -p --permission-mode
+auto` asked to run `git push`, which must appear in permission_denials, and
+`claude -p --dangerously-skip-permissions` on anything, which must be
+rejected; (2) the interactive prompt, which only RQ can observe: ask once,
+with the exact command; (3) your own session: every prompt or denial you
+meet while working in the scratch instance under the block, and any guarded
+form that went through unmatched, counted and named; (4) for 1.8.2,
+TestNewline and TestE2bReplay on merged main, and whether any two-line
+command of your own was refused for its newline. Write both grades into the
+R3 CHANGELOG entry and the PR body.
+
+Standing rules, all from the fork's own record:
+- Work only in the fork-owned seams: the wave skills, skill-local scripts/,
+  install.sh phase 6, .claude/hooks and .claude/agents, plus
+  templates/settings.json.template per (a) and the runbook's instance
+  section. Never _bmad/scripts/, never agents/, never an upstream-declared
+  skill body.
+- Every change ships a predicted impact with at-risk regressions, in the
+  CHANGELOG [Unreleased] entry and the PR body; R4's session checks it.
+- Bump the version of every skill you change (bmad-dev-wave is 1.8.2; this
+  is a minor bump); mirror skills/ into .claude/skills/ (diff -rq -x
+  __pycache__ per skill must be empty); run the unit tests in both trees
+  (baseline: 176 in bmad-dev-wave, 12 in bmad-close-epic, both trees) and
+  `./install.sh --validate-only --skip-mcp-check` before every commit.
+  Stage files by name, never git add -A, and re-check the staged list
+  against the commit message. The gitleaks pre-commit hook runs; never
+  bypass it. A fresh --target-project instance cannot make its first commit
+  without the fork's .gitleaks.toml copied in (a vendored TEA fixture trips
+  the hook); that defect is a separate chip, not yours.
+- Prose is ASCII with " -- " dashes. No em dashes anywhere.
+- Hook and settings files: prepare the exact content, then let the
+  permission prompt decide. R1 and R2 were both allowed to write the
+  wrapper, the registration and the permission block on the first try, so
+  try once; if refused, print the content and the path for RQ and carry on.
+- Do not add a stage, do not add a domain persona, do not build anything
+  that edits the harness on its own. R3 adds two hook registrations
+  (SubagentStop on keelswell-wave-evaluator; PostToolUse on
+  SubagentHandback) and one gate rule ("record"); nothing else at the hook
+  layer, per (d).
+- Git: `git fetch`/`git push` failing with "signing failed ...
+  communication with agent failed" means 1Password is locked; ask RQ to
+  unlock and retry. The review docs under docs/reviews/ are untracked;
+  never stage them.
+- RQ merges and tags by hand. Halt after the PR is open and report: what
+  changed, the prediction, R2's and 1.8.2's grades, what R4 needs from the
+  merge.
+
+R3. Make the evaluator's dispatch, evidence and record provenance script
+work, not prose (skills/bmad-dev-wave/{SKILL.md, scripts/evaluate_wave.py,
+scripts/wave_gate.py, scripts/tests/}; a new wrapper under .claude/hooks/;
+.claude/agents/keelswell-wave-evaluator.md; templates/settings.json.template
+for the registrations; install.sh phase 6 for the new wrapper in
+hooks_check; the runbook's instance section; CHANGELOG).
+Build, in the review's order:
+(a) A SubagentStop hook, matcher `keelswell-wave-evaluator`, exec form on
+    ${CLAUDE_PROJECT_DIR} with a timeout, whose wrapper calls a new
+    evaluate_wave.py entry point with the event JSON on stdin. It takes
+    the report from last_assistant_message, resolves the wave per (e), and
+    writes evaluation-<n>.md through the function `record` uses today, so
+    the header, the pass count, the third-pass rule and the exit semantics
+    are unchanged except that the header names the hook as the writer. No
+    readable VERDICT line: return `decision: "block"` with a reason telling
+    the evaluator to end with exactly one `VERDICT: PASS | NEEDS_WORK |
+    UPSTREAM_CAUSE` line; the docs say that keeps the subagent running with
+    the reason as its next instruction; cap it at two rounds, then write
+    nothing and say so on stderr. Per the 2.1.271 fact above, also register
+    a PostToolUse hook on SubagentHandback (same wrapper, same entry point)
+    that records the call's `message` input when the agent is the
+    evaluator, and make the two paths idempotent on one pass number:
+    whichever arrives first records, the other sees the record and exits
+    0. Measure the report size each path receives in the scratch instance;
+    the 10,000-character cap is documented for additionalContext, not for
+    these fields, and "confirm" was the review's word.
+(b) A `verify` subcommand per (g). `dispatch` writes wave-diff.patch from
+    the recorded base (the wave branch's merge-base with main, read from
+    git, never from the agent) and exits 3 when verify-output.txt is
+    missing or its stamped HEAD SHA is not the worktree's HEAD, in place of
+    today's notice. The two files stay where they are.
+(c) A parser over `### [SEVERITY]` headings: a PASS that carries a MEDIUM,
+    HIGH or CRITICAL heading is refused through the same block channel as
+    a missing VERDICT line, and a record with two `VERDICT:` lines is
+    refused. The severities are the definition's own ladder; read them
+    from it, do not retype them.
+(d) `effort: high` in the evaluator's frontmatter, asserted by `check` so
+    an instance whose definition drops it fails validation. Never add
+    `memory:` to that file: it auto-enables Write and Edit (B row 8.2).
+(e) The three loop defects: `dispatch` refuses (exit 3) without
+    verify-output.txt; dev-wave's steps are renumbered so verify precedes
+    evaluation (step 9 runs after step 7 today while step 7's evidence
+    bundle needs step 9's output; the SKILL.md and evaluator-definition
+    text changes describe an order the script now enforces); the pass
+    counter resets after an UPSTREAM_CAUSE fix, counted from a
+    wave_status.py-written history line in wave.md that names the fixed
+    artifact (add a `--reason` for in-progress if `set` lacks one); and a
+    step-10 HIGH or CRITICAL fix routes back through verify and the
+    evaluator, which is a SKILL.md text change plus `dispatch` comparing
+    the review record's date with the latest evaluation's.
+The "record" rule per (f) sits in wave_gate.py beside the five existing
+rules and is tested as they are (TestVerdict, TestE2bReplay and
+TestNewline are the models). Keep every existing rule.
+Verify: in the scratch instance, `claude -p` with the project settings
+dispatches the evaluator against wave 1A after `verify` and `dispatch`
+have written the evidence bundle; afterwards docs/wave-1a/ holds a new
+evaluation record written by the hook, its header naming the hook, and no
+`record` Bash call appears in the run's permission_denials or transcript.
+Then the refusals: a report with no VERDICT line ends in a block reason and
+a second attempt; a PASS carrying a HIGH heading is refused;
+`evaluate_wave.py record` from Bash is denied by the gate. If `claude -p`
+cannot authenticate, unit-test the entry point on recorded event JSON (two
+fixtures from a real run, one per path, kept under scripts/tests/) and
+hand RQ the live check as exact commands. Extend the runbook's instance
+section with the new registrations and the new wrapper, and say in the
+CHANGELOG what the instances need: ffbapp and green-ledger carry R1 + R2
+as of 2026-10-01 (attacktheseam/ffbapp#101; green-ledger ff-only).
+
+What R4 will need from your merge: the evaluator's final frontmatter (R4
+binds model and effort for the other roles beside it), the hooks block's
+final shape (R4 deletes the dead template keys around it), and the scratch
+instance with its hook-written record.
+
+Paths from R2's session (the scratchpad persists for days, not forever;
+rebuild from the #24 body if it is gone):
+  instance:   /private/tmp/claude-501/-Users-ryanquigley-Projects-personal-keelswell/b0fc3f65-f667-4532-a7e2-55495a0d0723/scratchpad/keelswell-r2-scratch
+  live check: /private/tmp/claude-501/-Users-ryanquigley-Projects-personal-keelswell/b0fc3f65-f667-4532-a7e2-55495a0d0723/scratchpad/live-check.sh
+```
+
 ## Standing item: after every upstream pull
 
 Opus 5, effort `medium`. Event-triggered, not scheduled. Runs at step
