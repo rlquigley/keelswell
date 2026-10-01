@@ -46,12 +46,17 @@ All notable changes to Keelswell. Format: Keep a Changelog; versioning: semver.
   run through node-ignore 7.0.11, the gitignore matcher the 2.1.252 CLI
   calls: 16 of 16 paths as intended, `wave.md` and evaluation records
   denied (an upper-case `EVALUATION-3.md` included), the three markers
-  not. `evaluate_wave.py record` writes in the scratch instance. No live
-  session has run under the block: `claude -p` on this machine fails
-  with "OAuth session expired" (CLI 2.1.252; the docs describe 2.1.283),
-  so the four live checks -- `gh pr merge` denied, `git push` prompts, a
-  Write to `.bmad/wave-1/wave.md` denied, `record` still writes -- are
-  RQ's to run, from the commands in the pull request.
+  not. `evaluate_wave.py record` writes in the scratch instance. The live
+  check ran on 2026-10-01 under CLI 2.1.287: five headless `claude -p`
+  calls in the scratch instance, each passing an allow rule for its own
+  command so that only the block could stop it. `gh pr merge 1` was
+  denied; `git push` was denied, a prompt nobody answers being a denial
+  in `-p`; a Write to `.bmad/probe/wave.md`, a path the hook does not
+  match, was denied by the rule alone, and one to `.bmad/wave-1/wave.md`
+  left no file; a Write to `.bmad/wave-1A/step-3.done` went through;
+  `record` wrote `evaluation-2.md`. Five of five as wanted. Still
+  unobserved: the prompt as a prompt, which only an interactive session
+  shows.
   **Prediction, to be checked by R3's session.** In an instance that
   carries the block, `gh pr merge` is refused in every mode; a plain
   `git push`, `git branch -D`, `git worktree remove` and `gh auth token`
