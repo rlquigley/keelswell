@@ -15,29 +15,33 @@ the plan asked for, plus the SessionEnd half Phase 2's step 4.5 needed.
       Blocks every wave paused at step 4.5 with its question unanswered.
       Exit 0: SessionEnd cannot block, so this one only records.
 
-Five rules, each read off disk and none of them a judgement:
+Six rules, each read off disk and none of them a judgement:
 
   closure   Nothing touches _bmad-output/epic-closure/epic-<N>/ unless
             check_review_records.py --epic N exits 0. Phase 1's gate, run by
             the hook at the moment the closure artifact would be written,
             rather than by the closing agent at a step it may skip.
-  verdict   docs/wave-<id>/evaluation-<n>.md is written by evaluate_wave.py
-            record and by nothing else. A verdict typed by the agent whose
+  verdict   docs/wave-<id>/evaluation-<n>.md is written by the evaluator
+            hook and by nothing else. A verdict typed by the agent whose
             work it grades is not a verdict.
+  record    `evaluate_wave.py record` is the evaluator hook's entry point and
+            is denied to Bash and Monitor. The hook hands it the subagent's
+            own report; a session that could call it would be handing it
+            whatever text it liked (R3 of the review).
   lifecycle .bmad/wave-<id>/wave.md is written by wave_status.py and by
             nothing else. A status edited by hand skips every refusal the
             script makes, and blocked is sticky only if the session it blocks
             cannot edit, move or delete the record.
   review    wave_status.py set --status in-review is denied for a wave whose
             latest evaluation on disk is not PASS. There is no way into the
-            review stage except through the evaluator, so step 7 cannot be
+            review stage except through the evaluator, so step 8 cannot be
             walked past.
   in-place  The session that recorded NEEDS_WORK for a wave cannot edit that
             wave's worktree. The findings are the next session's opening
             prompt, and the session that built the wave is the one least able
-            to judge whether a fix answered them. The hook notes the session
-            id when it sees `evaluate_wave.py record` and holds that session
-            to it until a later session records a new verdict.
+            to judge whether a fix answered them. The evaluator hook notes
+            the session whose evaluator it recorded, and that session is
+            held to it until a later session's evaluator is recorded.
 
 It fails closed (R1 of docs/reviews/harness-engineering-review-v1.md). Claude
 Code lets a PreToolUse call through on any exit but 2, so an error in here, an
@@ -48,7 +52,7 @@ Where it looks. The project root is the checkout holding .bmad/, found from
 the session's cwd through git's common directory, so a session rooted in a
 worktree reads the same .bmad/ as one rooted in the main checkout. A wave's
 evaluation records are read from its own worktree when it has them, since
-that is where step 7 writes them.
+that is where step 8's hook writes them.
 
 How it reads Bash, and Monitor, which runs commands under the Bash rules: as
 the shell would, not as a substring. Here-document bodies are split off,
@@ -108,9 +112,12 @@ LIFECYCLE_DIR = re.compile(r"(?:^|/)\.bmad(?:/wave-[^/]+)?$", re.I)
 WAVE_STATUS_NAMED = re.compile(r"wave_status", re.I)
 # The verb as a word, or the function behind it. Not Python's set( builtin.
 SET_WORD = re.compile(r"(?<![\w-])(?:set_status|set(?![\w(-]))")
+EVALUATE_WAVE_NAMED = re.compile(r"evaluate_wave", re.I)
+# The verb as a word, or the function behind it. Not `record_to` or `recorded`.
+RECORD_WORD = re.compile(r"(?<![\w-])record(?![\w-])")
 
 PENDING_MARKER = "step-4.5.pending"
-SESSION_FILE = "evaluation-session"
+SESSION_FILE = evaluate_wave.SESSION_FILE
 
 
 class Deny(Exception):
@@ -668,7 +675,7 @@ def wave_worktree(root, label):
 def latest_verdict(root, label):
     """(verdict, path) of the newest evaluation record, or (None, None).
 
-    Step 7 records in the wave's worktree, so that is read first; the root is
+    Step 8's hook records in the wave's worktree, so that is read first; the root is
     where the records sit once the wave has merged.
     """
     wt = wave_worktree(root, label)
@@ -711,8 +718,8 @@ def closure_rule(root, text):
 
 
 def verdict_rule(target, shell):
-    why = ["  Only `evaluate_wave.py record` writes those, from the evaluator's own",
-           "  output. A verdict written by the agent whose work it grades is not one."]
+    why = ["  Only the evaluator hook writes those, from the subagent's own report.",
+           "  A verdict written by the agent whose work it grades is not one."]
     if target is not None and EVALUATION_FILE.search(target):
         raise Deny("verdict", [f"{target} is an evaluation record."] + why)
     if shell is not None and shell.writes(EVALUATION_FILE, EVALUATION_NAMED):
@@ -773,9 +780,9 @@ def review_rule(root, shell):
         if path is None:
             raise Deny("review", [
                 f"wave {label} has no evaluation on disk, so it cannot enter review.",
-                "  Step 7 dispatches the fresh-context evaluator and records its verdict",
-                "  with `evaluate_wave.py record`; the review stage opens on PASS and on",
-                "  nothing else. Reviewing the wave in this context is not a substitute."])
+                "  Step 8 dispatches the fresh-context evaluator and its hook records",
+                "  the verdict; the review stage opens on PASS and on nothing else.",
+                "  Reviewing the wave in this context is not a substitute."])
         raise Deny("review", [
             f"wave {label}'s latest evaluation ({shown(path, root)}) is "
             f"{verdict or 'unreadable'}, not PASS, so it cannot enter review.",
@@ -784,21 +791,36 @@ def review_rule(root, shell):
             "  Unreadable: repair or delete the record; do not guess what it said."])
 
 
-def note_recording_session(root, shell, session_id):
-    """Bookkeeping, not a denial: remember which session is recording a verdict."""
-    if shell is None or shell.error is not None or not session_id:
+def record_rule(shell):
+    if shell is None or not shell.names(EVALUATE_WAVE_NAMED):
         return
+    why = ["  `record` is the evaluator hook's entry point. The hook hands it the",
+           "  subagent's own report and writes docs/wave-<id>/evaluation-<n>.md; no",
+           "  session records a verdict by hand. After the evaluator returns, read",
+           "  what the hook wrote:",
+           "    python3 <skill-root>/scripts/evaluate_wave.py verdict \\",
+           "        --project-root <root> --wave <id>"]
+    if shell.error is not None:
+        if RECORD_WORD.search(shell.raw):
+            raise Deny("record", [
+                f"this command names evaluate_wave.py but cannot be parsed ({shell.error}),",
+                "  so a record inside it cannot be read."] + why)
+        return
+    if any(RECORD_WORD.search(t) for t in shell.unaccounted("evaluate_wave")):
+        raise Deny("record", [
+            "this command reaches evaluate_wave.py record through a shape the gate cannot",
+            "  read (a variable, eval, python3 -c, a here-document, a pipe into a shell),",
+            "  so it is refused rather than guessed at."] + why)
     for sc in shell.cmds:
         call = shell.call(sc, "evaluate_wave")
-        if call is None or call[0] != "record" or not call[1].get("--wave"):
+        if call is None or not call[0]:
             continue
-        labels = wave_status.wave_map_labels(root)
-        label = wave_status.resolve_label(labels, call[1]["--wave"]) if labels else None
-        if label is None:
-            continue
-        path = session_file(root, label)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(session_id + "\n", encoding="utf-8")
+        if "$" in call[0] or "`" in call[0]:
+            raise Deny("record", [
+                "evaluate_wave.py's verb must be a literal value; this command builds it",
+                "  from a variable or a substitution."] + why)
+        if call[0] == "record":
+            raise Deny("record", ["this command calls evaluate_wave.py record."] + why)
 
 
 def in_place_rule(root, tool, target, shell, session_id):
@@ -851,8 +873,8 @@ def pre_tool_use(root, cwd, event):
         verdict_rule(target, shell)
         lifecycle_rule(target, shell)
         review_rule(root, shell)
+        record_rule(shell)
         in_place_rule(root, tool, target, shell, session_id)
-        note_recording_session(root, shell, session_id)
     except Deny as d:
         sys.stderr.write(f"wave-gate DENIED ({d.rule}): " + "\n".join(d.lines) + "\n")
         return 2

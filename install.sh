@@ -253,7 +253,8 @@ allowlist_check() {
            .claude/skills/bmad-dev-wave/scripts/wave_gate.py \
            .claude/skills/bmad-dev-wave/scripts/select_reviewers.py \
            .claude/skills/bmad-dev-wave/scripts/reviewer-triggers.yaml \
-           .claude/hooks/wave-gate.sh .claude/hooks/wave-session-end.sh; do
+           .claude/hooks/wave-gate.sh .claude/hooks/wave-session-end.sh \
+           .claude/hooks/wave-evaluator-record.sh; do
     [ -e "$base/$f" ] || { echo "  allowlist gap: $base/$f missing"; gaps=1; }
   done
   [ "$gaps" -eq 0 ] || exit 6
@@ -292,9 +293,9 @@ harness_check() {
   if [ -x "$root/bmad-dev-wave/scripts/wave_gate.py" ]; then echo "    hook script wave_gate.py present and executable ... ok"
   else echo "    hook script wave_gate.py present and executable ... FAIL ($root/bmad-dev-wave/scripts/wave_gate.py)"; bad=1; fi
   if [ -f "$evaluate" ] && err=$(python3 "$evaluate" check --project-root "$base" 2>&1 >/dev/null); then
-    echo "    evaluator subagent declares no writing tool ... ok"
+    echo "    evaluator subagent declares no writing tool, and effort: high ... ok"
   else
-    echo "    evaluator subagent declares no writing tool ... FAIL"
+    echo "    evaluator subagent declares no writing tool, and effort: high ... FAIL"
     [ -f "$evaluate" ] && printf '%s\n' "$err" | sed 's/^/      /' || echo "      ($evaluate missing)"
     bad=1
   fi
@@ -318,19 +319,42 @@ harness_check() {
 }
 
 hooks_check() {
-  # $1: the project root. The two hook wrappers must exist, be executable, and
+  # $1: the project root. The three hook wrappers must exist, be executable, and
   # be registered. The fork has no .claude/settings.json of its own (hooks are
   # resolved into a target project from the template), so there the template
   # is the registration that is checked.
   local base="$1" bad=0 h settings="$1/.claude/settings.json"
   [ -f "$settings" ] || settings="templates/settings.json.template"
   echo "  Harness hooks under $base/.claude/hooks/ (registration: $settings):"
-  for h in wave-gate.sh wave-session-end.sh; do
+  for h in wave-gate.sh wave-session-end.sh wave-evaluator-record.sh; do
     if [ -x "$base/.claude/hooks/$h" ]; then echo "    $h present and executable ... ok"
     else echo "    $h present and executable ... FAIL ($base/.claude/hooks/$h)"; bad=1; fi
     if grep -q "\.claude/hooks/$h" "$settings" 2>/dev/null; then echo "    $h registered ... ok"
     else echo "    $h registered ... FAIL (not named in $settings)"; bad=1; fi
   done
+  # R3 of docs/reviews/harness-engineering-review-v1.md: the evaluator's record
+  # is hook-written, on three events. One missing and a report goes unrecorded
+  # in one permission mode, or a bad one cannot be sent back in auto mode.
+  python3 - "$settings" <<'PY' || bad=1
+import json, sys
+try:
+    hooks = json.load(open(sys.argv[1])).get("hooks") or {}
+except (OSError, ValueError) as e:
+    print(f"    evaluator hook registered on its three events ... FAIL ({e})")
+    sys.exit(1)
+want = (("SubagentStop", "keelswell-wave-evaluator"), ("PreToolUse", "SubagentHandback"),
+        ("PostToolUse", "SubagentHandback"))
+missing = [f"{event} on {matcher}" for event, matcher in want
+           if not any(matcher in (entry.get("matcher") or "").split("|")
+                      and any("wave-evaluator-record.sh" in (h.get("command") or "")
+                              for h in entry.get("hooks") or [])
+                      for entry in hooks.get(event) or [])]
+if missing:
+    print("    evaluator hook registered on its three events ... FAIL (missing: "
+          + ", ".join(missing) + ")")
+    sys.exit(1)
+print("    evaluator hook registered on its three events ... ok")
+PY
   return "$bad"
 }
 

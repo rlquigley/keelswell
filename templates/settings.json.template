@@ -49,6 +49,12 @@
         "hooks": [
           { "type": "command", "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/wave-gate.sh", "args": [], "timeout": 30 }
         ]
+      },
+      {
+        "matcher": "SubagentHandback",
+        "hooks": [
+          { "type": "command", "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/wave-evaluator-record.sh", "args": [], "timeout": 30 }
+        ]
       }
     ],
     "PostToolUse": [
@@ -56,6 +62,20 @@
         "matcher": "Edit|Write",
         "hooks": [
           { "type": "command", "command": ".claude/hooks/em-dash-scrub.sh" }
+        ]
+      },
+      {
+        "matcher": "SubagentHandback",
+        "hooks": [
+          { "type": "command", "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/wave-evaluator-record.sh", "args": [], "timeout": 30 }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "matcher": "keelswell-wave-evaluator",
+        "hooks": [
+          { "type": "command", "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/wave-evaluator-record.sh", "args": [], "timeout": 30 }
         ]
       }
     ],

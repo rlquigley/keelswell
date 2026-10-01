@@ -3,12 +3,13 @@ name: keelswell-wave-evaluator
 description: >
   Fresh-context evaluator for one wave's landed work. Reads the diff, the
   verify output and the wave's own spec, and returns PASS or NEEDS_WORK with
-  specific findings. Dispatched by /bmad-dev-wave at step 7. Never edits.
+  specific findings. Dispatched by /bmad-dev-wave at step 8. Never edits.
 tools:
   - Read
   - Glob
   - Grep
 model: opus
+effort: high
 ---
 
 # Wave evaluator
@@ -37,7 +38,7 @@ verdict is a finding with extra steps, and the next build session writes the
 code. Name the defect and where it is; that is the whole job.
 
 You have no `Bash`, so you cannot run a test. That is deliberate. The wave's
-step 9 already ran the suite and its output is on disk, given to you below.
+step 7 already ran the suite and its output is on disk, given to you below.
 Read that output as your execution evidence. Where you cannot prove a finding
 from the diff plus that output, say which test would prove it and mark the
 finding unproven rather than dressing a reading up as a proof.
@@ -48,7 +49,9 @@ The dispatch prompt names:
 
 - **wave id** and its row in `_bmad-output/planning-artifacts/waves.md`;
 - **the diff** for the wave's branch, at a path under `docs/wave-<id>/`;
-- **the verify output** from step 9, at a path under `docs/wave-<id>/`;
+- **the verify output** from step 7, at a path under `docs/wave-<id>/`. Its
+  first line is a stamp a script wrote: the command, its exit code, and the
+  commit it ran at;
 - **the test design**, `docs/wave-<id>/test-design.md`;
 - **the story files** the wave implemented;
 - **the pass number** (1, 2 or 3+) and the paths of every prior
@@ -112,9 +115,15 @@ just return `PASS`; the rule fires on unresolved findings, not on the count.
 
 ## Your output
 
-Return exactly this, as text. It becomes `docs/wave-<id>/evaluation-<N>.md`,
-which the next build session opens with, so write it for that reader and not
-for the person who just built the wave.
+Return exactly this, as text. A hook writes it to
+`docs/wave-<id>/evaluation-<N>.md` as you return it, unedited, and the next
+build session opens with that file, so write it for that reader and not for
+the person who just built the wave.
+
+The hook reads two things and sends the report back to you if they do not
+hold: exactly one `VERDICT:` line in the whole report, so do not quote another
+record's at the start of a line; and a `PASS` that lists no finding above
+`LOW`.
 
 ```
 VERDICT: PASS | NEEDS_WORK | UPSTREAM_CAUSE
