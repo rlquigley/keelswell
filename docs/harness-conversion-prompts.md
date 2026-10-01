@@ -998,6 +998,275 @@ rebuild from the #24 body if it is gone):
   live check: /private/tmp/claude-501/-Users-ryanquigley-Projects-personal-keelswell/b0fc3f65-f667-4532-a7e2-55495a0d0723/scratchpad/live-check.sh
 ```
 
+### R4: delete the configuration that configures nothing, bind what should
+
+Fable 5.1, effort `high`. Half a day. The failure mode is the one R4 exists
+to remove: a setting that looks bound and binds nothing. So every key kept
+or added is checked from what the runtime reports (a hook event's
+`effort.level`, the run's `modelUsage`), never from the file.
+
+Run from the keelswell root. Requires #27 merged (landed 2026-10-01; main
+c068c48).
+
+```text
+You are implementing R4 of the Keelswell harness-engineering review, the
+fourth of five "do now" items, one pull request per item. R3 is merged as
+rlquigley/keelswell#27 (main c068c48, bmad-dev-wave 1.9.0); confirm it is in
+main before you branch, and branch from that main. The review is approved;
+do not re-plan it. Read these first, in order:
+
+1. docs/reviews/harness-engineering-review-v1.md, sections 1, 4 and 5. R4 is
+   the item; its "What" is the build list below. Section 5's rows for
+   roadmap R2, R3 and "Batch 3 explicit model:" are the rulings it carries.
+2. docs/reviews/harness-review-v1-appendix-b.md: rows 4.1, 7.1 to 7.11, 8.1
+   to 8.5, 9.1, 9.2, 10.1, 11.2, 15.1, 16.1, 16.2, 17.1, 17.2 and
+   "Definitive answers" 1, 4 and 5. Then the raw docs, never a summary:
+   `curl -sL https://code.claude.com/docs/en/<page>.md` for
+   settings-reference (effortLevel, model), sub-agents ("Supported
+   frontmatter fields", "Choose a model"), skills ("Frontmatter reference")
+   and model-config (aliases, effort levels). The appendix is dated
+   2026-09-27 and model names have moved since: on 2026-10-01 the `sonnet`
+   alias resolved to claude-sonnet-5-5 on CLI 2.1.287, where the appendix
+   says Sonnet 5. Quote the page for every value you write into a file.
+3. templates/settings.json.template; install.sh lines 176 to 226 (the
+   resolver that fills MODEL_* and REASONING_*, and the memory directory it
+   creates); core/config.yaml; the frontmatter of the seven wave skills
+   (bmad-create-wave, -dev-wave, -merge-wave, -resume-wave, -status-wave,
+   bmad-close-epic, bmad-wrap); .claude/agents/keelswell-wave-evaluator.md;
+   and in skills/bmad-dev-wave/SKILL.md steps 3, 6 and 10, "The Reviewer
+   Selection" and "The Review Record", which are the dispatches R4 binds.
+4. docs/harness-conversion-plan.md ("What tracking upstream constrains") and
+   docs/upstream-refresh-runbook.md: "Current state" is what the record says
+   about `.agents/`, and the last section is the instance hand step you
+   extend.
+5. The CHANGELOG [Unreleased] entry R3 wrote (top of the file): it carries
+   the prediction you grade first.
+6. The auto-memory index at
+   ~/.claude/projects/-Users-ryanquigley-Projects-personal-keelswell/memory/MEMORY.md,
+   then keelswell-harness-review-v1, claude-code-subagent-report-hooks,
+   keelswell-instance-updates, keelswell-hook-writes-blocked,
+   git-stage-explicitly-not-add-all, keelswell-push-needs-sandbox-off,
+   claude-docs-raw-markdown, rq-adhd-communication.
+
+Your first message: your approach in five lines at most, your biggest
+uncertainty, R3's prediction restated with how you will grade it, and the
+rulings below restated as you understand them. Then wait for RQ's go. When a
+ruling needs RQ, write the plain story of the choice first, then the options
+with the recommended one first, one question at a time; RQ answered R3's
+four that way inside a minute each.
+
+Rulings already made, restate them, do not reopen them:
+(a) 2026-09-28: templates/settings.json.template is a fork-owned seam, the
+    whole file. R4 deletes keys around the `permissions` and `hooks` blocks
+    and changes neither. test_settings_template.py pins R1's PreToolUse
+    entry as the first, the evaluator hook's three entries exactly, every
+    deny and ask rule, the bypass lock and `defaultMode: acceptEdits`.
+(b) 2026-09-28: bypass is locked by the template and there is no auto ban;
+    `disableAutoMode` stays out. Deny and ask rules are the hard layer in
+    every mode.
+(c) 2026-10-01: the evaluator's record is hook-written on three events and
+    `evaluate_wave.py record` is denied to Bash. `check` refuses an
+    evaluator definition that lacks `effort: high`, sets `memory:`, declares
+    a tool that can write, or no longer states its severity ladder. Whatever
+    R4 does to agent frontmatter leaves all four true of that file.
+(d) 2026-10-01: the hook rule for the `git -C` and `bash -c` forms the
+    permission rules miss is a sixth do-now item, still unscheduled. Name it
+    in your report, do not build it.
+(e) The review, approved 2026-09-28: R4 touches "do not add agents" by the
+    letter and not the rationale. The definitions it adds are role files for
+    dispatches dev-wave already makes, not domain personas: no roster entry,
+    no module.yaml line, nothing under agents/. Say so in the CHANGELOG.
+
+Four new rulings to confirm before touching anything (proposed default in
+brackets; RQ decides):
+(f) The seven dead template keys. reasoningEffort, contextWindow,
+    subagentModels, subagentReasoning, skillsPaths, agentNamesFile and
+    mcpServers configure nothing (B rows 7.2 to 7.7). [Delete six. Rename
+    reasoningEffort to effortLevel, still filled from the orchestrator role,
+    since that is the key it was always meant to be; it sets the session's
+    effort in a fresh instance. Delete the resolver's substitutions that no
+    longer have a placeholder. Live instances carry `hooks` and
+    `permissions` only (measured 2026-10-01), so none of this reaches them.]
+(g) Which dispatches get a definition, and how the tier table reaches them.
+    Dev-wave dispatches subagents at step 3 (test design, a QA persona),
+    step 6 (one coder per story) and step 10 (the reviewers
+    select_reviewers.py returns as persona skills, or the fallback's plain
+    subagents). [Two files, .claude/agents/keelswell-wave-coder.md and
+    keelswell-wave-reviewer.md, each with `model:` and `effort:` written
+    literally, dispatched by subagent_type at steps 6 and 10. A reviewer's
+    persona stays the `skill` the selector returned, named in its dispatch
+    prompt. Step 3 is left alone. No generator: core/config.yaml shrinks to
+    the tier table, and install.sh phase 6 asserts that each definition's
+    `model:` and `effort:` equal the table's, reading and never repairing,
+    as it does for every other invariant. The evaluator's `model:` joins the
+    assertion.]
+(h) What the table pins. core/config.yaml names claude-opus-4-8 and
+    claude-sonnet-4-6, both legacy, and claude-haiku-4-5, whose retirement
+    was "not sooner than October 15, 2026" on 2026-09-27. An alias (`opus`,
+    `sonnet`) follows releases without an edit, and resolves to the
+    session's own model when the session is in the same family. A full id
+    makes verdicts comparable and must be re-pinned per release. [Full ids
+    for the coder and the reviewer, re-pinned per release with a CHANGELOG
+    line, which is what docs/agent-inventory.md already expects of agent
+    value; the evaluator moves from `opus` to the same full id as the
+    reviewer. Drop the `fast` tier if nothing binds to it.]
+(i) `.agents/skills`. Claude Code never reads it (B row 17.1). The fork
+    tracks 74 directories there, 1,051 files, a frozen pre-v0.3.0 snapshot.
+    green-ledger carries one of its own, tracked, and ffbapp an untracked
+    one (measured 2026-10-01). Deleting the fork's is the one destructive
+    step in R4. [Delete the fork's tree in its own commit, rewrite the
+    runbook's "Current state" section to match, and leave every instance's
+    alone. Whatever this ruling says, stop and get RQ's explicit yes
+    immediately before the `git rm`, naming the file count.]
+
+Grade R3's prediction first, before building. It said: in an instance that
+carries the three registrations, every evaluation record written from then
+on has the hook's header and none is written by a session; `evaluate_wave.py
+record` from Bash or Monitor is refused; a report with no verdict, two, or a
+PASS above LOW never reaches disk; the evaluator runs at effort high
+whatever the session's is; `dispatch` refuses evidence that `verify` did not
+stamp at the worktree's HEAD; one evaluation costs one evaluator run plus at
+most two sent-back rounds, and about 40 ms of hook time per event. At risk
+were: the dispatch prompt still being the builder's; a pending marker a
+session can write; `record` fed a forged event where the gate is not
+registered; a stamp that reads HEAD and misses an uncommitted edit; false
+refusals (a quoted `VERDICT:` at the start of a line; a command naming
+evaluate_wave with the bare word record, 4 of that session's 66 calls, and 2
+more by the review rule); failing toward no record; a project with no
+tests/verify-fast.sh; a wave paused between the old steps 7 and 10; a parent
+that does not wait for a background evaluator; and a sent-back hand-over
+counting toward auto mode's pause. Grade it by: (1) the live check again on
+the current CLI (script and instance below; the instance holds five
+NEEDS_WORK records for wave 1A, so the next dispatch is pass 6 with the
+third-pass rule armed, which the checks do not depend on), with a Sonnet or
+Opus parent and never Haiku, which cannot run auto mode; (2) the instances:
+on 2026-10-01 ffbapp and green-ledger were at 1.8.2 and validation exited 7
+naming the R3 hand step. Ask RQ once whether it has been applied and whether
+a wave has run under the hooks. If one has, read its evaluation records'
+headers and its transcript for a `record` call: that is the first grade any
+of R1 to R3 gets from a real wave; (3) your own session: replay your Bash,
+Write and Edit calls through the gate (replay_session.py, below) and count
+what the record and review rules would have refused, against R3's 4 and 2 of
+66; (4) effort, from the evaluator's hook events in (1): `effort.level` must
+read high in both modes. Write the grade into the R4 CHANGELOG entry and the
+PR body.
+
+Standing rules, all from the fork's own record:
+- Work only where R4's list reaches: templates/settings.json.template,
+  install.sh (the resolver, the memory path and phase 6), core/config.yaml,
+  the seven wave skills' frontmatter and dev-wave's dispatch text,
+  .claude/agents/, the runbook, and `.agents/skills` per (i). That list is
+  the grant for what sits outside the plan's three seams. Never
+  _bmad/scripts/, never agents/, never an upstream-declared skill body:
+  bmad-retrospective's frontmatter is name and description only and stays as
+  it is.
+- Every change ships a predicted impact with at-risk regressions, in the
+  CHANGELOG [Unreleased] entry and the PR body; R5's session checks it.
+- Bump the version of every skill you change. `version:` moves under
+  `metadata:` in this item, so all seven wave skills change and all seven
+  bump. A grep of install.sh, the wave scripts and .claude-plugin on
+  2026-10-01 found no reader of the key; check the installer's custom-source
+  path before you move it, and say in the CHANGELOG where the version now
+  lives. Mirror skills/ into .claude/skills/ (diff -rq -x __pycache__ per
+  skill must be empty); run the unit tests in both trees (baseline: 227 in
+  bmad-dev-wave, 12 in bmad-close-epic, both trees) and `./install.sh
+  --validate-only --skip-mcp-check` before every commit. Stage files by
+  name, never git add -A, and re-check the staged list against the commit
+  message. The gitleaks pre-commit hook runs; never bypass it.
+- Prose is ASCII with " -- " dashes. No em dashes anywhere.
+- Settings and agent files: prepare the exact content, then let the
+  permission prompt decide. R1, R2 and R3 were each allowed their wrapper,
+  registration and permission-block writes on the first try, so try once; if
+  refused, print the content and the path for RQ and carry on.
+- Do not add a stage, do not add a domain persona, do not build anything
+  that edits the harness on its own. R4 adds no hook and no gate rule.
+- Git: `git fetch`/`git push` failing with "signing failed ... communication
+  with agent failed" means 1Password is locked; ask RQ to unlock and retry.
+  The review docs under docs/reviews/ are untracked; never stage them.
+- RQ merges and tags by hand. Halt after the PR is open and report: what
+  changed, the prediction, R3's grade, what R5 needs from the merge.
+
+R4. Delete the configuration that configures nothing and bind the routing
+that should (templates/settings.json.template; install.sh; core/config.yaml;
+the seven wave skills' SKILL.md; .claude/agents/; `.agents/skills`;
+docs/upstream-refresh-runbook.md; CHANGELOG).
+Build, in the review's order:
+(1) The template, per (f), and the resolver in step with it. A fresh
+    `--target-project` install must resolve a settings.json that parses,
+    carries no top-level key the settings index does not list (the two
+    `$comment_` keys and `$schema` aside), and differs from R3's in the
+    deleted keys and the rename only.
+(2) Skill frontmatter, all seven wave skills. `when-to-use` becomes
+    `when_to_use`, the one field name with an underscore; description plus
+    when_to_use must stay under the 1,536-character cap, and the longest
+    today is bmad-wrap at 962. `version:` moves under `metadata:`.
+    resume-wave's `tools:` becomes `allowed-tools: Read Glob Grep Bash
+    Skill(bmad-dev-wave *)`, which drops SlashCommand, not a current tool.
+    The other inert keys (when-not-to-use, output-locations, outputs,
+    inputs, exit-codes) are documentation nothing reads: move them under
+    `metadata:` or into the body, and say which. `allowed-tools`
+    pre-approves and never restricts; do not write as if it did.
+(3) install.sh's memory directory (the `mkdir -p
+    "$HOME/.claude/projects/$slug/memory"` near line 222). The real
+    directory is the target's absolute path with every non-alphanumeric
+    character replaced by "-" (B row 10.1), and Claude Code creates it. Fix
+    the path or delete the step, and say which.
+(4) `.agents/skills`, per (i).
+(5) The binding, per (g) and (h): the definitions; dev-wave steps 6 and 10
+    dispatching them by name; "The Review Record" taking its `model` and
+    `effort` from the definition that ran; core/config.yaml reduced to the
+    tier table (its permissions, parallelism and context blocks are read by
+    nothing, B rows 4.1, 11.2 and 15.1, but dev-wave step 6 cites
+    `parallelism.max_parallel_subagents`, so keep that number where the step
+    can cite it or move it into the step); the phase-6 assertion; and
+    `CLAUDE_CODE_SUBAGENT_MODEL_FORCE=1` documented in the runbook as the
+    override that ignores frontmatter models.
+At risk, to carry into your entry and add to. The Agent tool's
+per-invocation `model` parameter outranks frontmatter (B row 8.3), so a
+caller can still override a definition, and an `Agent(model:...)` deny rule
+would apply to every Agent call. A definition with no `tools:` inherits
+every tool, which is right for a coder and has to be a decision for a
+reviewer, whose brief is to prove findings by execution. In auto mode every
+subagent's hand-back runs R3's hook, 37 ms each, which exits at once for any
+agent but the evaluator. `effortLevel` in a project file sets every
+session's effort in that instance. A full model id goes stale without an
+error when a model retires.
+Verify: rebuild the scratch instance from your branch and dispatch each new
+definition by name from a `claude -p` session, with a logging hook on
+SubagentStop and on SubagentHandback (R3's log-hook.sh, registered in the
+git-ignored .claude/settings.local.json and loaded with `--setting-sources
+project,local`). The event's `agent_type` is the definition's name and its
+`effort.level` the definition's; the run's `modelUsage` in the stream-json
+result names the pinned model. The session's own effort, from any
+main-thread PreToolUse event, equals `effortLevel`. Say how you checked that
+`when_to_use` reaches the skill listing, or that you could not.
+`./install.sh --validate-only --skip-mcp-check` exits 0 in the fork, and
+exits 7 naming the definition when its `model:` is edited away from the
+table. If `claude -p` cannot authenticate, unit-test what parses and hand RQ
+the live check as exact commands.
+Instances: the R3 hand step may still be outstanding. Extend the runbook so
+one pass covers both (the new definitions travel with `cp
+.claude/agents/*.md`; the template change reaches no instance), and say in
+the CHANGELOG what the instances need.
+
+What R5 will need from your merge: the names of the definitions (R5's
+reviewer-dispatch eval grades `tool_used` on Agent by subagent_type), the
+tier table's final shape, and one fact from R3's grading of R2: with bypass
+locked, `--dangerously-skip-permissions` is ignored, not rejected, so the
+eval-runner adapter runs in the instance's default mode with every
+unanswered prompt a denial.
+
+Paths from R3's and R2's sessions (a scratchpad persists for days, not
+forever; rebuild from the #27 body if it is gone). Usage: `bash
+live-check-r3.sh <run-name> <acceptEdits|auto>
+<main|noverdict|passhigh|record>`, then `python3 report.py <run-name>`;
+`python3 replay_session.py <transcript.jsonl> <fork root>`.
+  instance:   /private/tmp/claude-501/-Users-ryanquigley-Projects-personal-keelswell/1fd03231-8d37-4f23-9bc1-cf827c93a385/scratchpad/r3-live/keelswell-r3-scratch
+  live check: /private/tmp/claude-501/-Users-ryanquigley-Projects-personal-keelswell/1fd03231-8d37-4f23-9bc1-cf827c93a385/scratchpad/r3-live/live-check-r3.sh
+  logger:     /private/tmp/claude-501/-Users-ryanquigley-Projects-personal-keelswell/1fd03231-8d37-4f23-9bc1-cf827c93a385/scratchpad/r3-live/log-hook.sh
+  replay:     /private/tmp/claude-501/-Users-ryanquigley-Projects-personal-keelswell/b0fc3f65-f667-4532-a7e2-55495a0d0723/scratchpad/replay_session.py
+```
+
 ## Standing item: after every upstream pull
 
 Opus 5, effort `medium`. Event-triggered, not scheduled. Runs at step
