@@ -562,6 +562,41 @@ All notable changes to Keelswell. Format: Keep a Changelog; versioning: semver.
   templates/.gitignore.template, now that the fork ships runnable Python.
 
 ### Fixed
+- A newline ends a command in the wave gate (found while grading R1 of
+  docs/reviews/harness-engineering-review-v1.md, 2026-10-01). bmad-dev-wave
+  1.8.1 -> 1.8.2. `_prepass` marked every operator as ` \0op\0 `, and a
+  newline is an operator, so the mark for a newline held the newline
+  itself; shlex splits words at whitespace, cut the mark in two, and the
+  halves were read as plain words. A newline therefore never ended a
+  simple command. Two effects, both measured on 2026-10-01. Open: a
+  guarded action on a second line passed whenever the first line's
+  command takes its operands as text -- `echo x`, then the in-review
+  `wave_status.py set`, a `sed -i` on `.bmad/wave-7A/wave.md`, an `rm` of
+  it or a `cp` over an evaluation record: 8 of 10 such shapes exited 0.
+  Closed on ordinary work: a `mkdir`, `rm` or `touch` followed by a second
+  line put a NUL into a path and crashed the gate (`ValueError: embedded
+  null character`), which the wrapper turned into a FAILED CLOSED denial,
+  and a direct, literal `wave_status.py set` on a second line was refused
+  as unreadable. ffbapp's 10,451 recorded Bash calls, replayed from a
+  scratch cwd, hit the crash 61 times. The fix is one line: the newline's
+  mark is `;`, which shlex leaves whole. Four tests cover the two-line
+  shapes (176 across bmad-dev-wave's scripts, both trees; the E2b replay
+  is unchanged). **Prediction, to be checked by R3's session.** Every
+  newline splits a command as `;` does: the 10 guarded two-line shapes
+  are denied and the 7 ordinary ones allowed; ffbapp's replay shows 0
+  FAILED CLOSED and the same 72 other decisions as before (71 closure
+  denials that are an artifact of the scratch cwd, 1 lifecycle); this
+  session's own 105 Bash, Write and Edit calls are refused 9 times, all
+  in R1's predicted classes (a verb in a variable; here-documents and
+  interpreters whose text names `wave_status.py set`,
+  `.bmad/wave-<id>/wave.md` or an evaluation record), and the two
+  newline-caused refusals seen at 64 calls are gone. At risk: a line that
+  ends in an operator and continues on the next now yields an empty
+  command between two operators, which the parser drops; here-documents
+  are read as before, since the body is consumed at the newline that
+  follows `<<WORD`; a backslash-newline is still a continuation, not a
+  separator (E2b's b14). The instance hand step in the runbook should
+  carry this version, not 1.8.1.
 - The Phase 2 backfill read sixteen of ffbapp's eighteen waves as `draft`,
   re-entering at step 1, when all eighteen are merged and done. Caught by
   running the migration against the real instance instead of the fixture:

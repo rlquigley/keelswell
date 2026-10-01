@@ -191,7 +191,9 @@ def _prepass(text):
         elif c in ";&|()<>`\n":
             op = next(o for o in OPERATORS if text.startswith(o, i))
             i += len(op)
-            out.append(f" {OP}{op}{OP} ")
+            # A newline ends a command as `;` does. It is marked as `;` because
+            # shlex splits words at a newline and would cut the mark in two.
+            out.append(f" {OP}{';' if op == chr(10) else op}{OP} ")
             if op == "<<":
                 strip = text.startswith("-", i)
                 i += strip

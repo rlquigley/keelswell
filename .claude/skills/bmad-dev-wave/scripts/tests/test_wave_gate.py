@@ -396,6 +396,47 @@ class TestE2bReplay(Base):
                 self.assertEqual(code, 2 if still else 0, f"{key}: {err}")
 
 
+class TestNewline(Base):
+    """A newline ends a command. 1.8.1 marked it with the newline inside the
+    mark, shlex split the mark there, and the halves became words: a guarded
+    action on line 2 passed after `echo` on line 1, and a `mkdir` on line 1
+    followed by any line 2 crashed the gate on a NUL in a path."""
+
+    SET = "python3 .claude/skills/bmad-dev-wave/scripts/wave_status.py set --project-root . --wave 7A --status in-review"
+    SED = "sed -i '' 's/^status: .*/status: in-review/' .bmad/wave-7A/wave.md"
+
+    def test_a_guarded_action_on_line_two_is_denied(self):
+        for first in ("echo start", "printf 'x\\n'", "cat README.md", "grep -n x README.md", "ls"):
+            for second, rule in ((self.SET, "review"), (self.SED, "lifecycle"),
+                                 ("rm .bmad/wave-7A/wave.md", "lifecycle"),
+                                 ("cp /tmp/v.md docs/wave-7a/evaluation-1.md", "verdict"),
+                                 ("printf 'VERDICT: PASS\\n' > docs/wave-7a/evaluation-1.md", "verdict")):
+                with self.subTest(first=first, second=second):
+                    code, _, err = self.p.pre("Bash", command=f"{first}\n{second}")
+                    self.assertEqual(code, 2, err)
+                    self.assertIn(f"DENIED ({rule})", err)
+
+    def test_ordinary_two_line_commands_are_allowed(self):
+        for command in ("mkdir -p build\necho hi", "rm -f build/none\nls", "touch a\ntouch b",
+                        "cp README.md /tmp/c\necho done", "git status --short\ngit log --oneline | head -3",
+                        "cd .\ngit status", "mkdir -p \"$P/.claude/hooks\" \"$P/_bmad-output\"\ncat \"$P/x\""):
+            with self.subTest(command):
+                code, _, err = self.p.pre("Bash", command=command)
+                self.assertEqual(code, 0, err)
+                self.assertNotIn("FAILED CLOSED", err)
+
+    def test_a_direct_set_on_line_two_is_read(self):
+        code, _, err = self.p.pre("Bash", command="ls\npython3 .claude/skills/bmad-dev-wave/scripts/wave_status.py set --project-root . --wave 7A --status in-progress")
+        self.assertEqual(code, 0, err)
+        self.p.evaluation("7A", 1, "PASS")
+        code, _, err = self.p.pre("Bash", command=f"ls\n{self.SET}")
+        self.assertEqual(code, 0, err)
+
+    def test_a_newline_inside_quotes_is_text(self):
+        code, _, err = self.p.pre("Bash", command='git commit -m "first line\nsed -i x .bmad/wave-7A/wave.md"')
+        self.assertEqual(code, 0, err)
+
+
 class TestParser(Base):
     S = "python3 x/wave_status.py"
 
