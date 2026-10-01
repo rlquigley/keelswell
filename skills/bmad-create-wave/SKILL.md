@@ -5,7 +5,7 @@ description: >
   files, and architecture.md; constructs a story dependency graph; produces a
   draft wave decomposition; presents it inline for user review; writes the
   approved wave map to disk.
-when-to-use: |
+when_to_use: |
   Use at the start of Phase 4 (Implementation), after epics and stories have
   been produced and the implementation-readiness gate has PASSED. Use again in
   update mode whenever a course correction adds or removes stories, or
@@ -16,11 +16,12 @@ allowed-tools:
   - Grep
   - Write
   - Bash
-output-locations:
-  - _bmad-output/planning-artifacts/waves.md
-  - docs/epics.md   # Appendix C of epics.md, if --inline mode is selected
-  - .bmad/wave-<id>/wave.md   # one lifecycle record per new wave, status draft
-version: 1.1.0
+metadata:
+  version: 1.1.1
+  output-locations:
+    - _bmad-output/planning-artifacts/waves.md
+    - docs/epics.md   # Appendix C of epics.md, if --inline mode is selected
+    - .bmad/wave-<id>/wave.md   # one lifecycle record per new wave, status draft
 ---
 
 # bmad-create-wave
@@ -128,6 +129,12 @@ For each wave:
 - Ambiguous classification: flag in Notes; resolve in propose-and-confirm.
 
 ## Version history
+- 1.1.1 (2026-10-01, R4 of docs/reviews/harness-engineering-review-v1.md):
+  frontmatter only. `when-to-use` is `when_to_use`, the field Claude
+  Code reads, so it now reaches the skill listing; `version` and
+  `output-locations` sit under
+  `metadata:`, which Claude Code leaves to the fork's own tooling. Nothing in
+  the body changed.
 - 1.1.0 (2026-09-11, Phase 2 of docs/harness-conversion-plan.md): step 8 opens
   a lifecycle record at `draft` for every wave the map gains, so a wave starts
   with a recorded stage instead of one inferred at first dispatch. Update mode

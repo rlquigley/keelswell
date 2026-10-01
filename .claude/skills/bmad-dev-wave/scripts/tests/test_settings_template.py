@@ -15,6 +15,9 @@ skip there.
 
 R3 adds the evaluator hook's three registrations beside R1's entry, which
 stays as R1 wrote it.
+
+R4 deletes the keys around those two blocks that were never Claude Code
+settings and changes neither block.
 """
 
 import json
@@ -59,6 +62,16 @@ class TestSettingsTemplate(unittest.TestCase):
         # The placeholders sit inside string values, so the template parses as it stands.
         cls.settings = json.loads(TEMPLATE.read_text(encoding="utf-8"))
         cls.permissions = cls.settings["permissions"]
+
+    def test_every_top_level_key_is_a_claude_code_setting(self):
+        # R4: reasoningEffort, contextWindow, subagentModels, subagentReasoning,
+        # skillsPaths, agentNamesFile and mcpServers configured nothing. What is
+        # left is in the settings index; effortLevel is the key reasoningEffort
+        # was meant to be, and takes low, medium, high or xhigh.
+        keys = {k for k in self.settings if k != "$schema" and not k.startswith("$comment_")}
+        self.assertEqual(keys, {"model", "effortLevel", "permissions", "hooks"})
+        self.assertEqual(self.settings["model"], "MODEL_ORCHESTRATOR")
+        self.assertEqual(self.settings["effortLevel"], "EFFORT_ORCHESTRATOR")
 
     def test_every_deny_rule_is_present(self):
         for rule in DENY:

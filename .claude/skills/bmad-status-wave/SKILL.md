@@ -6,7 +6,7 @@ description: >
   and prints a single dashboard. Read-only; no writes. Use at session start,
   on demand during multi-wave work, or whenever the user asks "where am I in
   this project."
-when-to-use: |
+when_to_use: |
   Anytime cross-wave visibility is needed, especially across parallel
   sessions or after time away from the project. Do NOT use this skill to act
   on a wave -- it never resumes, merges, or modifies anything; reach for
@@ -15,8 +15,9 @@ allowed-tools:
   - Read
   - Glob
   - Bash
-output-locations: []
-version: 1.2.0
+metadata:
+  version: 1.2.1
+  output-locations: []
 ---
 
 # bmad-status-wave
@@ -94,6 +95,12 @@ enforcing it.
   actual state wins.
 
 ## Version history
+- 1.2.1 (2026-10-01, R4 of docs/reviews/harness-engineering-review-v1.md):
+  frontmatter only. `when-to-use` is `when_to_use`, the field Claude
+  Code reads, so it now reaches the skill listing; `version` and
+  `output-locations` sit under
+  `metadata:`, which Claude Code leaves to the fork's own tooling. Nothing in
+  the body changed.
 - 1.2.0 (2026-09-11, Phase 2 of docs/harness-conversion-plan.md): the
   dashboard gains a Status column, read from the wave's lifecycle record
   through the `show` verb, which is the read-only half of the same script the

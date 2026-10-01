@@ -5,7 +5,7 @@ description: >
   tests, scaffolds stories, dispatches one or more coding subagents, runs
   verify and party-mode gates, lands commits, opens a pull request, and halts
   before merge.
-when-to-use: |
+when_to_use: |
   Use at the start of each wave's implementation session, after
   /bmad-create-wave has written the wave map. Do not use for ad-hoc story
   implementation -- this skill is wave-shaped and refuses to run without a
@@ -18,19 +18,20 @@ allowed-tools:
   - Edit
   - Bash
   - Task
-output-locations:
-  - ../<project>-wave-<id>/                 # sibling worktree, branch wave-<id>-<suffix>
-  - .bmad/wave-<id>/checkpoint.json         # plus step-N.done markers (main repo)
-  - .bmad/wave-<id>/wave.md                 # lifecycle status record (main repo)
-  - <worktree>/docs/wave-<id>/test-design.md
-  - <worktree>/docs/wave-<id>/verify-output.txt   # stamped by evaluate_wave.py verify, step 7
-  - <worktree>/docs/wave-<id>/wave-diff.patch     # written by evaluate_wave.py dispatch, step 8
-  - <worktree>/docs/wave-<id>/evaluation-<n>.md   # one per evaluator pass, written by its hook
-  - <worktree>/docs/wave-<id>/review-party.md   # required, every wave (register row 51)
-  - <worktree>/.bmad-changed.txt            # reviewer-selection input, step 10
-  - <worktree>/docs/stories/                # JIT story files
-  - pull request against main via gh pr create
-version: 1.9.0
+metadata:
+  version: 1.10.0
+  output-locations:
+    - ../<project>-wave-<id>/                 # sibling worktree, branch wave-<id>-<suffix>
+    - .bmad/wave-<id>/checkpoint.json         # plus step-N.done markers (main repo)
+    - .bmad/wave-<id>/wave.md                 # lifecycle status record (main repo)
+    - <worktree>/docs/wave-<id>/test-design.md
+    - <worktree>/docs/wave-<id>/verify-output.txt   # stamped by evaluate_wave.py verify, step 7
+    - <worktree>/docs/wave-<id>/wave-diff.patch     # written by evaluate_wave.py dispatch, step 8
+    - <worktree>/docs/wave-<id>/evaluation-<n>.md   # one per evaluator pass, written by its hook
+    - <worktree>/docs/wave-<id>/review-party.md   # required, every wave (register row 51)
+    - <worktree>/.bmad-changed.txt            # reviewer-selection input, step 10
+    - <worktree>/docs/stories/                # JIT story files
+    - pull request against main via gh pr create
 ---
 
 # bmad-dev-wave
@@ -79,9 +80,9 @@ re-entered by /bmad-resume-wave.
 5.  ATDD scaffolding: failing test stubs per the test design. On completion
     set the status to ready-for-dev.
 6.  Implementation dispatch: set the status to in-progress before dispatching.
-    Serial for spine waves; parallel (one coding
-    subagent per story, capped by core/config.yaml
-    parallelism.max_parallel_subagents) for parallel waves. Every subagent
+    Serial for spine waves; parallel (one coding subagent per story, at most
+    4 at a time) for parallel waves. Every coding subagent is dispatched as
+    `keelswell-wave-coder` (see The Routing) and
     receives the Project Conventions Block verbatim (below).
 7.  Test expansion, then verify: close coverage gaps, then run
     scripts/evaluate_wave.py verify, which runs tests/verify-fast.sh in the
@@ -96,7 +97,8 @@ re-entered by /bmad-resume-wave.
 10. Party-mode adversarial review -- load-bearing waves only (skipped by
     --no-party): set the status to in-review, ask scripts/select_reviewers.py
     which reviewers this wave's own changes require (see The Reviewer
-    Selection) and dispatch exactly those; block on
+    Selection) and dispatch exactly those, each as `keelswell-wave-reviewer`
+    (see The Routing); block on
     HIGH or CRITICAL findings. Write docs/wave-<id>/review-party.md before
     step 11, always, including when the review found nothing and when it did
     not run (see The Review Record). A HIGH or CRITICAL finding fixed here
@@ -121,6 +123,34 @@ test framework and verify harness location, CI constraints, standing policy
 decisions, and coding discipline (touch only the story's files; no drive-by
 improvements). Populate the block for your project before the first dispatch;
 an empty block is a preflight warning.
+
+## The Routing
+Steps 6 and 10 dispatch by name, and the name is the routing. Claude Code
+binds a subagent's model and effort in one place, the frontmatter of its
+definition, so each role this skill dispatches has one:
+
+| Step | Role | `subagent_type` | Definition |
+|---|---|---|---|
+| 6 | one story's implementation | `keelswell-wave-coder` | `.claude/agents/keelswell-wave-coder.md` |
+| 8 | the wave's evaluation | `keelswell-wave-evaluator` | `.claude/agents/keelswell-wave-evaluator.md` |
+| 10 | one reviewer, persona or fallback | `keelswell-wave-reviewer` | `.claude/agents/keelswell-wave-reviewer.md` |
+
+R4 of docs/reviews/harness-engineering-review-v1.md. Reviewers followed the
+session's model in 7 of ffbapp's 18 waves, because nothing said what they
+should run at; a settings key that claimed to say it never existed.
+
+- Dispatch with the Agent tool and the `subagent_type` above. Do not pass the
+  Agent tool's `model` parameter on these dispatches: it outranks the
+  definition, and a subagent that follows the session is the defect.
+- Do not use a general-purpose subagent for one of these roles. If a
+  definition is missing, halt and restore it from the fork
+  (`.claude/agents/*.md`); `install.sh --validate-only` names what is wrong.
+- The definitions are role files, not personas. A reviewer's persona is still
+  the `skill` the selector returned; the dispatch prompt names it and the
+  reviewer loads it.
+- Each definition's `model:` and `effort:` are a row of the fork's
+  `core/config.yaml`, checked by `install.sh --validate-only` and changed
+  only together with it.
 
 ## The Status Gate
 
@@ -468,7 +498,9 @@ The answer is not yours to derive. Ask the script:
         --spec {worktree}/docs/wave-<id>/test-design.md \
         --json
 
-Dispatch the `skill` of every entry in `selected`, and nothing else. Do not
+Dispatch one `keelswell-wave-reviewer` subagent for every entry in `selected`,
+naming the entry's `skill` in its prompt as the persona to load, and nothing
+else (see The Routing). Do not
 add a reviewer the script did not return, and do not drop one it did. Exit 2
 means the trigger table is malformed; quote its stderr and halt rather than
 choosing reviewers by hand, which is the behaviour 6.3 replaced.
@@ -483,7 +515,8 @@ trigger, not a wrong rule -- fix the table, do not overrule its output.
 
 **Zero reviewers is a possible answer, and it is not zero review.** When no
 row fires, the JSON carries a `fallback` instead of an empty answer: a method
-rather than a seat, dispatched as plain subagents under the brief the table
+rather than a seat, dispatched as `keelswell-wave-reviewer` subagents with no
+persona, under the brief the table
 carries. Dispatch it exactly as written and record the review with
 `record_as`, never as though a trigger fired.
 
@@ -547,19 +580,24 @@ Front matter, required in all three cases:
 title: "Wave <id> party-mode adversarial review"
 wave: <id>
 created: <YYYY-MM-DD>
-model: <the model the reviewers were dispatched at>
-effort: <low|medium|high|xhigh|max>
+model: <the `model:` line of .claude/agents/keelswell-wave-reviewer.md>
+effort: <its `effort:` line>
 ---
 ```
 
 `model` is the reviewers' model, not the orchestrator's. Reviewers are
-dispatched as subagents and can run at a different model than the
-session that dispatched them; the reviewers' is the one that produced
-the findings. Write the model string itself (`claude-opus-5`), never
+dispatched as subagents and run at the model and effort their
+definition states, whatever the session that dispatched them is on; the
+reviewers' is the one that produced the findings. Copy both lines from
+`.claude/agents/keelswell-wave-reviewer.md`, the definition that ran, as
+they stand there (`claude-opus-5-5`, `high`). Write the model string
+itself, never
 the policy that chose it: three of ffbapp's ten records said "the
 session model" and none named a model, which left every finding in
 them unattributable to any generation. Where reviewers ran at
-different models, list each. `status` and `stories` are optional and
+different models, list each, and say why: a reviewer dispatched another
+way, or a session with `CLAUDE_CODE_SUBAGENT_MODEL_FORCE` set, did not
+run at the definition's. `status` and `stories` are optional and
 two records already carry them.
 
 This block is the reason the record can be read back by a later pass.
@@ -629,6 +667,15 @@ there is nothing to block.
   names. Do not retry the same write through a different tool.
 
 ## Version history
+- 1.10.0 (2026-10-01, R4 of docs/reviews/harness-engineering-review-v1.md):
+  steps 6 and 10 dispatch by name. Coding subagents run as
+  `keelswell-wave-coder` and reviewers, persona or fallback, as
+  `keelswell-wave-reviewer`; each definition under `.claude/agents/` states
+  its `model:` and `effort:`, and the review record copies its two lines from
+  the reviewer's. New section, The Routing; no step added. The parallel cap
+  (4) is written into step 6, where it used to cite a `core/config.yaml` key
+  nothing read. Frontmatter: `when-to-use` is `when_to_use`, the field Claude
+  Code reads, and `version` and `output-locations` sit under `metadata:`.
 - 1.9.0 (2026-10-01, R3 of docs/reviews/harness-engineering-review-v1.md):
   the evaluator's evidence and its record stop being the builder's to write.
   Steps 7 to 9 are reordered, not added to: 7 is test expansion and verify, 8

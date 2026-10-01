@@ -13,7 +13,7 @@ description: >
   branch's PR, opened on confirmation if missing, or held on until an
   existing open PR is merged and validated. Run at the end of every
   working session, whether or not a wave was active.
-when-to-use: |
+when_to_use: |
   At the end of every working session. A finished wave needs its learnings
   captured; an unfinished wave needs a handoff the next session can resume
   from; the same discipline covers both.
@@ -30,15 +30,16 @@ allowed-tools:
   - Write         # writable surface: _bmad-output/session-wrap/**,
                   # TODO.md, HANDOFF.md; CLAUDE.md is readable but NOT
                   # on any writable path
-inputs:
-  - --scope=session|day|since=<git-ref>   # contradiction-scan window;
-                                          # default session
-output-locations:
-  - _bmad-output/session-wrap/<UTC-timestamp>/triage.md
-exit-codes:
-  - 0: wrap complete (findings or no findings -- findings are the product)
-  - 1: the triage report itself could not be written (disk full, permission)
-version: 1.9.0
+metadata:
+  version: 1.9.1
+  inputs:
+    - --scope=session|day|since=<git-ref>   # contradiction-scan window;
+                                            # default session
+  output-locations:
+    - _bmad-output/session-wrap/<UTC-timestamp>/triage.md
+  exit-codes:
+    - 0: wrap complete (findings or no findings -- findings are the product)
+    - 1: the triage report itself could not be written (disk full, permission)
 ---
 
 # bmad-wrap

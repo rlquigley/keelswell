@@ -8,7 +8,7 @@ description: >
   SUMMARY plus four detail reports, feeds retrospective lessons into
   project-context.md, opens a pull request, and halts before merge. Refuses
   an epic any of whose waves landed without an adversarial review record.
-when-to-use: |
+when_to_use: |
   After every wave of the epic has been through /bmad-dev-wave and
   /bmad-merge-wave, and before starting the next epic -- including when
   /bmad-status-wave shows the epic as closure-pending.
@@ -18,22 +18,23 @@ allowed-tools:
   - Grep
   - Bash
   - Write
-inputs:
-  - >-
-    epic-id (positional, required; integer matching the leading digits of a
-    Wave label in the waves.md wave table -- waves.md carries one flat table
-    for the whole project, ordered by execution rather than by epic, so there
-    are no per-epic sections to match). No flags: closure is not tunable,
-    there is no --dry-run, no --skip-subskill, no --force.
-output-locations:
-  - _bmad-output/epic-closure/epic-<N>/SUMMARY.md
-  - _bmad-output/epic-closure/epic-<N>/code-review.md
-  - _bmad-output/epic-closure/epic-<N>/testarch-trace.md
-  - _bmad-output/epic-closure/epic-<N>/testarch-nfr.md
-  - _bmad-output/epic-closure/epic-<N>/retrospective.md
-  - a docs-only branch pushed to origin, and a pull request against main
-  - every existing story file of the epic set to Status: done
-version: 1.4.0
+metadata:
+  version: 1.4.1
+  inputs:
+    - >-
+      epic-id (positional, required; integer matching the leading digits of a
+      Wave label in the waves.md wave table -- waves.md carries one flat table
+      for the whole project, ordered by execution rather than by epic, so there
+      are no per-epic sections to match). No flags: closure is not tunable,
+      there is no --dry-run, no --skip-subskill, no --force.
+  output-locations:
+    - _bmad-output/epic-closure/epic-<N>/SUMMARY.md
+    - _bmad-output/epic-closure/epic-<N>/code-review.md
+    - _bmad-output/epic-closure/epic-<N>/testarch-trace.md
+    - _bmad-output/epic-closure/epic-<N>/testarch-nfr.md
+    - _bmad-output/epic-closure/epic-<N>/retrospective.md
+    - a docs-only branch pushed to origin, and a pull request against main
+    - every existing story file of the epic set to Status: done
 ---
 
 # bmad-close-epic
@@ -194,6 +195,12 @@ five files on the same branch.
   main merely behind origin is not divergence: fast-forward and continue.
 
 ## Version history
+- 1.4.1 (2026-10-01, R4 of docs/reviews/harness-engineering-review-v1.md):
+  frontmatter only. `when-to-use` is `when_to_use`, the field Claude
+  Code reads, so it now reaches the skill listing; `version`, `inputs` and
+  `output-locations` sit under
+  `metadata:`, which Claude Code leaves to the fork's own tooling. Nothing in
+  the body changed.
 - 1.4.0 (2026-09-11, Phase 4 of docs/harness-conversion-plan.md): the gate is
   enforced by the PreToolUse hook as well as by step 1. Writing any closure
   artifact for an epic whose gate exits non-zero is denied at the tool call.

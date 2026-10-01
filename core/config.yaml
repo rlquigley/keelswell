@@ -1,41 +1,23 @@
 # core/config.yaml
-# Keelswell fork: operational defaults read at Claude Code session start.
-# This file is the single source of truth for the capability tiers and role
-# bindings, the reasoning levels, the permission modes, the parallelism
-# guidance, and the context-window escalation rules used by every skill it ships.
+# Keelswell fork: the tier table. Which model and effort each routed role runs
+# at, and the subagent definitions each role binds. install.sh is the only
+# reader: the resolver fills a fresh instance's .claude/settings.json (model,
+# effortLevel) from the orchestrator row, and phase 6 asserts that every
+# definition under `agents` carries the row's model and effort. It reads and
+# never repairs: change a row and the definitions in the same commit.
 #
-# Per-project overrides live in .claude/settings.json (see Chapter 29).
-# Per-skill overrides live in each SKILL.md frontmatter (rare; see 28.4.3).
+# Models are full ids, not aliases, so two review records are comparable.
+# Re-pin per model release, with a CHANGELOG line (docs/agent-inventory.md).
 fork:
   name: keelswell
   version: 0.1.0
   schema_version: 1
 model_tiers:
   frontier:
-    model: claude-opus-4-8
+    model: claude-opus-5-5
   workhorse:
-    model: claude-sonnet-4-6
-  fast:
-    model: claude-haiku-4-5
+    model: claude-sonnet-5-5
 role_models:
-  orchestrator: { tier: frontier,  reasoning: high }
-  research:     { tier: frontier,  reasoning: medium }
-  coding:       { tier: workhorse, reasoning: high }
-  adversarial:  { tier: frontier,  reasoning: high }
-  fallback:     { tier: frontier,  reasoning: medium }
-permissions:
-  default_mode: accept-edits
-  unscoped_work_mode: plan
-parallelism:
-  parallel_tool_calls: true
-  parallel_subagents: true
-  max_parallel_subagents: 4
-  worktree_isolation: required_for_writes
-  worktree_root: .worktrees
-context:
-  default_window: 200000
-  extended_window: 1000000
-  escalation_rule: on_explicit_request
-  escalation_triggers:
-    - distillator_artifact_present
-    - prd_plus_architecture_plus_codebase_load
+  orchestrator: { tier: frontier,  effort: high }
+  coding:       { tier: workhorse, effort: high, agents: [keelswell-wave-coder] }
+  adversarial:  { tier: frontier,  effort: high, agents: [keelswell-wave-reviewer, keelswell-wave-evaluator] }

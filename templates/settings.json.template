@@ -3,7 +3,7 @@
   "$comment_project_name": "PROJECT_NAME_PLACEHOLDER",
   "$comment_keelswell_version": "0.1.0",
   "model": "MODEL_ORCHESTRATOR",
-  "reasoningEffort": "REASONING_ORCHESTRATOR",
+  "effortLevel": "EFFORT_ORCHESTRATOR",
   "permissions": {
     "defaultMode": "acceptEdits",
     "disableBypassPermissionsMode": "disable",
@@ -22,25 +22,6 @@
       "Bash(git worktree remove *)",
       "Bash(gh auth token*)"
     ]
-  },
-  "contextWindow": "200K",
-  "subagentModels": {
-    "research": "MODEL_RESEARCH",
-    "coding": "MODEL_CODING",
-    "adversarial": "MODEL_ADVERSARIAL",
-    "fallback": "MODEL_FALLBACK"
-  },
-  "subagentReasoning": {
-    "research": "REASONING_RESEARCH",
-    "coding": "REASONING_CODING",
-    "adversarial": "REASONING_ADVERSARIAL"
-  },
-  "mcpServers": {
-    "keelswell": {
-      "transport": "stdio",
-      "command": "keelswell-mcp",
-      "args": []
-    }
   },
     "hooks": {
     "PreToolUse": [
@@ -88,9 +69,5 @@
         ]
       }
     ]
-  },
-  "skillsPaths": [
-    ".claude/skills"
-  ],
-  "agentNamesFile": "_bmad/keelswell/config/agent-names.yaml"
+  }
 }
