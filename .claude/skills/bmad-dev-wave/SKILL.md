@@ -30,7 +30,7 @@ output-locations:
   - <worktree>/.bmad-changed.txt            # reviewer-selection input, step 10
   - <worktree>/docs/stories/                # JIT story files
   - pull request against main via gh pr create
-version: 1.8.0
+version: 1.8.1
 ---
 
 # bmad-dev-wave
@@ -551,6 +551,14 @@ there is nothing to block.
   names. Do not retry the same write through a different tool.
 
 ## Version history
+- 1.8.1 (2026-10-01, R2 of docs/reviews/harness-engineering-review-v1.md):
+  tests only; no step changes. `scripts/tests/test_settings_template.py` pins
+  the permission block the instance settings template gains beside R1's hook
+  registration: five Bash and two Edit deny rules, four ask rules and the
+  bypassPermissions lock. Where an instance's settings carry the block,
+  `gh pr merge` is denied, a plain `git push`, `git branch -D` or
+  `git worktree remove` prompts, and the Write and Edit tools cannot touch
+  `.bmad/wave-<id>/wave.md` or an evaluation record even with the hook off.
 - 1.8.0 (2026-09-29, R1 of docs/reviews/harness-engineering-review-v1.md):
   the hook fails closed and stops matching text. Any error in the gate, a
   missing script or python3, and a run past its deadline now deny instead of

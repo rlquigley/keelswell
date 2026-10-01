@@ -109,9 +109,66 @@ resolvers.
    the refresh, diffs upstream's changes against the fork-owned seams,
    and drafts the CHANGELOG entry (what changed, what we chose not to
    adopt). Its step 1 is Phase 4's conformance check: the harness
-   invariants and hook checks step 5's --validate-only already ran, read
-   as a pass/fail per invariant. Run all three steps.
+   invariants, hook checks and permission rules step 5's --validate-only
+   already ran, read as a pass/fail per invariant. Run all three steps.
 6. Diff-review, commit, merge.
+
+## Instances: the hook registration and the permission block are a hand step
+
+Nothing rewrites an existing instance's `.claude/settings.json`: a
+refresh never touches it and `install.sh --target-project` writes one
+only into a fresh target. So what `templates/settings.json.template`
+carries for the harness reaches a live instance by hand: the hook
+registration (R1 of docs/reviews/harness-engineering-review-v1.md) and
+the permission block (R2). As of 2026-10-01 both live instances (ffbapp,
+green-ledger) hold a hooks-only settings.json that names the wrapper by
+bare relative path, plus the wrapper and wave scripts of bmad-dev-wave
+1.7.1. Both were byte-identical to fork commit 9caab2e on that date, so
+the copy below overwrites nothing local; re-check that before copying
+(`git show <commit>:<path> | diff - <instance copy>`) and stop on drift.
+
+From the fork on main, per instance:
+
+1. Skill and wrapper, into every tool tree the instance has
+   (green-ledger also carries `.agents/skills`):
+       cp -R skills/bmad-dev-wave/. <instance>/.claude/skills/bmad-dev-wave/
+       cp .claude/hooks/wave-gate.sh <instance>/.claude/hooks/wave-gate.sh
+2. Settings. In `<instance>/.claude/settings.json`, replace the
+   PreToolUse entry with the template's (exec form on
+   `${CLAUDE_PROJECT_DIR}`, `"args": []`, `"timeout": 30`, Monitor in
+   the matcher) and add a `permissions` object holding the template's
+   `deny` list, `ask` list and `"disableBypassPermissionsMode":
+   "disable"`. Leave out `defaultMode`, `model` and the template's other
+   keys: an instance keeps its own mode and model. The instance may add
+   rules of its own; it may not drop one of the template's.
+3. Check. `./install.sh --validate-only --skip-mcp-check
+   --target-project <instance>` exits 0. Until step 2 is done it exits 7
+   and names every missing rule, which is the list to paste. Then
+   `diff -rq -x __pycache__ skills/bmad-dev-wave
+   <instance>/.claude/skills/bmad-dev-wave` prints nothing, and the
+   instance's own unit tests pass.
+4. Commit in the instance: ffbapp by pull request, green-ledger on a
+   branch merged ff-only (it has no remote).
+
+What to expect afterwards:
+
+- Claude Code reads rules in the order deny, ask, allow, whichever file
+  a rule sits in, and a deny cannot be lifted by an allow anywhere. So a
+  personal allow such as ffbapp's `Bash(gh pr *)` no longer reaches
+  `gh pr merge`, and `gh auth token` and a plain `git worktree remove`
+  prompt despite `Bash(gh auth *)` and `Bash(git worktree *)`.
+- A worktree reads the settings.json of its own checkout. One cut before
+  the instance's commit has neither the rules nor the new registration
+  until it takes the instance's main.
+- The Bash rules match the command as written. They do not match
+  `git -C <path> ...`, `git -c key=value ...`, `bash -c '...'`, a binary
+  named by absolute path or a quoted subcommand. bmad-merge-wave writes
+  its cleanup as `git -C MAIN_REPO ...`, so those calls are decided by
+  the session's permission mode, not by these rules.
+- The two Edit rules are anchored at the project root. A session rooted
+  in the main checkout is not stopped by them from writing a sibling
+  worktree's `docs/wave-<id>/evaluation-<n>.md`; the hook's verdict rule
+  is what covers that path.
 
 ## Known limitation (F-10, closed for documented installs)
 

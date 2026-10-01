@@ -26,9 +26,6 @@ role_models:
 permissions:
   default_mode: accept-edits
   unscoped_work_mode: plan
-  forbidden_modes:
-    - auto
-    - bypass
 parallelism:
   parallel_tool_calls: true
   parallel_subagents: true
