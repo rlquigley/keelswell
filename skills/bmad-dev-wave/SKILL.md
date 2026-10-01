@@ -30,7 +30,7 @@ output-locations:
   - <worktree>/.bmad-changed.txt            # reviewer-selection input, step 10
   - <worktree>/docs/stories/                # JIT story files
   - pull request against main via gh pr create
-version: 1.8.1
+version: 1.8.2
 ---
 
 # bmad-dev-wave
@@ -551,6 +551,12 @@ there is nothing to block.
   names. Do not retry the same write through a different tool.
 
 ## Version history
+- 1.8.2 (2026-10-01, found while grading R1 of
+  docs/reviews/harness-engineering-review-v1.md): a newline ends a command in
+  the gate's parser. 1.8.0 marked a newline with the newline inside the mark,
+  shlex split the mark there, and the halves were read as words, so a guarded
+  action on a second line passed after `echo` on the first, and a `mkdir`,
+  `rm` or `touch` followed by a second line crashed the gate into a denial.
 - 1.8.1 (2026-10-01, R2 of docs/reviews/harness-engineering-review-v1.md):
   tests only; no step changes. `scripts/tests/test_settings_template.py` pins
   the permission block the instance settings template gains beside R1's hook
