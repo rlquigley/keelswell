@@ -16,16 +16,24 @@ so the installer treated the `.agents/`-owning tool as deliberately
 removed and wiped its target directory. By design, no confirmation:
 "the user's IDE selection is the decision."
 
-## Current state: the deletion cannot recur
+## Current state: the fork carries no `.agents/` tree
 
-`manifest.yaml` now records `ides: [claude-code]` only. A refresh with
-`--tools claude-code` computes nothing-to-remove; scratch-clone
-experiment confirmed `.agents/` (1051 files) survives untouched. The
-tree is simply UNMANAGED: refreshes update `.claude/skills` and leave
-`.agents/skills` a frozen pre-v0.3.0 snapshot (its vanilla personas
-still carry upstream names). Never pass a `--tools` list that names an
-`.agents/`-owning platform unless you intend the installer to take
-ownership of (and regenerate) that tree.
+`manifest.yaml` records `ides: [claude-code]` only, so a refresh with
+`--tools claude-code` computes nothing-to-remove and writes
+`.claude/skills` alone. The fork's `.agents/skills` (74 directories,
+1051 files) was deleted on 2026-10-01, R4 of
+docs/reviews/harness-engineering-review-v1.md. No refresh had managed
+it since the incident, so it was a frozen pre-v0.3.0 snapshot whose
+vanilla personas still carried upstream names, and Claude Code never
+read it: "Not read: AGENTS.local.md, AGENTS.override.md, or anything
+under a .agents/ directory"
+(https://code.claude.com/docs/en/memory#when-claude-code-reads-agentsmd).
+It is in git history before that commit. Never pass a `--tools` list
+that names an `.agents/`-owning platform unless you intend the
+installer to create and own that tree. An instance's `.agents/` is the
+instance's own: green-ledger tracks a second skill tree there, ffbapp
+has an untracked one holding an unrelated plugin, and nothing in the
+fork touches either.
 
 ## What a refresh DOES clobber, and what protects you
 

@@ -869,6 +869,25 @@ All notable changes to Keelswell. Format: Keep a Changelog; versioning: semver.
 - `__pycache__/` and `*.pyc` ignored in .gitignore and
   templates/.gitignore.template, now that the fork ships runnable Python.
 
+### Removed
+- The fork's `.agents/skills` tree: 74 directories, 1,051 files (R4 of
+  docs/reviews/harness-engineering-review-v1.md, 2026-10-01; roadmap R2 of
+  the 2026-09-10 review, confirmed). Claude Code does not read it: "Not
+  read: AGENTS.local.md, AGENTS.override.md, or anything under a .agents/
+  directory" (https://code.claude.com/docs/en/memory#when-claude-code-reads-agentsmd),
+  and it is not a skills location. No refresh had written it since the
+  2026-07-19 incident, so it was a frozen pre-v0.3.0 snapshot, and no file
+  in the fork read it. RQ's ruling (i), with an explicit yes before the
+  `git rm`, in a commit of its own; the tree is in history before it.
+  docs/upstream-refresh-runbook.md's "Current state" section says so. No
+  instance is touched: green-ledger tracks its own second skill tree under
+  `.agents/skills` and ffbapp has an untracked `.agents/` holding an
+  unrelated plugin. At risk: a tool other than Claude Code (Cursor, Codex)
+  pointed at the fork finds no skills, which was already true of every
+  skill added since v0.3.0; `.gitleaks.toml` keeps two allowlist lines for
+  paths that no longer exist, and docs/harness-conversion-plan.md still
+  counts the tree.
+
 ### Fixed
 - A newline ends a command in the wave gate (found while grading R1 of
   docs/reviews/harness-engineering-review-v1.md, 2026-10-01). bmad-dev-wave
