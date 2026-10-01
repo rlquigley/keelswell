@@ -1267,6 +1267,327 @@ live-check-r3.sh <run-name> <acceptEdits|auto>
   replay:     /private/tmp/claude-501/-Users-ryanquigley-Projects-personal-keelswell/b0fc3f65-f667-4532-a7e2-55495a0d0723/scratchpad/replay_session.py
 ```
 
+### R5: seed the eval suite from what already exists, then run it in CI
+
+Fable 5.1, effort `high`. One day for the replay and the workflow, two for
+the three eval pairs. The failure mode is a number nobody can trust: a task
+that passes because it is broken, or a grader that reads the wrong file. So
+every task ships a reference end state, and every grader is shown failing
+once before its pass is believed.
+
+Run from the keelswell root. Requires #29 merged (landed 2026-10-01; main
+3750f45).
+
+```text
+You are implementing R5 of the Keelswell harness-engineering review, the
+last of five "do now" items. R4 is merged as rlquigley/keelswell#29 (main
+3750f45, bmad-dev-wave 1.10.0); confirm it is in main before you branch, and
+branch from that main. The review is approved; do not re-plan it. Read these
+first, in order:
+
+1. docs/reviews/harness-engineering-review-v1.md, sections 1, 4 and 5. R5 is
+   the item; its "What" is the build list below. Section 5's rows for
+   roadmap R9, "Batch 2 review-record check at PR time" and "Batch 4
+   Keelswell CI" are the rulings it carries.
+2. docs/reviews/harness-review-v1-appendix-a.md, A1a sections 3.1 (the
+   runner table, the three balanced pairs, "How to run it") and 3.4.
+   docs/reviews/harness-review-v1-appendix-f.md, track E1: Summary, 1.1,
+   1.2, 6 ("Selector findings the replay surfaced"), 7, 8, 10, 12 and "Open
+   items" 3 to 5, and DP2's caveat. Appendix B rows 14.1, 19.1 and 19.3.
+   Then the raw docs, never a summary: `curl -sL
+   https://code.claude.com/docs/en/<page>.md` for plugin-evals and headless.
+   Quote the page for every flag you put in a script.
+3. skills/bmad-dev-wave/scripts/select_reviewers.py (IGNORED_PATHS at line
+   112 and the five precision rules in its docstring), reviewer-triggers.yaml
+   (the header, the fallback block, and the rows tea-murat, bmm-pm,
+   bmm-architect and arch-cost-optimizer), tests/test_select_reviewers.py.
+   In skills/bmad-dev-wave/SKILL.md: steps 4.5, 8 and 10, The Routing, The
+   Reviewer Selection. .claude/skills/bmad-eval-runner/: SKILL.md,
+   references/eval-format.md, references/grader.md,
+   assets/adapter-claude-code.json, scripts/aggregate_benchmark.py. install.sh
+   phase 6, which is what a workflow would call.
+4. The CHANGELOG [Unreleased] entry R4 wrote (top of the file): it carries
+   the prediction you grade first. Then the Phase 6.3 entry further down,
+   which says "3.2 -> 4.2 with the fallback still firing on exactly two":
+   E1 measured 4.11 and three (3A, 3D, 6A).
+5. The auto-memory index at
+   ~/.claude/projects/-Users-ryanquigley-Projects-personal-keelswell/memory/MEMORY.md,
+   then keelswell-harness-review-v1, keelswell-trigger-table-precision,
+   keelswell-wave-script-testing, claude-code-subagent-report-hooks,
+   keelswell-instance-updates, git-stage-explicitly-not-add-all,
+   keelswell-push-needs-sandbox-off, claude-docs-raw-markdown,
+   rq-adhd-communication.
+
+Your first message: your approach in five lines at most, your biggest
+uncertainty, R4's prediction restated with how you will grade it, and the
+rulings below restated as you understand them. Then wait for RQ's go. When a
+ruling needs RQ, write the plain story of the choice first, then the options
+with the recommended one first, one question at a time; RQ answered R4's
+five that way inside a minute each.
+
+Rulings already made, restate them, do not reopen them:
+(a) 2026-09-28: templates/settings.json.template is a fork-owned seam.
+    test_settings_template.py pins its top-level keys (`model`,
+    `effortLevel`, `permissions`, `hooks`), R1's PreToolUse entry as the
+    first, the evaluator hook's three entries, every deny and ask rule, the
+    bypass lock and `defaultMode: acceptEdits`. R5 does not touch the file.
+(b) 2026-09-28: bypass is locked and there is no auto ban. Measured
+    2026-10-01: with the lock, `--dangerously-skip-permissions` is ignored,
+    not rejected, so a session started with it runs in the settings' default
+    mode and every unanswered prompt is a denial. Haiku cannot run auto.
+(c) 2026-10-01: the evaluator's record is hook-written on three events and
+    `evaluate_wave.py record` is denied to Bash. An eval never writes or
+    forges an evaluation record; it reads the one the hook wrote.
+(d) 2026-10-01: three definitions under .claude/agents/, dispatched by
+    `subagent_type`: keelswell-wave-coder (claude-sonnet-5-5, high),
+    keelswell-wave-reviewer and keelswell-wave-evaluator (claude-opus-5-5,
+    high). core/config.yaml is the tier table and `routing_check` in
+    install.sh phase 6 asserts the definitions against it. Not generated;
+    re-pinned per release with a CHANGELOG line. A reviewer's persona is the
+    `skill` the selector returned, named in its prompt.
+(e) 2026-10-01: a skill's version lives at `metadata.version` in its
+    SKILL.md frontmatter. A version check reads that key.
+(f) 2026-10-01: the hook rule for the `git -C` and `bash -c` forms is a
+    sixth do-now item, unscheduled. Name it in your report, do not build it.
+(g) Not ruled, so not built: R4's grading of R3 found that `evaluate_wave.py
+    dispatch` re-dispatches a HEAD unchanged since the newest record, and
+    re-dispatches after an UPSTREAM_CAUSE with no fix on record, and each
+    round advances the pass count. RQ has not scheduled it. An eval that
+    trips over it reports it; R5 does not fix it.
+(h) The review, approved 2026-09-28: "no self-improving loop yet" stands. R5
+    builds measurement. A human reads every failing transcript, and nothing
+    R5 builds edits a skill, a table or a definition from a result.
+
+Five new rulings to confirm before touching anything (proposed default in
+brackets; RQ decides):
+(i) What of ffbapp may enter the fork. Measured 2026-10-01 with `gh repo
+    view`: rlquigley/keelswell is PUBLIC and attacktheseam/ffbapp is
+    PRIVATE. E1's fixture is 1.1 MB of ffbapp: 18 changed-file lists (2C's
+    has 799 paths), 17 test designs, 10 review records. The review says
+    "commit E1's replay fixture"; it did not weigh that. [Nothing of
+    ffbapp's text or paths is committed. Commit the builder (it holds 18
+    wave ids and pull request numbers and reads the local ffbapp checkout),
+    and one golden file: per wave, the role ids selected, whether the
+    fallback fired, and the counts, with the mean beside them. The fixture
+    is rebuilt locally into a git-ignored directory, and the replay test
+    skips with a named reason when it is absent. The cost: a GitHub-hosted
+    runner cannot reach ffbapp, so CI does not run the replay; it runs on
+    this machine before any change to the table, and the CHANGELOG says so.]
+    The other options, for the question: commit the file lists and not the
+    specs (paths disclose the project's layout, and the selector's spec
+    half goes untested), or commit all of it.
+(j) Which table defects R5 fixes. The review names five (E1 section 6, items
+    1 to 3, plus the two wrong CHANGELOG numbers). Every fix moves the
+    metric the replay pins, so the order is: commit the golden at today's
+    table first (mean 4.11 with bmm-dev seated, fallback on 3A, 3D and 6A),
+    then each fix as its own change to the golden, with before and after in
+    the CHANGELOG. [Fix `IGNORED_PATHS` so planning artifacts under
+    `_bmad-output/planning-artifacts/` are seen while a wave's own
+    bookkeeping stays ignored. Fix tea-murat's glob to reach
+    `tests/unit/support/`, and say plainly that 3D then gets tea-murat and
+    loses the fallback, one of the two waves the fallback was built from.
+    Give arch-cost-optimizer the cost vocabulary it misses on 1C, 4B and 5C,
+    each new pattern checked against the five precision rules and against
+    all 18 waves for a new misfire. Correct 4.2 to 4.11 and "exactly two" to
+    three as a dated correction beside the old line, not a rewrite of it.]
+    E1's items 4 to 7 (4A and ML, 6A, pyproject.toml as a dependency proxy,
+    custom-growth) are not among the five: name them, do not build them.
+(k) What runs the three pairs. They need a project's own hooks and
+    definitions to load (pair A reads a hook-written record), code graders
+    on end state, k=3 reported as pass^3, and a `gh` that reaches nothing.
+    bmad-eval-runner's Claude Code adapter passes
+    `--dangerously-skip-permissions` (ignored under the lock, ruling b),
+    authenticates by `ANTHROPIC_API_KEY`, grades by an LLM grader only and
+    reports no pass^k. `claude plugin eval` loads the plugin without the
+    project's settings and hooks (B row 14.1), 10 turns and 300 s by
+    default. R3's and R4's live checks already do the job at small scale: a
+    fresh `--target-project` instance, `claude -p --setting-sources
+    project,local --permission-mode <mode> --allowedTools ...`, a Python
+    report over the stream-json and the files left behind, under the
+    machine's own login. [A small stdlib harness on that pattern under
+    skills/bmad-dev-wave/evals/, one directory per task with its prompt, its
+    fixture and a reference end state; graders are Python reading files and
+    a `gh` stub's log; parent model Sonnet, never Haiku. No container: with
+    bypass ignored, the deny and ask rules in force and a fixture with no
+    remote, a trial cannot merge, force-push or push at all. Say what that
+    does not contain: the network and the rest of the filesystem.] The
+    review's at-risk line asks for a container; this default argues it away
+    and RQ may not agree.
+(l) One pull request or two. The review's estimate is one day for the
+    replay and the workflow and two for the pairs, and a suite run is 18
+    headless trials. R4's two-dispatch trials cost $0.48 and $0.59 each at
+    list price, R3's evaluator trials $0.11 to $0.61. [Two: R5a is the
+    replay, the table fixes and the workflow; R5b is the three pairs, opened
+    after R5a merges. Each carries its own prediction.] "One pull request
+    per item" has held for R1 to R4, so this is RQ's call.
+(m) What CI runs and what it gates. `.github/workflows/` is outside the
+    plan's three seams; this prompt's list is the grant. [One workflow on
+    pull_request and on push to main, no secret and no model call: the unit
+    tests in both trees; `diff -rq -x __pycache__` between skills/<name> and
+    .claude/skills/<name> for every directory under skills/ (46 on
+    2026-10-01), which must print nothing; `./install.sh --validate-only
+    --skip-mcp-check`, which needs Node 20.12 or later, Python 3.11 or later
+    and PyYAML; and a check that a pull request changing any
+    skills/*/SKILL.md `metadata.version` also changes CHANGELOG.md. The
+    pairs never run in CI. Making the workflow a required check is a branch
+    protection setting, RQ's hand step; say so and do not attempt it.]
+
+Grade R4's prediction first, before building. It said: in a fresh instance,
+and in any instance that carries the three definitions and dev-wave 1.10.0,
+every step-6 coder runs on claude-sonnet-5-5 and every step-10 reviewer and
+the evaluator on claude-opus-5-5, all at effort high, whatever the session's
+model and effort; every review record written from then on says `model:
+claude-opus-5-5` and `effort: high`; a definition edited away from the table
+fails validation by name; a fresh instance's sessions start on
+claude-opus-5-5 at effort high; the seven wave skills' listing entries carry
+their `when_to_use`; nothing changes in a live instance until the hand step,
+and nothing there changes in settings.json at all. At risk were: the Agent
+tool's `model` parameter outranking a definition; dispatch by name being
+prose, so a general-purpose subagent can still be sent; neither definition
+restricting tools, so a reviewer can leave a mutation behind; the persona
+depending on the Skill tool (measured once per mode, never in default mode
+or under a Skill rule); R3's hook running on every subagent's hand-back in
+auto mode; `effortLevel` setting every session's effort in a fresh instance;
+a full id going stale without an error; dev-wave 1.10.0 without the
+definitions; resume-wave's `allowed-tools` pre-approving Bash; reviewers
+costing Opus at high; step 3's subagent still following the session; and a
+non-Claude tool finding no `.agents/skills`. Grade it by: (1) the live check
+again on the current CLI (script and instance below): a Sonnet parent in
+acceptEdits and a settings-model parent in auto with `--effort low`; read
+each thread's `message.model` from the stream-json `assistant` lines grouped
+by `parent_tool_use_id`, and `effort.level` and `agent_type` from the hook
+events; (2) the instances: on 2026-10-01 ffbapp and green-ledger were at
+1.8.2 with neither the R3 nor the R4 hand step. Ask RQ once whether it has
+been applied and whether a wave has run. If one has, read its
+review-party.md front matter, its evaluation records' headers, and its
+transcript for every Agent call's `subagent_type` and `model`: that is the
+first grade any of R1 to R4 gets from a real wave; (3) validation: exit 0 on
+main, exit 7 naming the file in a scratch instance with one definition's
+`model:` edited; (4) the listing: say how you checked that `when_to_use`
+reaches it (R4 saw its own session's listing reload with "description -
+when_to_use"); (5) your own session: replay your Bash, Write and Edit calls
+through the gate (replay_session.py, below) and count refusals against R4's
+0 of 77. Pair C of the build list is the first grader of "dispatch by name
+is prose"; cite its result in the grade if R5b lands in this session. Write
+the grade into the R5 CHANGELOG entry and the PR body.
+
+Standing rules, all from the fork's own record:
+- Work only where R5's list reaches: skills/bmad-dev-wave/scripts/
+  (select_reviewers.py, reviewer-triggers.yaml, tests, fixtures),
+  skills/bmad-dev-wave/evals/, .github/workflows/, .gitignore and
+  templates/.gitignore.template for a local fixture directory, and the
+  CHANGELOG. That list is the grant for what sits outside the plan's three
+  seams. Never _bmad/scripts/, never agents/, never an upstream-declared
+  skill body, and never .claude/skills/bmad-eval-runner/, which is
+  upstream's: read it, do not edit it.
+- ffbapp is read-only, always. The builder runs `git show`, `git diff` and
+  `git log` there and nothing else.
+- Every change ships a predicted impact with at-risk regressions, in the
+  CHANGELOG [Unreleased] entry and the PR body. R5 is the last do-now item,
+  so say who grades it: the next session that touches the fork.
+- Bump `metadata.version` of every skill you change. Mirror skills/ into
+  .claude/skills/ (diff -rq -x __pycache__ per skill must be empty); run the
+  unit tests in both trees (baseline: 231 in bmad-dev-wave, 12 in
+  bmad-close-epic, about 61 s a tree) and `./install.sh --validate-only
+  --skip-mcp-check` before every commit. Stage files by name, never git add
+  -A, and re-check the staged list against the commit message. The gitleaks
+  pre-commit hook runs; never bypass it. It refuses a fresh scratch
+  instance's first commit; a scratch instance does not need one.
+- Prose is ASCII with " -- " dashes. No em dashes anywhere.
+- Do not add a stage, do not add a domain persona, do not build anything
+  that edits the harness on its own. R5 adds no hook and no gate rule.
+- Scripts are stdlib only. PyYAML is install.sh's dependency, not a wave
+  script's.
+- Git: `git fetch`/`git push` failing with "signing failed ... communication
+  with agent failed" means 1Password is locked; ask RQ to unlock and retry.
+  The review docs under docs/reviews/ are untracked; never stage them.
+- RQ merges and tags by hand unless RQ says otherwise in the session. Halt
+  after the PR is open and report: what changed, the prediction, R4's grade,
+  the first outcome numbers, and the open list below.
+
+R5. Seed the eval suite from what already exists, then run it in CI
+(skills/bmad-dev-wave/scripts/ and evals/; .github/workflows/; CHANGELOG).
+Build, in the review's order:
+(a) The replay, per (i) and (j). A test that runs `select_reviewers.py
+    select` over each wave of the fixture and compares role ids, the
+    fallback flag and the mean against the golden. Prove it against E1's own
+    outputs first (selector/<ID>.json, below): at today's table it must
+    reproduce 74 selections over 18 waves, mean 4.11, bmm-dev on 17, the
+    cost row on 0, the fallback on 3A, 3D and 6A. Then the fixes, one at a
+    time, each showing the cells it moved. The fixture is the 18 waves the
+    table was tuned on: it catches regressions, not generalization, and the
+    entry says so.
+(b) The three balanced pairs, per (k), entered at the step under test with
+    checkpoint fixtures, never from step 1. A, the evaluator gate at step 8
+    (A1a wrote "step 7" before R3 renumbered): a wave with a planted
+    stubbed acceptance test against the same wave without it; should-fire
+    ends with a hook-written `evaluation-1.md` saying NEEDS_WORK, status
+    `in-progress`, no review-party.md and no `gh pr create` in the stub's
+    log; should-not ends PASS and `in-review`. B, the open-questions gate at
+    step 4.5: an open question tagged to the wave's story against none;
+    should-fire leaves `step-4.5.pending` and no Agent dispatch of
+    keelswell-wave-coder; should-not reaches `ready-for-dev`. C, reviewer
+    dispatch at step 10: a diff that fires a specialist row against one that
+    fires only the generalist; the Agent calls' `subagent_type` is
+    keelswell-wave-reviewer with no `model` parameter, and the personas
+    named in their prompts and recorded in review-party.md equal the
+    selector's `selected`, or the fallback. k=3 per task, 18 trials,
+    reported as pass^3 per task. A fresh copy of the fixture per trial,
+    fresh `.git` included. Record cost and wall time per trial from the
+    result line: it is the fork's first per-step cost figure.
+(c) The workflow, per (m).
+At risk, to carry into your entry and add to. The replay is scored on its
+training set. A golden reduced to role ids cannot show why a row fired. With
+the fixture out of the fork the replay is a local habit, not a gate. Fixing
+tea-murat's glob retires the fallback on 3D. New cost vocabulary can
+overfit to ffbapp a second time. An eval's prompt is the builder's: a task
+that tells the session what to do at the step under test measures
+obedience to the prompt, not the skill. Pair B's memory fixture depends on
+the auto-memory path, which is named from the instance's absolute path. A
+trial under the machine's own login reads the user's settings and MCP
+servers unless `--setting-sources` keeps them out. Auto mode pauses after 3
+consecutive or 20 total classifier blocks. A workflow that installs Node
+and PyYAML on every push is slow for a suite that takes two minutes. A
+required check on a repo whose owner merges by hand can block the owner.
+Verify: for (a), the golden reproduces E1's numbers before any fix, and a
+deliberately broken row (one glob deleted) fails the test by wave and role.
+For (b), every task's reference end state passes its grader with no model
+call, every grader fails on the opposite task's reference end state, and
+then the 18 trials run; read every failing transcript and two passing ones
+before writing a number down. For (c), the workflow passes on the pull
+request, and a scratch branch with skills/ and .claude/skills/ out of step
+fails it by name. If `claude -p` cannot authenticate, land what runs
+without a model and hand RQ the trials as exact commands.
+
+The open list, for your last message, each named and none built: the sixth
+do-now item (f); the `dispatch` gap (g); E1's selector findings 4 to 7; the
+review's "Later" items R6 to R10; the instance hand step for R3 and R4 if
+(2) finds it still outstanding; and what was left as found on 2026-10-01
+(`Task` in dev-wave's `allowed-tools`, "extra" in bmad-wrap's description,
+the `fork:` block of core/config.yaml, the `.agents/skills` mentions in
+docs/harness-conversion-plan.md and `.gitleaks.toml`). The do-now list ends
+with R5; write no further kickoff unless RQ asks for one.
+
+Paths from R4's, R3's and the review's sessions (a scratchpad persists for
+days, not forever). If E1's directory is gone, rebuild the fixture from
+Appendix F section 1.1: per wave, `git diff --name-only <merge>^1 <merge>`
+and `git show <merge>:docs/wave-<id>/test-design.md` in the ffbapp checkout,
+the merge found by `git log --merges --grep "Merge pull request #<n>\b"`.
+If R4's instance is gone, `./install.sh --use-defaults --yes --user-name RQ
+--target-project <dir> --skip-mcp-check` builds another. Usage: `bash
+live-check-r4.sh <run-name> <acceptEdits|auto> [claude flags]`, then
+`python3 report-r4.py <run-name>`; `python3 replay_session.py
+<transcript.jsonl> <fork root>`.
+  E1:         /private/tmp/claude-501/-Users-ryanquigley-Projects-personal-keelswell/27d71e3a-ea91-4b21-8c3d-e559c67ee01d/scratchpad/jev/e1
+              (build_fixture.sh, fixture/<ID>/, selector/<ID>.json, probes/, compare.py)
+  instance:   /private/tmp/claude-501/-Users-ryanquigley-Projects-personal-keelswell/fe03d5d2-5442-4e76-993b-bb4bcadf8ab1/scratchpad/r4-live/keelswell-r4-scratch
+  live check: /private/tmp/claude-501/-Users-ryanquigley-Projects-personal-keelswell/fe03d5d2-5442-4e76-993b-bb4bcadf8ab1/scratchpad/r4-live/live-check-r4.sh
+  report:     /private/tmp/claude-501/-Users-ryanquigley-Projects-personal-keelswell/fe03d5d2-5442-4e76-993b-bb4bcadf8ab1/scratchpad/r4-live/report-r4.py
+  logger:     /private/tmp/claude-501/-Users-ryanquigley-Projects-personal-keelswell/fe03d5d2-5442-4e76-993b-bb4bcadf8ab1/scratchpad/r4-live/log-hook.sh
+  R3 kit:     /private/tmp/claude-501/-Users-ryanquigley-Projects-personal-keelswell/1fd03231-8d37-4f23-9bc1-cf827c93a385/scratchpad/r3-live
+  replay:     /private/tmp/claude-501/-Users-ryanquigley-Projects-personal-keelswell/b0fc3f65-f667-4532-a7e2-55495a0d0723/scratchpad/replay_session.py
+```
+
 ## Standing item: after every upstream pull
 
 Opus 5, effort `medium`. Event-triggered, not scheduled. Runs at step
