@@ -19,7 +19,7 @@ allowed-tools:
   - Bash
   - Task
 metadata:
-  version: 1.10.0
+  version: 1.11.0
   output-locations:
     - ../<project>-wave-<id>/                 # sibling worktree, branch wave-<id>-<suffix>
     - .bmad/wave-<id>/checkpoint.json         # plus step-N.done markers (main repo)
@@ -667,6 +667,15 @@ there is nothing to block.
   names. Do not retry the same write through a different tool.
 
 ## Version history
+- 1.11.0 (2026-10-02, R5 of docs/reviews/harness-engineering-review-v1.md):
+  the reviewer-selection replay is committed. `scripts/tests/replay_fixture.py`
+  builds a fixture of the eighteen waves the trigger table was tuned on from
+  a local checkout of the instance,
+  `scripts/tests/fixtures/replay-golden.json` records what the selector
+  returns for each (role ids, the fallback, file counts), and
+  `test_replay.py` compares the two by wave and role. The fixture is a
+  private instance's and is not committed, so the replay skips where it is
+  absent. No step changed.
 - 1.10.0 (2026-10-01, R4 of docs/reviews/harness-engineering-review-v1.md):
   steps 6 and 10 dispatch by name. Coding subagents run as
   `keelswell-wave-coder` and reviewers, persona or fallback, as
