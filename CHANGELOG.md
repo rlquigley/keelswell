@@ -3,6 +3,164 @@ All notable changes to Keelswell. Format: Keep a Changelog; versioning: semver.
 
 ## [Unreleased] - 2026-09-12
 ### Added
+- The reviewer-selection replay is committed, three table defects it surfaced
+  are fixed, and a CI workflow runs the tests (R5a of
+  docs/reviews/harness-engineering-review-v1.md, 2026-10-02). bmad-dev-wave
+  1.10.0 -> 1.11.0. R5 ships as two pull requests; this is the first, and the
+  three eval pairs are the second (R5b). The review found zero evals, zero
+  CI, and a trigger table tuned on eighteen waves with nothing committed to
+  re-run. Three parts, in the review's order.
+  (1) The replay. `scripts/tests/replay_fixture.py build --repo <instance>`
+  writes the fixture from a local checkout of the instance, using `git log`,
+  `git diff` and `git show` and nothing else: per wave, the changed-file list
+  of its merge and its test design at that merge.
+  `scripts/tests/fixtures/replay-golden.json` records what
+  `select_reviewers.py select` returns for each wave: the role ids, whether
+  the fallback fired, the file counts, and the mean beside them.
+  `test_replay.py` compares the two and reports every difference by wave and
+  role; a fixture that no longer matches the golden's counts is reported as a
+  stale fixture, not as a table change. `replay_fixture.py golden --write`
+  replaces the golden, for a human who has read the difference.
+  (2) The table. The golden was committed at the table as it stood, then each
+  fix moved it in its own commit:
+
+  | Change | Selections | Mean | Fallback on | Cells moved |
+  |---|---|---|---|---|
+  | The table on main | 74 | 4.11 | 3A, 3D, 6A | -- |
+  | Planning artifacts are seen | 75 | 4.17 | 3A, 3D, 6A | 1C gains `bmm-pm` |
+  | `tea-murat` reaches `tests/*/support/` | 77 | 4.28 | 3A, 6A | 3B and 3D gain `tea-murat`; 3D loses the fallback |
+  | Cost row: "compute cap", "machine hours" | 78 | 4.33 | 3A, 6A | 1C gains `arch-cost-optimizer` |
+
+  `IGNORED_PATHS` dropped all of `_bmad-output/`, where an instance keeps its
+  PRD, epics and architecture spine, so `bmm-pm` (no spec phrases) could never
+  fire in an instance and neither could the path half of `bmm-architect`.
+  `_bmad-output/planning-artifacts/` is carved back out; the wave map there
+  (`waves.md`, changed by 10 of the 18 waves) and the rest of `_bmad-output/`
+  stay bookkeeping. `tea-murat` gains `**/tests/*/support/**`. 3D is one of
+  the two waves the fallback was built from, and it no longer gets the
+  fallback: `tea-murat` is now its only specialist and one specialist retires
+  the fallback. That is the table's existing rule, not a judgment that 3D's
+  mutation sweep was unnecessary, and nothing replaces the sweep there. The
+  cost row fired on 0 of 18 waves and three are about cost (1C, 4B, 5C). It
+  now fires on 1C. **4B and 5C stay missed.** Every candidate that reaches
+  them was counted over all eighteen specs with the selector's own matcher
+  and refused: "cost record" fires on 4B and also on 5A and 5B, where it is
+  the provenance line every compute wave carries; "dollars" reaches 4B as a
+  field name and any priced product says it; "ledger" is a billing word in
+  another project; bare "cost" fires on 8 of 18. 5C's cost defect was a
+  constant in the diff, and its spec names cost only in the amendment written
+  after the review found it, which a step-10 selector would not have seen.
+  The Phase 6.3 entry below carries a dated correction of its two figures
+  (4.2 and "exactly two").
+  (3) The workflow, `.github/workflows/ci.yml`, on `pull_request` and on push
+  to main, with no secret and no model call: `diff -rq -x __pycache__`
+  between `skills/<name>` and `.claude/skills/<name>` for every directory
+  under `skills/` (46), failing by name; the unit tests of bmad-dev-wave and
+  bmad-close-epic in both trees; `./install.sh --validate-only
+  --skip-mcp-check` on Node 22 and Python 3.12 with PyYAML; and, on a pull
+  request, a `skills/*/SKILL.md` whose `metadata.version` changed needs
+  `CHANGELOG.md` in the same pull request. `.github/workflows/` is outside
+  the plan's three seams; the R5 kickoff's build list is the grant. Both
+  `.gitignore` files name `.replay-fixture/`.
+  **Rulings by RQ, 2026-10-02.** (i) Nothing of the instance's text or paths
+  is committed: this fork is public and the instance is private. The builder
+  and the golden are committed, the fixture is rebuilt locally into a
+  git-ignored directory, and the replay test skips with the reason where it
+  is absent. (j) All the table defects are fixed, one at a time, golden
+  first. (k) The eval pairs run under a small stdlib harness with no
+  container (R5b). (l) Two pull requests. (m) One workflow, the four checks
+  above; making it a required check is a branch protection setting and RQ's
+  hand step.
+  **What was measured, 2026-10-02.** E1's own directory had been pruned (its
+  `selector/`, its file lists and its builder were gone), so the fixture was
+  rebuilt from the instance and the proof target is Appendix F's per-wave
+  record: at the table on main the selector reproduced it wave for wave (74
+  selections, mean 4.11, `bmm-dev` on 17, cost on 0, fallback on 3A, 3D,
+  6A). A deliberately broken row -- `tea-murat`'s `**/fixtures/**` deleted --
+  failed the replay naming 2B, 2C, 3C, 3E and 4A losing `tea-murat` and 3C
+  and 4A gaining the fallback. Deleting `arch-data-architect`'s
+  `**/migrations/**` did not fail it: another pattern of the same row fires
+  on every wave that one did. Measured over the whole table: of 504 pattern
+  lines, deleting any one moves a golden cell for 18 and is invisible for
+  486. 246 tests in bmad-dev-wave (231 before) and 12 in bmad-close-epic,
+  both trees; one of them skips without the fixture. `--validate-only`
+  exits 0.
+  **Prediction, to be checked by the next session that touches the fork.**
+  On this machine, any change to the table or the selector that starts or
+  stops a row on one of the eighteen waves fails `test_replay.py` naming the
+  wave and the role, before it is committed. On every pull request and every
+  push to main the workflow runs; a pull request that leaves `skills/` and
+  `.claude/skills/` out of step fails naming the skill, and one that changes
+  a skill's `metadata.version` without `CHANGELOG.md` fails. In an instance
+  that carries dev-wave 1.11.0: a wave that changes the PRD or the epics
+  under `_bmad-output/planning-artifacts/` gets `bmm-pm`, one that changes
+  the spine there gets `bmm-architect`, one that changes `tests/<x>/support/`
+  gets `tea-murat`, and one whose test design says "compute cap" or "machine
+  hours" twice gets the cost reviewer. The mean on the eighteen is 4.33; the
+  next change that moves it says which cells. Nothing changes in a live
+  instance until 1.11.0 is copied in.
+  **At risk.** (1) The replay is scored on its training set: the eighteen
+  waves are the ones the table was tuned on, so it catches regressions, not
+  generalization. (2) A golden reduced to role ids cannot show why a row
+  fired, and it sees little: 486 of 504 single-pattern deletions leave it
+  unchanged. (3) With the fixture out of the fork the replay is a local
+  habit, not a gate. CI skips it, and a table change made on a machine
+  without the instance passes CI unchecked. (4) `golden --write` accepts any
+  difference in one command; reading the difference first is prose. (5) 3D
+  loses the fallback, and its record shows the fallback's method is what
+  reviewed it. (6) The mean rose from 4.11 to 4.33, and the plan reads a rise
+  as triggers too loose; here each of the four added cells is named above.
+  (7) Two cost phrases from one wave's spec can overfit a second time, and
+  the row still misses two of the three cost waves. (8) Un-ignoring planning
+  artifacts opens them to every row's globs, not only the two rows intended;
+  an instance whose waves routinely amend `epics.md` gets `bmm-pm` on each.
+  (9) The builder puts eighteen wave ids and pull request numbers of a
+  private repository in a public file. (10) The workflow installs Node and
+  PyYAML on every run for a suite that takes about two minutes. (11) A
+  required check on a repository whose owner merges by hand can block the
+  owner; it is not required until RQ sets it. (12) The version check reads
+  `metadata.version` by pattern at two spaces of indent; a SKILL.md written
+  another way is not seen. (13) The unit tests had only ever run on macOS
+  before the workflow's first run.
+  **Named, not built.** E1's selector findings 4 to 7: the table and its own
+  docstring disagree about whether 4A should pull the ML reviewer; 6A, a
+  pre-registered evaluation gate, selects only `bmm-dev`; `pyproject.toml`
+  stands in for a dependency change on the appsec row and the governor row
+  misses lint and boundary rules kept there; `custom-growth` cannot see a
+  tier presentation. `docs/harness-conversion-plan.md` line 488 still says
+  "exactly two"; it is outside R5's grant.
+  **R4's prediction, graded.** Holds where it could be checked, with one
+  miss and one part ungraded. (1) R4's live check again, CLI 2.1.287, in R4's
+  instance. Sonnet parent, acceptEdits: the main thread's messages came from
+  claude-sonnet-5-5, the coder's from claude-sonnet-5-5 and the reviewer's
+  from claude-opus-5-5, neither Agent call carried a `model` parameter,
+  `agent_type` on the hook events was the definition's name and
+  `effort.level` high on every event, the main thread's included; $0.49. No
+  `--model`, auto, `--effort low`: the session started on claude-opus-5-5 at
+  effort low, the coder ran on claude-sonnet-5-5 and the reviewer on
+  claude-opus-5-5, both at effort high on PreToolUse, on both
+  SubagentHandback events and on SubagentStop; $0.61. The reviewer loaded
+  `agent-appsec` and named its persona in both, with no prompt and no denial.
+  (2) The instances: ffbapp and green-ledger are still at dev-wave 1.8.2 with
+  the evaluator's definition only. The hand step for R3 and R4 is not
+  applied, no wave has run under either, and no review record has been
+  written, so "every review record written from here on" is ungraded and R1
+  to R4 still have no grade from a real wave. (3) Validation: exit 0 on main
+  and in a copy of R4's instance; exit 7 with the reviewer's `model:` edited
+  to `opus`, naming the file and what it declares. (4) The listing: a miss.
+  In the session that built this, five of the seven wave skills list as
+  "description - when_to_use"; bmad-resume-wave and bmad-status-wave list by
+  name only, as do about 50 other project skills. The docs: "if you have
+  many skills, Claude Code drops some descriptions to fit the listing's
+  character budget". `when_to_use` reaches the listing only while the budget
+  allows. (5) This session's own
+  Bash, Write and Edit calls replayed through the gate: 0 refused of 76 at
+  the time of writing (R4: 0 of 77). Of R4's at-risk list: (4) held again,
+  once per mode; (1) and (2), the `model` parameter and dispatch by name
+  being prose, wait for R5b's reviewer-dispatch pair. New, for R5b:
+  `--setting-sources project,local` did not keep the account's claude.ai
+  connectors out of the trial -- the coder's report listed six that need
+  authorization.
 - The configuration that configured nothing is deleted, and a subagent's
   model and effort bind where Claude Code reads them: its definition's
   frontmatter (R4 of docs/reviews/harness-engineering-review-v1.md,
@@ -551,6 +709,12 @@ All notable changes to Keelswell. Format: Keep a Changelog; versioning: semver.
   only his row needs it. Mean dispatches per wave 3.2 -> 4.2 with the fallback
   still firing on exactly two. 41 tests for this script, 142 across the wave
   scripts.
+  **Corrected 2026-10-02 (R5).** Two figures in the sentence above do not
+  reproduce. The E1 replay of 2026-09-27 and the replay now committed both
+  measure a mean of 4.11, not 4.2 (74 selections over 18 waves), and the
+  fallback on three waves, not two: 3A, 3D and 6A, whose only selection is
+  `bmm-dev`. The 3.2 and the 17 of 18 reproduce. The fixture behind the
+  original figures was not kept, which is what R5's replay is for.
 - The trigger table becomes the whole roster, and gains a fallback (Phase 6.3
   second pass, 2026-09-14): bmad-dev-wave 1.6.0 -> 1.7.0. A sweep of all 38
   seats in `config/agent-names.yaml` against the four ffbapp waves that
