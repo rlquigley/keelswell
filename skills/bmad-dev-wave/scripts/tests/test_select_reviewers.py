@@ -165,6 +165,20 @@ class FixedThreeLoseTheirExemption(unittest.TestCase):
         _, result = run([".github/workflows/deploy.yml", "ops/Dockerfile"])
         self.assertIn("arch-platform-engineer", roles(result))
 
+    def test_fixed_three_a_compute_cap_dispatches_the_cost_reviewer(self):
+        # The cost row fired on none of eighteen waves; one of them built a
+        # spend ceiling and called it a compute cap, in machine hours.
+        spec = ("The launcher refuses a run past the compute cap. The compute "
+                "cap is held in configuration.\n")
+        _, result = run(["src/platform/launcher.py"], spec=spec)
+        self.assertIn("arch-cost-optimizer", roles(result))
+
+    def test_fixed_three_a_provenance_cost_record_is_not_cost_work(self):
+        spec = ("Every run writes a manifest with a cost record. The cost "
+                "record is non-zero where the run spent something.\n")
+        _, result = run(["src/platform/launcher.py"], spec=spec)
+        self.assertNotIn("arch-cost-optimizer", roles(result))
+
 
 class SpecPrecision(unittest.TestCase):
     """Each test is a real ffbapp wave the naive matcher got wrong."""

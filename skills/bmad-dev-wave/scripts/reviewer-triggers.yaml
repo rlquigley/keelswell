@@ -942,6 +942,18 @@ reviewers:
       - "cost ceiling"
       - "spend cap"
       - "compute hours"
+      # R5, 2026-10-02. This row fired on none of ffbapp's eighteen waves, and
+      # three of them are about cost (1C, 4B, 5C). 1C says "compute cap" and
+      # "machine hours" where the row listed "spend cap" and "compute hours";
+      # those two are added and fire on 1C alone. Tried against all eighteen
+      # and NOT added: "cost record" (4B, but also 5A and 5B, where it is the
+      # provenance line every compute wave carries), "dollars" (4B, as a field
+      # name, and any priced product says it), "ledger" (a billing word
+      # elsewhere), bare "cost" (8 of 18). 4B and 5C stay missed: 4B's cost
+      # work is written in identifiers, and 5C's was a constant in the diff
+      # that its spec named only after the review found it.
+      - "compute cap"
+      - "machine hours"
       - "cost per"
       - "egress"
       - "reserved instance"
