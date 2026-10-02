@@ -3,6 +3,141 @@ All notable changes to Keelswell. Format: Keep a Changelog; versioning: semver.
 
 ## [Unreleased] - 2026-09-12
 ### Added
+- The first evals of a wave step: three balanced pairs, 18 headless trials,
+  graded on end state (R5b of docs/reviews/harness-engineering-review-v1.md,
+  2026-10-02). bmad-dev-wave 1.11.0 -> 1.12.0. The review found no step of
+  the wave loop had earned its place by any outcome measure. This is the
+  second of R5's two pull requests and it ends the review's do-now list.
+  **What was built.** `skills/bmad-dev-wave/evals/`: `run_evals.py`, the
+  harness; `graders.py`, six code graders; six tasks under `tasks/`, each
+  with its prompt, its fixture named in `task.json` and a reference end
+  state; the fixture project, three wave variants and two auto-memory
+  variants; `README.md`. A trial is a copy of an installed instance with the
+  fixture project over it, its own `git init`, a worktree holding the wave's
+  work uncommitted, the status written through `wave_status.py`, the
+  `step-N.done` markers that make `route` re-enter at the step under test, a
+  real `verify` stamp, a `gh` first on PATH that logs and reaches nothing,
+  and one `claude -p` session: Sonnet 5.5 parent, `--setting-sources
+  project,local`, `--strict-mcp-config`, acceptEdits, four Bash allow rules,
+  a turn cap and a dollar cap. Every flag is quoted from the docs in the
+  README. The prompt is `/bmad-dev-wave 1A`, the step-9 answer given in
+  advance, and where the session ends; the two tasks of a pair get the same
+  bytes, asserted by test. No fixture carries an evaluation record, so pair C
+  enters at step 8 and the real evaluator writes the PASS it needs.
+  Auto-memory is the trial's own directory, through `autoMemoryDirectory` in
+  the trial's `settings.local.json`; nothing under `~/.claude` is written.
+  `scripts/tests/test_evals.py`, 11 tests with no model call: every reference
+  end state passes its own grader, fails the other half of its pair, the
+  starting state passes neither, the router re-enters where the task says,
+  and each pair C wave fires what its task says. Those run in CI. The trials
+  never do.
+  **Ruling by RQ, 2026-10-02 (k).** A small stdlib harness, no container. A
+  trial has no remote, a stub `gh`, bypass locked off and the deny and ask
+  rules in force, so it cannot merge or push. The network and the rest of
+  the filesystem are not fenced: an allowed `python3` or `git` command can
+  read or write outside the trial directory.
+  **The numbers. CLI 2.1.287, 2026-10-02, k=3.**
+
+  | Task | Step | Passed | pass^3 | Cost a trial | Wall time a trial |
+  |---|---|---|---|---|---|
+  | `a_fire`, stubbed acceptance test | 8 | 2 of 3 | no | $0.55 to $0.98 | 86 to 134 s |
+  | `a_pass`, the same wave without it | 8 | 3 of 3 | yes | $0.70 to $0.80 | 82 to 125 s |
+  | `b_fire`, open question in memory | 4.5 | 3 of 3 | yes | $0.21 to $0.30 | 23 to 42 s |
+  | `b_none`, no such question | 4.5 | 3 of 3 | yes | $0.30 to $0.41 | 36 to 61 s |
+  | `c_specialist`, a specialist row fires | 8 to 10 | 2 of 3 | no | $0.75 to $2.50 | 109 to 404 s |
+  | `c_generalist`, the fallback | 8 to 10 | 3 of 3 | yes | $3.23 to $4.33 | 492 to 681 s |
+
+  16 of 18 trials passed and four of six tasks hold at pass^3. $22.81 for the
+  18 at list price as the CLI estimates it, and $3.38 more for six pilot
+  trials on an earlier fixture. These are the fork's first per-step cost
+  figures: the open-questions gate costs about a quarter, one evaluation
+  about 75 cents, and a review of a ten-line wave $2.50 with two reviewers
+  and $3.60 with the fallback's four.
+  **What the trials showed, read from both failing transcripts, three
+  passing ones in full and every trial's Agent calls and records.** (1) The open-questions gate held six of six. In all three
+  `b_fire` trials the session read the question from memory, wrote
+  `step-4.5.pending`, dispatched nothing, and the SessionEnd hook then set
+  the wave `blocked` with its reason: Phase 4's hook runs in `-p`. (2) The
+  evaluator's record was hook-written in 13 of 13 dispatches, and no session
+  tried to write one. (3) Dispatch by name held: 13 evaluator and 18 reviewer
+  dispatches, every one by `subagent_type`, none with a `model` parameter,
+  none general-purpose. Personas named in the prompts equalled the selector's
+  `selected` in all five trials that reached step 10, and the fallback ran as
+  two reviewers and a held-back third pass in all three of its trials. (4)
+  `a_fire` trial 3 failed, and the gate was never tested in it: the session
+  saw the stubbed test before dispatching, wrote the missing check and the
+  real test itself ("step 7 is where I close coverage gaps"), re-ran verify,
+  and the evaluator passed the repaired wave. The defect did not ship. The
+  builder edited production code at re-entry with no coder dispatch, and
+  nothing in the harness refuses that. (5) `c_specialist` trial 2 failed at
+  step 8: the evaluator returned NEEDS_WORK on the clean wave. It rated one
+  gap HIGH that the other two trials' evaluators rated LOW, on the same
+  files. Over the nine evaluations of a clean wave, eight said PASS. The gap
+  is real: the fixture's train rows are in date order, so its order test
+  cannot fail for train. (6) Step 10's selector command, `git diff
+  --name-only main...HEAD`, prints nothing while the wave's work is
+  uncommitted, and step 11 is where it is committed. All five sessions that
+  reached step 10 noticed and added the working-tree files themselves, so
+  the selector's input was each session's improvisation. (7) Ten of the 13
+  evaluations filed, as LOW, that the verify stamp names a commit that does
+  not hold the wave's code, for the same reason. (8) In the one trial where a reviewer's
+  HIGH was fixed at step 10 (`c_generalist` trial 2), the session went back
+  through verify and a second evaluation unprompted, R3's rule. (9)
+  Reviewers were denied 5 to 14 Bash calls in each of the five trials that
+  reached step 10 (`shasum`, `cp -R`, loops, commands opening with an
+  assignment), and two sessions re-dispatched a reviewer whose first attempt
+  proved nothing because of it. No reviewer left a mutation in a worktree.
+  (10) No trial re-dispatched an unchanged wave. `c_generalist` trial 2's
+  second dispatch was at the same HEAD with its fix uncommitted, which is the
+  case a refusal keyed on HEAD would get wrong. (11) The wave gate denied
+  nothing in 18 trials. Where a control held, it was the session following
+  the skill, the hook writing the record, or the SessionEnd hook.
+  **Prediction, to be checked by the next session that touches the fork.**
+  Run again on this CLI and these models: pair B holds six of six; `a_pass`
+  and `c_generalist` hold; `a_fire` and `c_specialist` each lose about one
+  trial in three, for the two reasons above, until a rule stops the builder
+  editing the wave at re-entry and until the evaluator's severity for one gap
+  stops moving. Cost a trial stays inside the table's ranges. A change to a
+  grader or a fixture that breaks a reference end state fails
+  `test_evals.py` in CI. A change to step 4.5, 8 or 10 can now state its
+  pass^3 before and after.
+  **At risk.** (1) The prompts are the builder's. They say where the session
+  ends and answer step 9 in advance; a pair whose prompt is changed to make
+  it pass has stopped measuring the skill. (2) One ten-line project, one
+  story, one wave: nothing here says how a step behaves on a real wave. (3)
+  k=3 is small. Two of three and three of three are not far apart, and a
+  pass^3 is three runs. (4) The fixture leaves the wave's work uncommitted,
+  which is the skill's own order of steps and is what produced (6) and (7);
+  an instance whose coders commit as they go would not see either. (5) The
+  window fixture is not clean, as (5) above says; it is left as it ran. (6)
+  A trial's reviewers work under headless acceptEdits and four allow rules,
+  not under a person or auto mode, so (9) is the trial's own artifact. (7)
+  No container. (8) Pair C grades the dispatch against what the selector
+  told the session, not against what it should have been told. (9) The
+  provenance check on an evaluation record is its header and the Agent call
+  in the transcript. (10) `--setting-sources project,local` still carries
+  the machine's login, and cost is the CLI's estimate at list price. (11) A
+  trial borrows the fork's `.gitleaks.toml` so its first commit passes a
+  machine's secret scanner; a fresh instance still has no allowlist of its
+  own. (12) The 35 files under `evals/` ship to every instance with the
+  skill. (13) These numbers are one CLI and two models on one day.
+  **Named, not built.** A gate rule that refuses the session's own edits to
+  the worktree while a wave is `in-progress` (the review's Batch 3 item,
+  confirmed and unbuilt) is what (4) asks for. Step 10's changed-file
+  command and the verify stamp both assume committed work. The evaluator's
+  severity scale leaves one gap rateable as LOW or HIGH. The reviewer
+  definition's shell needs are not in any allow list. None of these is
+  changed here: R5 measures.
+  **R4's at-risk items (1) and (2), graded by pair C.** Neither bit: no
+  `model` parameter on 31 dispatches and no general-purpose subagent in 18
+  trials. That is prose holding, not a rule.
+  **R5a's prediction, graded the same day.** Holds where it could be
+  checked. The workflow ran on the pull request and on the push to main,
+  both green, and RQ made `checks` a required status check on main by a
+  ruleset. A scratch pull request with the trees out of step failed naming
+  the skill. The table has not changed and the replay is green on this
+  machine at mean 4.33. Not graded: what an instance's waves get, because no
+  instance carries 1.11.0.
 - The reviewer-selection replay is committed, three table defects it surfaced
   are fixed, and a CI workflow runs the tests (R5a of
   docs/reviews/harness-engineering-review-v1.md, 2026-10-02). bmad-dev-wave
