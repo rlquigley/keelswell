@@ -680,7 +680,9 @@ there is nothing to block.
   `_bmad-output/planning-artifacts/`, where an instance keeps its PRD, epics
   and architecture spine, so `bmm-pm` and the path half of `bmm-architect`
   can fire there; the wave map and the rest of `_bmad-output/` stay
-  bookkeeping.
+  bookkeeping. (2) `tea-murat` reaches a test-support tree one level down
+  (`tests/unit/support/`). A wave whose only specialist he is no longer gets
+  the fallback, which is the table's existing rule applied to one more wave.
 - 1.10.0 (2026-10-01, R4 of docs/reviews/harness-engineering-review-v1.md):
   steps 6 and 10 dispatch by name. Coding subagents run as
   `keelswell-wave-coder` and reviewers, persona or fallback, as

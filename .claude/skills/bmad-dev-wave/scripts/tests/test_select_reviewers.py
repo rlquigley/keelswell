@@ -239,6 +239,16 @@ class PathPrecision(unittest.TestCase):
         self.assertEqual(1, result["changed_file_count"])
         self.assertIn("custom-ml", roles(result))
 
+    def test_a_test_support_tree_one_level_down_is_test_support(self):
+        # `**/tests/support/**` alone missed tests/unit/support/ on two waves.
+        for path in ("tests/support/worked_examples.py",
+                     "tests/unit/support/worked_examples.py",
+                     "services/api/tests/unit/support/builders.py"):
+            _, result = run([path])
+            self.assertIn("tea-murat", roles(result), path)
+        _, result = run(["src/support/tickets.py"])
+        self.assertNotIn("tea-murat", roles(result))
+
     def test_a_planning_artifact_is_not_bookkeeping(self):
         # `_bmad-output/**` hid the PRD, the epics and the spine, so bmm-pm
         # could never fire in an instance that keeps them there.

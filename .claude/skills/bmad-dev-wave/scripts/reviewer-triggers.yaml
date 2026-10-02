@@ -522,6 +522,13 @@ reviewers:
       - "**/fixtures/**"
       - "**/conftest.py"
       - "**/tests/support/**"
+      # A support tree one level down: ffbapp keeps its at tests/unit/support/,
+      # which the pattern above misses, so this row was absent from 3B and 3D
+      # (R5, 2026-10-02). On 3D it is the only specialist, so 3D no longer
+      # gets the fallback -- one of the two waves the fallback was built from.
+      # That is the table's own rule, a specialist retires the fallback, and
+      # not a judgment that 3D's mutation sweep was unnecessary.
+      - "**/tests/*/support/**"
       - "**/verify-*.sh"
       - "**/ci-*.yml"
       - "**/*.fixture.json"
