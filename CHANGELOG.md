@@ -91,7 +91,13 @@ All notable changes to Keelswell. Format: Keep a Changelog; versioning: semver.
   second dispatch was at the same HEAD with its fix uncommitted, which is the
   case a refusal keyed on HEAD would get wrong. (11) The wave gate denied
   nothing in 18 trials. Where a control held, it was the session following
-  the skill, the hook writing the record, or the SessionEnd hook.
+  the skill, the hook writing the record, or the SessionEnd hook. (12) Found
+  by the workflow's first run on this branch, not by a trial: an untracked
+  `__pycache__/` path fires `custom-performance` through its `**/*cache*`
+  glob. The machine that built this sets `PYTHONDONTWRITEBYTECODE`, so it
+  never showed locally; an installed instance ignores `__pycache__/`, so no
+  trial met it. The harness now excludes the directory in a bare trial. The
+  glob is left as it is and named here.
   **Prediction, to be checked by the next session that touches the fork.**
   Run again on this CLI and these models: pair B holds six of six; `a_pass`
   and `c_generalist` hold; `a_fire` and `c_specialist` each lose about one

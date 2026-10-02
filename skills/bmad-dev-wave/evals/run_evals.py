@@ -155,10 +155,13 @@ def scaffold(task, trial, template=None):
     _git(proj, "config", "user.name", "eval")
     _git(proj, "config", "commit.gpgsign", "false")
     # .bmad/ is the wave's state and is in no instance's history; the local
-    # settings file is per-trial. Neither may make the tree look dirty.
+    # settings file is per-trial. Neither may make the tree look dirty. An
+    # installed instance ignores __pycache__/ already; a bare trial has no
+    # .gitignore, and an untracked __pycache__ path fires the performance
+    # row's `**/*cache*` glob.
     (proj / ".git" / "info").mkdir(exist_ok=True)
     with open(proj / ".git" / "info" / "exclude", "a", encoding="utf-8") as f:
-        f.write(".bmad/\n.claude/settings.local.json\n")
+        f.write(".bmad/\n.claude/settings.local.json\n__pycache__/\n")
     _git(proj, "add", "-A")
     _git(proj, "commit", "-q", "-m", "fixture: the project on main")
     _git(proj, "worktree", "add", "-q", "-b", BRANCH, str(worktree))
