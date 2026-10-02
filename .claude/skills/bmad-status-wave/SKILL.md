@@ -111,3 +111,5 @@ enforcing it.
   cleaned up, so it agrees with the /bmad-dev-wave preflight that now
   refuses on it, and the check is labelled as enforced rather than advisory.
   Still read-only: this skill reports, the gate acts.
+
+<!-- scratch: deliberately out of step with skills/, to prove the CI mirror check. Never merge. -->
