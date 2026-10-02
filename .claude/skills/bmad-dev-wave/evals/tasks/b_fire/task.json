@@ -1,0 +1,24 @@
+{
+  "pair": "B",
+  "step": "4.5",
+  "enters_at": "4.5",
+  "summary": "Auto-memory holds an open question tagged to the wave's story. The gate leaves its pending marker and nothing is dispatched.",
+  "story": "subtract",
+  "wave": "planned",
+  "memory": "open-question",
+  "status": [
+    "draft"
+  ],
+  "markers": [
+    "1",
+    "2",
+    "3",
+    "4"
+  ],
+  "verify": false,
+  "max_turns": 40,
+  "max_budget_usd": 3,
+  "reference": {
+    "pending": "Story 1.1: should subtract refuse a result below zero or clamp it to 0?"
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "pair": "A",
+  "step": "8",
+  "enters_at": "8",
+  "summary": "The same wave without the defect. The evaluator returns PASS and the review stage opens.",
+  "story": "subtract",
+  "wave": "subtract-clean",
+  "memory": "no-question",
+  "status": [
+    "draft",
+    "ready-for-dev",
+    "in-progress"
+  ],
+  "markers": [
+    "1",
+    "2",
+    "3",
+    "4",
+    "4.5",
+    "5",
+    "6",
+    "7"
+  ],
+  "verify": true,
+  "max_turns": 40,
+  "max_budget_usd": 3,
+  "reference": {
+    "verdict": "PASS",
+    "status": [
+      "in-review"
+    ]
+  }
+}

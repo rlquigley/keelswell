@@ -1,0 +1,55 @@
+{
+  "pair": "C",
+  "step": "10",
+  "enters_at": "8",
+  "summary": "The wave's changes fire no specialist row. The fallback's two reviewers are dispatched with no persona, and recorded as the fallback.",
+  "story": "subtract",
+  "wave": "subtract-clean",
+  "memory": "no-question",
+  "status": [
+    "draft",
+    "ready-for-dev",
+    "in-progress"
+  ],
+  "markers": [
+    "1",
+    "2",
+    "3",
+    "4",
+    "4.5",
+    "5",
+    "6",
+    "7"
+  ],
+  "verify": true,
+  "max_turns": 80,
+  "max_budget_usd": 8,
+  "reference": {
+    "verdict": "PASS",
+    "status": [
+      "in-review"
+    ],
+    "selector": {
+      "selected": [
+        {
+          "role": "bmm-dev",
+          "skill": "bmad-agent-dev",
+          "generalist": true
+        }
+      ],
+      "fallback": {
+        "method": "the wave 3A pattern",
+        "reviewers": "2",
+        "source": "derived",
+        "brief": "Two concurrent reviewers with disjoint domains.",
+        "record_as": "fallback"
+      }
+    },
+    "reviewers": [
+      "Review wave 1A. Your persona skill is bmad-agent-dev; load it with the Skill tool.",
+      "Review wave 1A with no persona. Run a mutation sweep over the diff's production files.",
+      "Review wave 1A with no persona. Execute the wave's subject against real data outside the repo's tests."
+    ],
+    "review_record": "---\ntitle: \"Wave 1A party-mode adversarial review\"\nwave: 1A\ncreated: 2026-10-02\nmodel: claude-opus-5-5\neffort: high\n---\n\nReviewers: bmm-dev (bmad-agent-dev), and the fallback: the wave 3A pattern. No findings.\n"
+  }
+}

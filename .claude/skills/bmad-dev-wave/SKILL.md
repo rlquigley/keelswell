@@ -19,7 +19,7 @@ allowed-tools:
   - Bash
   - Task
 metadata:
-  version: 1.11.0
+  version: 1.12.0
   output-locations:
     - ../<project>-wave-<id>/                 # sibling worktree, branch wave-<id>-<suffix>
     - .bmad/wave-<id>/checkpoint.json         # plus step-N.done markers (main repo)
@@ -667,6 +667,15 @@ there is nothing to block.
   names. Do not retry the same write through a different tool.
 
 ## Version history
+- 1.12.0 (2026-10-02, R5 of docs/reviews/harness-engineering-review-v1.md,
+  second part): the skill gains `evals/`, three balanced pairs that enter the
+  wave at the step under test and grade what the session leaves on disk: the
+  evaluator gate (step 8), the open-questions gate (step 4.5) and the reviewer
+  dispatch (step 10). `evals/run_evals.py` runs one headless session per
+  trial and reports pass^3 with cost and time; `evals/README.md` says how and
+  what it does not contain. `scripts/tests/test_evals.py` checks every task's
+  reference end state against its grader with no model call. Measurement
+  only: no step, no hook and no gate rule changed.
 - 1.11.0 (2026-10-02, R5 of docs/reviews/harness-engineering-review-v1.md):
   the reviewer-selection replay is committed. `scripts/tests/replay_fixture.py`
   builds a fixture of the eighteen waves the trigger table was tuned on from

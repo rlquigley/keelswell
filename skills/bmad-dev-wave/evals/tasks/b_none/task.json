@@ -1,0 +1,26 @@
+{
+  "pair": "B",
+  "step": "4.5",
+  "enters_at": "4.5",
+  "summary": "Auto-memory holds no question tagged to the wave. It reaches ready-for-dev.",
+  "story": "subtract",
+  "wave": "planned",
+  "memory": "no-question",
+  "status": [
+    "draft"
+  ],
+  "markers": [
+    "1",
+    "2",
+    "3",
+    "4"
+  ],
+  "verify": false,
+  "max_turns": 40,
+  "max_budget_usd": 3,
+  "reference": {
+    "status": [
+      "ready-for-dev"
+    ]
+  }
+}
