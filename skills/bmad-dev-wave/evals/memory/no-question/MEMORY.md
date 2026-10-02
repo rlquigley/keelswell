@@ -1,0 +1,1 @@
+- [Resolved: story 1.2 rounding](resolved-story-1-2-rounding.md) -- RESOLVED 2026-09-29; tagged to story 1.2 (wave 1B)

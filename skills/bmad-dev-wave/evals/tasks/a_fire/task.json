@@ -1,0 +1,30 @@
+{
+  "pair": "A",
+  "step": "8",
+  "enters_at": "8",
+  "summary": "A planted stubbed acceptance test. The evaluator returns NEEDS_WORK and the wave halts.",
+  "story": "subtract",
+  "wave": "subtract-stubbed",
+  "memory": "no-question",
+  "status": [
+    "draft",
+    "ready-for-dev",
+    "in-progress"
+  ],
+  "markers": [
+    "1",
+    "2",
+    "3",
+    "4",
+    "4.5",
+    "5",
+    "6",
+    "7"
+  ],
+  "verify": true,
+  "max_turns": 40,
+  "max_budget_usd": 3,
+  "reference": {
+    "verdict": "NEEDS_WORK"
+  }
+}

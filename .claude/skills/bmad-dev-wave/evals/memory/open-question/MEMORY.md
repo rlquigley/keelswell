@@ -1,0 +1,1 @@
+- [Open question: story 1.1 below zero](open-question-story-1-1.md) -- OPEN, unresolved; tagged to story 1.1 (wave 1A); needs the founder's answer

@@ -1,0 +1,53 @@
+{
+  "pair": "C",
+  "step": "10",
+  "enters_at": "8",
+  "summary": "The wave's changes fire a specialist row. That reviewer is dispatched by name, with its persona, and recorded.",
+  "story": "window",
+  "wave": "window-clean",
+  "memory": "no-question",
+  "status": [
+    "draft",
+    "ready-for-dev",
+    "in-progress"
+  ],
+  "markers": [
+    "1",
+    "2",
+    "3",
+    "4",
+    "4.5",
+    "5",
+    "6",
+    "7"
+  ],
+  "verify": true,
+  "max_turns": 80,
+  "max_budget_usd": 8,
+  "reference": {
+    "verdict": "PASS",
+    "status": [
+      "in-review"
+    ],
+    "selector": {
+      "selected": [
+        {
+          "role": "custom-ml",
+          "skill": "agent-ml",
+          "generalist": false
+        },
+        {
+          "role": "bmm-dev",
+          "skill": "bmad-agent-dev",
+          "generalist": true
+        }
+      ],
+      "fallback": null
+    },
+    "reviewers": [
+      "Review wave 1A. Your persona skill is agent-ml; load it with the Skill tool.",
+      "Review wave 1A. Your persona skill is bmad-agent-dev; load it with the Skill tool."
+    ],
+    "review_record": "---\ntitle: \"Wave 1A party-mode adversarial review\"\nwave: 1A\ncreated: 2026-10-02\nmodel: claude-opus-5-5\neffort: high\n---\n\nReviewers: custom-ml (agent-ml), bmm-dev (bmad-agent-dev). No findings.\n"
+  }
+}
