@@ -675,7 +675,12 @@ there is nothing to block.
   returns for each (role ids, the fallback, file counts), and
   `test_replay.py` compares the two by wave and role. The fixture is a
   private instance's and is not committed, so the replay skips where it is
-  absent. No step changed.
+  absent. No step changed. Three table defects the replay surfaced are fixed,
+  each as its own change to the golden. (1) The selector no longer ignores
+  `_bmad-output/planning-artifacts/`, where an instance keeps its PRD, epics
+  and architecture spine, so `bmm-pm` and the path half of `bmm-architect`
+  can fire there; the wave map and the rest of `_bmad-output/` stay
+  bookkeeping.
 - 1.10.0 (2026-10-01, R4 of docs/reviews/harness-engineering-review-v1.md):
   steps 6 and 10 dispatch by name. Coding subagents run as
   `keelswell-wave-coder` and reviewers, persona or fallback, as

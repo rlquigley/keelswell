@@ -1,9 +1,9 @@
 {
-  "summary": {"waves": 18, "selections": 74, "mean": 4.11, "fallback": ["3A", "3D", "6A"]},
+  "summary": {"waves": 18, "selections": 75, "mean": 4.17, "fallback": ["3A", "3D", "6A"]},
   "waves": {
     "1A": {"files": 50, "ignored": 6, "specs": 1, "fallback": false, "selected": ["custom-appsec", "custom-accessibility", "custom-mobile", "custom-design-critic", "tea-murat", "arch-integration-architect", "bmm-tech-writer", "bmm-dev", "arch-platform-engineer"]},
     "1B": {"files": 42, "ignored": 7, "specs": 1, "fallback": false, "selected": ["custom-sre", "custom-appsec", "tea-murat", "arch-data-architect", "bmm-tech-writer", "bmm-dev", "arch-platform-engineer"]},
-    "1C": {"files": 45, "ignored": 5, "specs": 1, "fallback": false, "selected": ["custom-sre", "custom-appsec", "custom-billing", "custom-analytics", "tea-murat", "arch-data-architect", "bmm-dev"]},
+    "1C": {"files": 45, "ignored": 4, "specs": 1, "fallback": false, "selected": ["custom-sre", "custom-appsec", "custom-billing", "custom-analytics", "tea-murat", "arch-data-architect", "bmm-pm", "bmm-dev"]},
     "2A": {"files": 46, "ignored": 10, "specs": 1, "fallback": false, "selected": ["custom-sre", "custom-appsec", "arch-data-architect", "bmm-dev"]},
     "2B": {"files": 54, "ignored": 7, "specs": 1, "fallback": false, "selected": ["custom-sre", "custom-billing", "custom-analytics", "custom-llm", "tea-murat", "arch-data-architect", "bmm-tech-writer", "bmm-dev"]},
     "2C": {"files": 799, "ignored": 9, "specs": 1, "fallback": false, "selected": ["custom-appsec", "tea-murat", "arch-data-architect", "bmm-dev"]},
@@ -17,7 +17,7 @@
     "5A": {"files": 34, "ignored": 6, "specs": 1, "fallback": false, "selected": ["custom-ml", "custom-sre", "arch-data-architect", "bmm-dev"]},
     "5B": {"files": 29, "ignored": 4, "specs": 1, "fallback": false, "selected": ["custom-ml", "custom-sre", "arch-data-architect", "bmm-dev"]},
     "5C": {"files": 17, "ignored": 7, "specs": 1, "fallback": false, "selected": ["custom-sre", "bmm-dev"]},
-    "5D": {"files": 18, "ignored": 7, "specs": 1, "fallback": false, "selected": ["custom-billing", "custom-llm", "bmm-dev"]},
-    "6A": {"files": 16, "ignored": 5, "specs": 1, "fallback": true, "selected": ["bmm-dev"]}
+    "5D": {"files": 18, "ignored": 6, "specs": 1, "fallback": false, "selected": ["custom-billing", "custom-llm", "bmm-dev"]},
+    "6A": {"files": 16, "ignored": 4, "specs": 1, "fallback": true, "selected": ["bmm-dev"]}
   }
 }

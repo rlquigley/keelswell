@@ -119,6 +119,16 @@ IGNORED_PATHS = (
     "TODO.md",
 )
 
+# Carved back out of "_bmad-output/**". A BMAD instance keeps its PRD, its
+# epics and its architecture spine under _bmad-output/planning-artifacts/, so
+# ignoring the whole tree meant bmm-pm, which has no spec phrases, could never
+# fire in an instance, and neither could the path half of bmm-architect. Wave
+# 1C rewrote an acceptance criterion in epics.md and got no PM. The wave map
+# is the exception inside the exception: every wave amends it, and it is the
+# wave's own record.
+PLANNING_ARTIFACTS = "_bmad-output/planning-artifacts/**"
+WAVE_MAP = "_bmad-output/planning-artifacts/waves.md"
+
 # Rule 3. A hit whose sentence carries one of these before it is a statement
 # that the thing is absent, deferred, or out of scope.
 NEGATORS = (
@@ -406,6 +416,8 @@ def resolve(reviewers, fallback, changed_files, spec_text):
 
 def is_ignored(path):
     """True for bookkeeping the wave wrote about itself. See IGNORED_PATHS."""
+    if path_matches(PLANNING_ARTIFACTS, [path]):
+        return path == WAVE_MAP
     return any(path_matches(pattern, [path]) for pattern in IGNORED_PATHS)
 
 

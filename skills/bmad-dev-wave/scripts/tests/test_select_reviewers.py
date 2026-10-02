@@ -239,6 +239,21 @@ class PathPrecision(unittest.TestCase):
         self.assertEqual(1, result["changed_file_count"])
         self.assertIn("custom-ml", roles(result))
 
+    def test_a_planning_artifact_is_not_bookkeeping(self):
+        # `_bmad-output/**` hid the PRD, the epics and the spine, so bmm-pm
+        # could never fire in an instance that keeps them there.
+        _, result = run(["_bmad-output/planning-artifacts/epics.md",
+                         "_bmad-output/planning-artifacts/architecture/ARCHITECTURE-SPINE.md"])
+        self.assertEqual(0, result["ignored_file_count"])
+        self.assertLessEqual({"bmm-pm", "bmm-architect"}, roles(result))
+
+    def test_the_wave_map_and_the_rest_of_bmad_output_stay_bookkeeping(self):
+        _, result = run(["_bmad-output/planning-artifacts/waves.md",
+                         "_bmad-output/implementation-artifacts/2-3-a-story.md",
+                         "_bmad-output/project-context.md"])
+        self.assertEqual(3, result["ignored_file_count"])
+        self.assertEqual(set(), roles(result))
+
 
 class InertRows(unittest.TestCase):
     def test_the_three_inert_rows_never_appear_in_a_selection(self):
