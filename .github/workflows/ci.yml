@@ -1,0 +1,110 @@
+# Keelswell CI. R5 of docs/reviews/harness-engineering-review-v1.md.
+#
+# Four checks, no secret and no model call. The reviewer-selection replay is
+# not one of them: its fixture is a private instance's and is not committed,
+# so test_replay.py skips that test here and says why. The eval pairs never
+# run here either.
+#
+# This workflow reports; it gates nothing until it is made a required check
+# in the repository's branch protection, which is a setting and not a file.
+
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # the version check diffs against the base branch
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      # install.sh's dependency, not a wave script's: the scripts are stdlib only.
+      - name: Install PyYAML
+        run: python3 -m pip install --quiet pyyaml
+
+      - name: skills/ and .claude/skills/ are the same tree
+        run: |
+          bad=0
+          for dir in skills/*/; do
+            name=$(basename "$dir")
+            out=$(diff -rq -x __pycache__ "skills/$name" ".claude/skills/$name" 2>&1) || true
+            if [ -n "$out" ]; then
+              echo "::error::$name: skills/ and .claude/skills/ are out of step"
+              echo "$out"
+              bad=1
+            fi
+          done
+          exit $bad
+
+      - name: Unit tests, both trees
+        run: |
+          bad=0
+          for tree in skills .claude/skills; do
+            for skill in bmad-dev-wave bmad-close-epic; do
+              echo "== $tree/$skill"
+              python3 -m unittest discover -s "$tree/$skill/scripts/tests" || bad=1
+            done
+          done
+          exit $bad
+
+      - name: Harness invariants
+        run: ./install.sh --validate-only --skip-mcp-check
+
+      - name: A skill version bump needs a CHANGELOG line
+        if: github.event_name == 'pull_request'
+        env:
+          BASE: origin/${{ github.base_ref }}
+        run: |
+          python3 - <<'PY'
+          import os, re, subprocess, sys
+
+          base = os.environ["BASE"]
+
+          def git(*args):
+              return subprocess.run(["git", *args], capture_output=True, text=True)
+
+          def version(text):
+              """metadata.version in a SKILL.md's frontmatter, or None."""
+              front = re.match(r"\A---\n(.*?)\n---\n", text, re.S)
+              if not front:
+                  return None
+              meta = re.search(r"^metadata:\n((?:[ \t]+.*\n)*)", front.group(1) + "\n", re.M)
+              found = re.search(r"^  version:[ \t]*(\S+)", meta.group(1), re.M) if meta else None
+              return found.group(1) if found else None
+
+          changed = git("diff", "--name-only", f"{base}...HEAD").stdout.split()
+          start = git("merge-base", base, "HEAD").stdout.strip()
+          bumped = []
+          for path in changed:
+              if not re.fullmatch(r"skills/[^/]+/SKILL\.md", path) or not os.path.isfile(path):
+                  continue
+              before = git("show", f"{start}:{path}")
+              old = version(before.stdout) if before.returncode == 0 else None
+              new = version(open(path, encoding="utf-8").read())
+              if old != new:
+                  bumped.append(f"{path}: {old} -> {new}")
+          for line in bumped:
+              print(line)
+          if bumped and "CHANGELOG.md" not in changed:
+              print("::error::metadata.version changed and CHANGELOG.md did not. "
+                    "Every change ships its entry.")
+              sys.exit(1)
+          print("ok" if bumped else "no skill version changed")
+          PY
