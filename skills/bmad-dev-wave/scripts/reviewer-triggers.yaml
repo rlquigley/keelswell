@@ -522,6 +522,13 @@ reviewers:
       - "**/fixtures/**"
       - "**/conftest.py"
       - "**/tests/support/**"
+      # A support tree one level down: ffbapp keeps its at tests/unit/support/,
+      # which the pattern above misses, so this row was absent from 3B and 3D
+      # (R5, 2026-10-02). On 3D it is the only specialist, so 3D no longer
+      # gets the fallback -- one of the two waves the fallback was built from.
+      # That is the table's own rule, a specialist retires the fallback, and
+      # not a judgment that 3D's mutation sweep was unnecessary.
+      - "**/tests/*/support/**"
       - "**/verify-*.sh"
       - "**/ci-*.yml"
       - "**/*.fixture.json"
@@ -935,6 +942,18 @@ reviewers:
       - "cost ceiling"
       - "spend cap"
       - "compute hours"
+      # R5, 2026-10-02. This row fired on none of ffbapp's eighteen waves, and
+      # three of them are about cost (1C, 4B, 5C). 1C says "compute cap" and
+      # "machine hours" where the row listed "spend cap" and "compute hours";
+      # those two are added and fire on 1C alone. Tried against all eighteen
+      # and NOT added: "cost record" (4B, but also 5A and 5B, where it is the
+      # provenance line every compute wave carries), "dollars" (4B, as a field
+      # name, and any priced product says it), "ledger" (a billing word
+      # elsewhere), bare "cost" (8 of 18). 4B and 5C stay missed: 4B's cost
+      # work is written in identifiers, and 5C's was a constant in the diff
+      # that its spec named only after the review found it.
+      - "compute cap"
+      - "machine hours"
       - "cost per"
       - "egress"
       - "reserved instance"

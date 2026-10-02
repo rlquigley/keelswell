@@ -83,3 +83,7 @@ _bmad-output/distillator/
 _bmad/**/*.log
 _bmad/**/tmp/
 gitleaks-report.json
+
+# --- Reviewer-selection replay fixture: one private instance's paths and test
+# designs, rebuilt locally by replay_fixture.py, never committed ---
+.replay-fixture/

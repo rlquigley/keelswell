@@ -82,3 +82,7 @@ _bmad/keelswell/*
 _bmad-output/distillator/
 _bmad/**/*.log
 _bmad/**/tmp/
+
+# --- Reviewer-selection replay fixture: one private instance's paths and test
+# designs, rebuilt locally by replay_fixture.py, never committed ---
+.replay-fixture/

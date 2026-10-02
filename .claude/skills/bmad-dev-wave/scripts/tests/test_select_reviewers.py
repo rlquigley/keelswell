@@ -165,6 +165,20 @@ class FixedThreeLoseTheirExemption(unittest.TestCase):
         _, result = run([".github/workflows/deploy.yml", "ops/Dockerfile"])
         self.assertIn("arch-platform-engineer", roles(result))
 
+    def test_fixed_three_a_compute_cap_dispatches_the_cost_reviewer(self):
+        # The cost row fired on none of eighteen waves; one of them built a
+        # spend ceiling and called it a compute cap, in machine hours.
+        spec = ("The launcher refuses a run past the compute cap. The compute "
+                "cap is held in configuration.\n")
+        _, result = run(["src/platform/launcher.py"], spec=spec)
+        self.assertIn("arch-cost-optimizer", roles(result))
+
+    def test_fixed_three_a_provenance_cost_record_is_not_cost_work(self):
+        spec = ("Every run writes a manifest with a cost record. The cost "
+                "record is non-zero where the run spent something.\n")
+        _, result = run(["src/platform/launcher.py"], spec=spec)
+        self.assertNotIn("arch-cost-optimizer", roles(result))
+
 
 class SpecPrecision(unittest.TestCase):
     """Each test is a real ffbapp wave the naive matcher got wrong."""
@@ -238,6 +252,31 @@ class PathPrecision(unittest.TestCase):
         self.assertEqual(3, result["ignored_file_count"])
         self.assertEqual(1, result["changed_file_count"])
         self.assertIn("custom-ml", roles(result))
+
+    def test_a_test_support_tree_one_level_down_is_test_support(self):
+        # `**/tests/support/**` alone missed tests/unit/support/ on two waves.
+        for path in ("tests/support/worked_examples.py",
+                     "tests/unit/support/worked_examples.py",
+                     "services/api/tests/unit/support/builders.py"):
+            _, result = run([path])
+            self.assertIn("tea-murat", roles(result), path)
+        _, result = run(["src/support/tickets.py"])
+        self.assertNotIn("tea-murat", roles(result))
+
+    def test_a_planning_artifact_is_not_bookkeeping(self):
+        # `_bmad-output/**` hid the PRD, the epics and the spine, so bmm-pm
+        # could never fire in an instance that keeps them there.
+        _, result = run(["_bmad-output/planning-artifacts/epics.md",
+                         "_bmad-output/planning-artifacts/architecture/ARCHITECTURE-SPINE.md"])
+        self.assertEqual(0, result["ignored_file_count"])
+        self.assertLessEqual({"bmm-pm", "bmm-architect"}, roles(result))
+
+    def test_the_wave_map_and_the_rest_of_bmad_output_stay_bookkeeping(self):
+        _, result = run(["_bmad-output/planning-artifacts/waves.md",
+                         "_bmad-output/implementation-artifacts/2-3-a-story.md",
+                         "_bmad-output/project-context.md"])
+        self.assertEqual(3, result["ignored_file_count"])
+        self.assertEqual(set(), roles(result))
 
 
 class InertRows(unittest.TestCase):
