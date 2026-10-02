@@ -84,7 +84,15 @@ All notable changes to Keelswell. Format: Keep a Changelog; versioning: semver.
   lines, deleting any one moves a golden cell for 18 and is invisible for
   486. 246 tests in bmad-dev-wave (231 before) and 12 in bmad-close-epic,
   both trees; one of them skips without the fixture. `--validate-only`
-  exits 0.
+  exits 0. The workflow's first run, on this pull request, passed in 73
+  seconds on ubuntu-latest: 246 tests with one skipped and 12, in each tree,
+  about 33 seconds a tree; validation ok; the version check read 1.10.0 ->
+  1.11.0 and found `CHANGELOG.md`. Python, Node and PyYAML took 4 seconds. A
+  scratch pull request with one file of `.claude/skills/bmad-status-wave`
+  out of step failed at the mirror step, "bmad-status-wave: skills/ and
+  .claude/skills/ are out of step", and ran nothing after it. Before the
+  entry was committed the version check failed this branch locally, for the
+  bump with no `CHANGELOG.md`.
   **Prediction, to be checked by the next session that touches the fork.**
   On this machine, any change to the table or the selector that starts or
   stops a row on one of the eighteen waves fails `test_replay.py` naming the
