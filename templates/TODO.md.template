@@ -20,7 +20,7 @@ when it detects a matching merged PR.
 
 ## Bucket guidance
 - P0 and P1 items must include an owner-or-agent annotation in square
-  brackets. Example: - [ ] Fix auth token refresh race [Egwene]
+  brackets. Example: - [ ] Fix auth token refresh race [Rod]
 - P2 and P3 items may omit the annotation.
 - Closed items are grouped under a YYYY-MM-DD date heading and include a PR
   reference:

@@ -2,6 +2,64 @@
 All notable changes to Keelswell. Format: Keep a Changelog; versioning: semver.
 
 ## [Unreleased] - 2026-09-12
+### Changed
+- The Wheel of Time theme is gone from the roster: 38 names RQ chose replace
+  it (theme removal, PR 1 of 5, 2026-10-03). bmad-dev-wave 1.12.0 -> 1.12.1,
+  for the `display:` column of `scripts/reviewer-triggers.yaml` and one name
+  in SKILL.md. No persona skill carries `metadata.version`, so none is bumped.
+  **What changed.** `config/agent-names.yaml` holds the 38 new display names.
+  The installer's phase-3 substitution (default name -> chosen name, whole
+  word) was run as its own Python, not through `--rename`, which reads
+  `/dev/tty`: 363 substitutions in `skills/`, 363 in the mirror, 140 in
+  `agents/`. The same rule was then run over what phase 3 does not walk: the
+  16 `customize.toml` files, `module.yaml`, `_bmad/config.toml`,
+  `_bmad/custom/config.toml`, `_bmad/agents/` (23 carried personas),
+  `_bmad/_config/skill-manifest.csv`, `_bmad/bmm/module-help.csv`,
+  `docs/agent-inventory.md` and the runbook: 325 more. Short forms and names
+  split across a line wrap (15 first names, 4 wrapped pairs) were renamed in
+  23 files, `templates/TODO.md.template` and the QA row of
+  `_bmad/_config/bmad-help.csv` among them. Words that need the books were
+  cut from six voice strings (analyst, pm, dev, qa, tech-writer, tea), from
+  the marketing agent and from the two QA persona files; README, module.yaml,
+  marketplace.json and the runbook say "role-derived" or "the fork's display
+  names" where they said Wheel of Time.
+  **Rulings by RQ, 2026-10-03.** (a) the 38 names by role, with
+  arch-data-architect changed from Dana to Jason the same day; (b) a fuller
+  voice derived from the role, in PRs 2 to 5; (c) menu codes in the
+  instances; (d) history keeps the old names; (e) nothing R1 to R5 built
+  changes. The grader's display leg in `evals/graders.py` is left as it is
+  (option 1).
+  **What was measured.** Lines naming an old character in tracked files
+  outside the mirror, CHANGELOG and docs/reviews: 856 in 132 files before,
+  0 after outside the four files this entry leaves alone. Theme words: 0,
+  bar one false match ("otherwise one" in upstream party-mode text). 257 and
+  12 unit tests pass in both trees; `install.sh --validate-only
+  --skip-mcp-check` exits 0; `diff -rq -x __pycache__` is empty per skill.
+  **Not touched.** `config/agent-names.yaml.default` (still the old names: it
+  is the "from" side of the rename, see at risk), `_bmad-output/session-wrap/`,
+  `docs/harness-conversion-plan.md`, `docs/harness-conversion-prompts.md`,
+  CHANGELOG history, `docs/reviews/`, every hook, gate rule, settings key,
+  trigger pattern, the selector, the graders, `_bmad/scripts/`,
+  `.claude/skills/bmad-eval-runner/`. Role ids and skill ids are unchanged.
+  **Prediction.** PR 2 finds no old name and no theme word in the core eight
+  when it opens them, and the roster test (coverage by role id) and
+  `test_evals.py` pass with no edit.
+  **At risk.** (1) Several names are short or ordinary words: Gov, Ori, Mark,
+  Bill, Max. The grader's display leg is a substring test, so for those names
+  it proves nothing; the role id and skill id legs still do. A later
+  whole-word rename away from Mark, Bill or Max would rewrite prose in the
+  asset files. (2) `./install.sh --use-defaults` copies the `.default` file
+  over the mapping and would put the old names back into
+  `config/agent-names.yaml` while the skills keep the new ones. (3) Pronouns
+  and gendered turns of phrase written for the old characters remain in the
+  persona text until PRs 2 to 5. (4) Four voice strings (architect, dev, ux,
+  master) still carry images from the books with no book word in them. (5)
+  Both instances still show the old names until the hand step. (6)
+  `docs/agent-inventory.md` still lists nine pre-0.5.0 skill ids built from
+  the old names (`agent-tam-althor` and eight more): they are the literal ids
+  an instance carried and are left as the record. (7) Gov is now a name and
+  `[GOV]` is a menu code in the data architect's skill.
+
 ### Added
 - The first evals of a wave step: three balanced pairs, 18 headless trials,
   graded on end state (R5b of docs/reviews/harness-engineering-review-v1.md,

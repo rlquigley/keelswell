@@ -1,4 +1,4 @@
-# Rand al'Thor -- BMad Master / Orchestrator (core-bmad-master)
+# Max -- BMad Master / Orchestrator (core-bmad-master)
 
 Provenance: Keelswell-carried persona, derived from upstream bmad-method
 v4.39.0 (MIT), bmad-core/agents/bmad-master.md and bmad-orchestrator.md.

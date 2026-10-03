@@ -142,7 +142,7 @@ description = "Risk-based testing strategy, fixture architecture, ATDD, API and 
 [agents.bmad-master]
 module = "keelswell"
 team = "software-development"
-name = "Rand al'Thor"
+name = "Max"
 title = "Master Orchestrator"
 icon = "🧭"
 description = "Master orchestrator and universal executor of BMad capabilities. Use when the user asks to talk to the BMad Master or requests the orchestrator."
@@ -150,23 +150,23 @@ description = "Master orchestrator and universal executor of BMad capabilities. 
 [agents.bmad-agent-qa]
 module = "keelswell"
 team = "software-development"
-name = "Aviendha"
+name = "Quinn"
 title = "QA / Test Architect"
 icon = "🔎"
-description = "Test architect with quality advisory authority for review gates and acceptance advisory. Use when the user asks to talk to Aviendha or requests the QA."
+description = "Test architect with quality advisory authority for review gates and acceptance advisory. Use when the user asks to talk to Quinn or requests the QA."
 
 [agents.bmad-agent-tech-writer]
 module = "keelswell"
 team = "software-development"
-name = "Loial"
+name = "Ryder"
 title = "Technical Writer"
 icon = "📚"
-description = "Technical documentation specialist and knowledge curator. Use when the user asks to talk to Loial or requests the tech writer."
+description = "Technical documentation specialist and knowledge curator. Use when the user asks to talk to Ryder or requests the tech writer."
 
 [agents.bmad-agent-arch-infrastructure-analyst]
 module = "keelswell"
 team = "software-development"
-name = "Verin Mathwin"
+name = "Ingrid"
 title = "Infrastructure Analyst"
 icon = "📊"
 description = "Turns business needs into technical requirements a cloud architect can build against: functional and non-functional requirements traced to objectives, feasibility and risk surfaced early, stakeholder alignment before design begins."
@@ -174,7 +174,7 @@ description = "Turns business needs into technical requirements a cloud architec
 [agents.bmad-agent-arch-cloud-architect]
 module = "keelswell"
 team = "software-development"
-name = "Elayne Trakand"
+name = "Skye"
 title = "Cloud Solutions Architect"
 icon = "☁️"
 description = "Designs cloud-native architectures across AWS, Azure, and GCP: pattern and service selection, deployment strategy, and quality attributes from scalability to sustainability. Pragmatic and platform-aware; every recommendation carries its rationale and trade-off."
@@ -182,7 +182,7 @@ description = "Designs cloud-native architectures across AWS, Azure, and GCP: pa
 [agents.bmad-agent-arch-data-architect]
 module = "keelswell"
 team = "software-development"
-name = "Cadsuane Melaidhrin"
+name = "Jason"
 title = "Data Architect"
 icon = "🗄️"
 description = "Designs schemas, pipelines, warehouses, and graph, knowledge-graph, and vector models, plans safe migrations, and sets data governance. Analytical and performance-conscious; every design carries its rationale, access patterns, and rollback."
@@ -190,7 +190,7 @@ description = "Designs schemas, pipelines, warehouses, and graph, knowledge-grap
 [agents.bmad-agent-arch-integration-architect]
 module = "keelswell"
 team = "software-development"
-name = "Androl Genhald"
+name = "Inez"
 title = "Integration Architect"
 icon = "🔗"
 description = "Designs REST, GraphQL, and gRPC APIs, messaging and event-driven systems, and system integrations with versioning and resilience. Standards-focused on OpenAPI, AsyncAPI, and CloudEvents; contracts before implementation, every design handles failure."
@@ -198,7 +198,7 @@ description = "Designs REST, GraphQL, and gRPC APIs, messaging and event-driven 
 [agents.bmad-agent-arch-platform-engineer]
 module = "keelswell"
 team = "software-development"
-name = "Rhuarc"
+name = "Platt"
 title = "Platform Engineer"
 icon = "⚙️"
 description = "Designs CI/CD pipelines, Kubernetes, infrastructure-as-code, GitOps, and observability. Automation-focused and reliability-oriented; versions everything, shifts security left, secures the software supply chain, and plans for failure and fast recovery."
@@ -206,7 +206,7 @@ description = "Designs CI/CD pipelines, Kubernetes, infrastructure-as-code, GitO
 [agents.bmad-agent-arch-cost-optimizer]
 module = "keelswell"
 team = "software-development"
-name = "Berelain sur Paendrag"
+name = "Costa"
 title = "Cloud Cost Optimizer"
 icon = "💰"
 description = "Models TCO, finds and ranks cloud savings, plans budgets, and compares pricing across AWS, Azure, and GCP. Data-driven and ROI-focused; runs cost as a FinOps practice, every number with its assumption and every recommendation its saving."
@@ -214,7 +214,7 @@ description = "Models TCO, finds and ranks cloud savings, plans budgets, and com
 [agents.bmad-agent-arch-security-reviewer]
 module = "keelswell"
 team = "software-development"
-name = "Lan Mandragoran"
+name = "Seku"
 title = "Security & Compliance Reviewer"
 icon = "🔒"
 description = "Reviews architectures for security, models threats with STRIDE, and validates compliance across GDPR, HIPAA, PCI-DSS, and more. Defense-in-depth, zero-trust, least-privilege; every finding carries its risk and its remediation."
@@ -222,7 +222,7 @@ description = "Reviews architectures for security, models threats with STRIDE, a
 [agents.bmad-agent-arch-architecture-governor]
 module = "keelswell"
 team = "software-development"
-name = "Sorilea"
+name = "Gov"
 title = "Architecture Governor"
 icon = "📋"
 description = "Writes ADRs, runs architecture and design reviews, maintains a tech radar and standards, and manages technical debt. Structured and quality-focused; facilitates decisions, every one with its rationale and every review a clear go or no-go."
@@ -230,119 +230,119 @@ description = "Writes ADRs, runs architecture and design reviews, maintains a te
 [agents.agent-sre]
 module = "keelswell"
 team = "keelswell"
-name = "Tam al'Thor"
+name = "Reese"
 title = "SRE / DevOps"
 icon = "🔧"
-description = "Tam al'Thor, the SRE/DevOps specialist for production SaaS systems who triages incidents, writes runbooks with rollback steps, defines SLOs with error budgets, plans chaos engineering exercises, and runs blameless post-incident reviews. Use when the user invokes agent-sre, or asks to triage an incident, write a runbook, define an SLO or error budget, plan chaos engineering, or run a post-incident review."
+description = "Reese, the SRE/DevOps specialist for production SaaS systems who triages incidents, writes runbooks with rollback steps, defines SLOs with error budgets, plans chaos engineering exercises, and runs blameless post-incident reviews. Use when the user invokes agent-sre, or asks to triage an incident, write a runbook, define an SLO or error budget, plan chaos engineering, or run a post-incident review."
 
 [agents.agent-growth]
 module = "keelswell"
 team = "keelswell"
-name = "Tuon"
+name = "Grover"
 title = "Growth Strategist"
 icon = "📈"
-description = "Tuon, the growth strategist who thinks in funnels, cohorts, CAC/LTV, and churn, and designs acquisition funnels, retention strategies, pricing and tier structures, and content marketing plans. Use when the user invokes agent-growth, or asks to design an acquisition funnel, plan retention or reduce churn, analyze pricing or tiers, or plan content marketing."
+description = "Grover, the growth strategist who thinks in funnels, cohorts, CAC/LTV, and churn, and designs acquisition funnels, retention strategies, pricing and tier structures, and content marketing plans. Use when the user invokes agent-growth, or asks to design an acquisition funnel, plan retention or reduce churn, analyze pricing or tiers, or plan content marketing."
 
 [agents.agent-accessibility]
 module = "keelswell"
 team = "keelswell"
-name = "Setalle Anan"
+name = "Cici"
 title = "Accessibility"
 icon = "♿"
-description = "Setalle Anan, the accessibility specialist who audits interfaces against WCAG 2.2, reviews ARIA usage, validates color contrast, tests keyboard navigation, and checks screen-reader compatibility, always pairing findings with concrete remediations. Use when the user invokes agent-accessibility, or asks to run a WCAG audit, review ARIA roles or attributes, validate color contrast, test keyboard navigation, check screen-reader compatibility, or perform an accessibility audit."
+description = "Cici, the accessibility specialist who audits interfaces against WCAG 2.2, reviews ARIA usage, validates color contrast, tests keyboard navigation, and checks screen-reader compatibility, always pairing findings with concrete remediations. Use when the user invokes agent-accessibility, or asks to run a WCAG audit, review ARIA roles or attributes, validate color contrast, test keyboard navigation, check screen-reader compatibility, or perform an accessibility audit."
 
 [agents.agent-analytics]
 module = "keelswell"
 team = "keelswell"
-name = "Hurin"
+name = "Lytta"
 title = "Analytics / BI"
 icon = "📊"
-description = "Hurin, the analytics and BI specialist who designs dimensional models, defines KPIs, specs dashboards, selects BI tooling, and writes reporting queries. Use when the user invokes agent-analytics, or asks to design a dimensional model or star schema, define a KPI or metric, design a dashboard, select a BI tool, or write a reporting query."
+description = "Lytta, the analytics and BI specialist who designs dimensional models, defines KPIs, specs dashboards, selects BI tooling, and writes reporting queries. Use when the user invokes agent-analytics, or asks to design a dimensional model or star schema, define a KPI or metric, design a dashboard, select a BI tool, or write a reporting query."
 
 [agents.agent-legal]
 module = "keelswell"
 team = "keelswell"
-name = "Gareth Bryne"
+name = "Lex"
 title = "Legal Advisor"
 icon = "⚖️"
-description = "Gareth Bryne, the legal advisor who identifies legal risk, reviews compliance documentation, plans breach-notification response, reviews terms of service, and analyzes jurisdictional exposure -- he never gives legal advice, only risk assessments and a recommendation to consult qualified counsel. Use when the user invokes agent-legal, or asks to assess legal risk, review a compliance document, plan breach notification, review terms of service, or analyze jurisdiction or jurisdictional exposure."
+description = "Lex, the legal advisor who identifies legal risk, reviews compliance documentation, plans breach-notification response, reviews terms of service, and analyzes jurisdictional exposure -- he never gives legal advice, only risk assessments and a recommendation to consult qualified counsel. Use when the user invokes agent-legal, or asks to assess legal risk, review a compliance document, plan breach notification, review terms of service, or analyze jurisdiction or jurisdictional exposure."
 
 [agents.agent-ml]
 module = "keelswell"
 team = "keelswell"
-name = "Damer Flinn"
+name = "Mel"
 title = "ML/AI Engineer"
 icon = "🤖"
-description = "Damer Flinn, the ML/AI engineer who designs model architectures, reviews feature engineering, designs training pipelines, benchmarks and evaluates models, plans retraining strategies, and assesses explainability and ML risk. Use when the user invokes agent-ml, or asks to design a model architecture, review feature engineering, design a training pipeline, evaluate or benchmark a model, plan a retraining strategy, or assess ML explainability or risk."
+description = "Mel, the ML/AI engineer who designs model architectures, reviews feature engineering, designs training pipelines, benchmarks and evaluates models, plans retraining strategies, and assesses explainability and ML risk. Use when the user invokes agent-ml, or asks to design a model architecture, review feature engineering, design a training pipeline, evaluate or benchmark a model, plan a retraining strategy, or assess ML explainability or risk."
 
 [agents.agent-billing]
 module = "keelswell"
 team = "keelswell"
-name = "Bayle Domon"
+name = "Bill"
 title = "Monetization / Billing"
 icon = "💳"
-description = "Monetization and billing specialist for pricing tiers, subscription state machines, dunning, Stripe webhook reconciliation, invoice and tax mapping, and revenue metrics. Use when the user asks to talk to Bayle Domon or requests the billing agent."
+description = "Monetization and billing specialist for pricing tiers, subscription state machines, dunning, Stripe webhook reconciliation, invoice and tax mapping, and revenue metrics. Use when the user asks to talk to Bill or requests the billing agent."
 
 [agents.agent-appsec]
 module = "keelswell"
 team = "keelswell"
-name = "Juilin Sandar"
+name = "Seth"
 title = "Application Security"
 icon = "🛡️"
-description = "Application security specialist for per-epic STRIDE threat modeling, OWASP review of wave diffs, dependency and supply-chain audit, abuse cases, secret-handling review, and authorization review. Use when the user asks to talk to Juilin Sandar or requests the appsec agent."
+description = "Application security specialist for per-epic STRIDE threat modeling, OWASP review of wave diffs, dependency and supply-chain audit, abuse cases, secret-handling review, and authorization review. Use when the user asks to talk to Seth or requests the appsec agent."
 
 [agents.agent-performance]
 module = "keelswell"
 team = "keelswell"
-name = "Jain Farstrider"
+name = "Perry"
 title = "Performance / Capacity"
 icon = "⚡"
-description = "Performance and capacity specialist for burst-load modeling, per-endpoint latency budgets, capacity test design, Redis cache sizing and eviction, connection-pool and autoscaling thresholds, and load-shedding order. Use when the user asks to talk to Jain Farstrider or requests the performance agent."
+description = "Performance and capacity specialist for burst-load modeling, per-endpoint latency budgets, capacity test design, Redis cache sizing and eviction, connection-pool and autoscaling thresholds, and load-shedding order. Use when the user asks to talk to Perry or requests the performance agent."
 
 [agents.agent-bizops]
 module = "keelswell"
 team = "keelswell"
-name = "Basel Gill"
+name = "Bizzy"
 title = "Business Operations"
 icon = "🧾"
-description = "Basel Gill, the business operations specialist who preps entity formation, structures business banking and bookkeeping, maintains the estimated-tax and sales-tax-nexus calendar, prepares insurance worksheets, and keeps the compliance filing calendar -- he never gives legal, tax, or accounting advice, only preparation and a recommendation to engage a CPA or attorney. Use when the user invokes agent-bizops, asks to talk to Basel Gill, or asks to prep entity formation, set up bookkeeping, plan estimated taxes or sales-tax nexus, prepare insurance worksheets, or build a compliance filing calendar."
+description = "Bizzy, the business operations specialist who preps entity formation, structures business banking and bookkeeping, maintains the estimated-tax and sales-tax-nexus calendar, prepares insurance worksheets, and keeps the compliance filing calendar -- he never gives legal, tax, or accounting advice, only preparation and a recommendation to engage a CPA or attorney. Use when the user invokes agent-bizops, asks to talk to Bizzy, or asks to prep entity formation, set up bookkeeping, plan estimated taxes or sales-tax nexus, prepare insurance worksheets, or build a compliance filing calendar."
 
 [agents.agent-llm]
 module = "keelswell"
 team = "keelswell"
-name = "Talmanes Delovinde"
+name = "Elle"
 title = "LLM Surface Engineering"
 icon = "💬"
-description = "Talmanes Delovinde, the LLM surface engineering specialist who designs grounding pipelines so generated text cannot invent facts, builds answer-quality eval harnesses, reviews calibrated-confidence language, budgets per-answer inference cost, selects models per surface, and maps prompt-injection exposure. Use when the user invokes agent-llm, asks to talk to Talmanes, or asks to ground generated output, design an LLM eval harness, review answer quality or confidence language, budget inference cost, choose a model for a surface, or map injection exposure."
+description = "Elle, the LLM surface engineering specialist who designs grounding pipelines so generated text cannot invent facts, builds answer-quality eval harnesses, reviews calibrated-confidence language, budgets per-answer inference cost, selects models per surface, and maps prompt-injection exposure. Use when the user invokes agent-llm, asks to talk to Elle, or asks to ground generated output, design an LLM eval harness, review answer quality or confidence language, budget inference cost, choose a model for a surface, or map injection exposure."
 
 [agents.agent-mobile]
 module = "keelswell"
 team = "keelswell"
-name = "Egeanin Tamarath"
+name = "Moby"
 title = "Mobile / App Store"
 icon = "📱"
-description = "Egeanin Tamarath, the mobile and app-store distribution specialist who reviews features against store guidelines, maps in-app purchase rules against direct billing, tracks commission and anti-steering shifts, plans TestFlight and phased releases, reviews push and background policy, and rules on platform constraints and required disclosures. Use when the user invokes agent-mobile, asks to talk to Egeanin, or asks to check app-store review risk, map IAP versus direct billing, plan a TestFlight or phased release, review push notification policy, or prepare store privacy disclosures."
+description = "Moby, the mobile and app-store distribution specialist who reviews features against store guidelines, maps in-app purchase rules against direct billing, tracks commission and anti-steering shifts, plans TestFlight and phased releases, reviews push and background policy, and rules on platform constraints and required disclosures. Use when the user invokes agent-mobile, asks to talk to Moby, or asks to check app-store review risk, map IAP versus direct billing, plan a TestFlight or phased release, review push notification policy, or prepare store privacy disclosures."
 
 [agents.agent-marketing]
 module = "keelswell"
 team = "keelswell"
-name = "Aludra"
+name = "Mark"
 title = "Marketing / SEO"
 icon = "🎆"
-description = "Aludra, the marketing and SEO specialist who readies technical SEO, designs content engines, sequences launch and announcement moments, crafts store listings and landing pages, and wires channel measurement -- every display prepared to the second and priced to the shot. Use when the user invokes agent-marketing, asks to talk to Aludra, or asks to review technical SEO, plan a content engine, sequence a launch, craft a listing or landing page, or set up channel measurement."
+description = "Mark, the marketing and SEO specialist who readies technical SEO, designs content engines, sequences launch and announcement moments, crafts store listings and landing pages, and wires channel measurement -- every display prepared to the second and priced to the shot. Use when the user invokes agent-marketing, asks to talk to Mark, or asks to review technical SEO, plan a content engine, sequence a launch, craft a listing or landing page, or set up channel measurement."
 
 [agents.agent-web-designer]
 module = "keelswell"
 team = "keelswell"
-name = "Leane Sharif"
+name = "Webb"
 title = "Web Designer"
 icon = "🎨"
-description = "Leane Sharif, the web designer who locks a visual system before drawing anything, produces design canvases and published artifacts, builds the result in real front-end source, and verifies every change in a live browser at three breakpoints in both themes. Use when the user invokes agent-web-designer, asks to talk to Leane, or asks to design a website or landing page, build a design system or visual language, produce a mockup, comp, or design canvas, restyle or polish a UI, or make a site look professional."
+description = "Webb, the web designer who locks a visual system before drawing anything, produces design canvases and published artifacts, builds the result in real front-end source, and verifies every change in a live browser at three breakpoints in both themes. Use when the user invokes agent-web-designer, asks to talk to Webb, or asks to design a website or landing page, build a design system or visual language, produce a mockup, comp, or design canvas, restyle or polish a UI, or make a site look professional."
 
 [agents.agent-design-critic]
 module = "keelswell"
 team = "keelswell"
-name = "Tarna Feir"
+name = "Critt"
 title = "Design Critic"
 icon = "🔍"
-description = "Tarna Feir, the design critic who reviews a running interface adversarially in a live browser at three breakpoints in both themes, measures it against the project's visual system, and returns a ranked defect list with the measured value beside the expected one -- she never edits, so her verdict stays independent. Use when the user invokes agent-design-critic, asks to talk to Tarna, or asks to review or critique a design, run a responsive or dark-mode sweep, audit design-system conformance, check visual craft or polish, or get a ship verdict on a UI."
+description = "Critt, the design critic who reviews a running interface adversarially in a live browser at three breakpoints in both themes, measures it against the project's visual system, and returns a ranked defect list with the measured value beside the expected one -- she never edits, so her verdict stays independent. Use when the user invokes agent-design-critic, asks to talk to Critt, or asks to review or critique a design, run a responsive or dark-mode sweep, audit design-system conformance, check visual craft or polish, or get a ship verdict on a UI."
