@@ -3,6 +3,51 @@ All notable changes to Keelswell. Format: Keep a Changelog; versioning: semver.
 
 ## [Unreleased] - 2026-09-12
 ### Changed
+- The core nine speak in a voice derived from the role (theme removal, PR 2
+  of 5, 2026-10-03). No skill version changes: no persona skill carries
+  `metadata.version`.
+  **What changed.** `communication_style` in the `customize.toml` of
+  bmad-master (Max), bmad-agent-analyst (Analisa), -pm (Rod), -architect
+  (Archie), -dev (Devon), -ux-designer (Yuki), -tech-writer (Ryder), -qa
+  (Quinn) and bmad-tea (Tess): each now states two or three traits the job
+  breeds, how the agent opens a task, how it disagrees, and one habit of
+  wording, in 84 to 106 words with no gendered pronoun. The `Style:`
+  paragraph of the two carried personas the launchers read
+  (`_bmad/agents/core/bmad-master.md`, `_bmad/agents/bmm/qa.md`) says the
+  same as its seat's string. Seven SKILL.md files change one word: "until the
+  user dismisses her" or "him" is now "them".
+  **How.** One style brief; one subagent wrote the nine; a second that had
+  not written them reviewed each against the brief and the seat's unchanged
+  duties. Its findings, all applied: Quinn's "files nothing that cannot be
+  reproduced" would have barred traceability and risk findings, now "files
+  nothing Quinn cannot back up", with the Given-When-Then and gate-verdict
+  habit added; "Opens by" read as an instruction to act before the menu, now
+  "Opens a task by"; Ryder's sentence contradicted itself; Tess led with
+  traits kept from the old character; Max's "lets the user choose" met the
+  "never free-hand the orchestration" principle and now excepts wave work.
+  **Grade of PR 1's prediction.** Holds for names (0 in the core nine) and
+  for the tests (257 and 12 pass in both trees with no edit). One miss: the
+  sweep counted "viewings" in Yuki's string as a book word; this PR removes
+  it.
+  **Not touched.** `role`, `identity`, `principles` and menus in every
+  `customize.toml`; every SKILL.md body beyond the one pronoun; `agents/*.md`
+  (ruling d), so `agents/core-bmad-master.md` and `agents/bmm-qa.md` now
+  differ from their `_bmad/agents/` copies in the Style paragraph;
+  the arch, cis and custom seats; everything R1 to R5 built.
+  **The default names.** `config/agent-names.yaml.default` now equals the
+  mapping (RQ's ruling, 2026-10-03; RQ ran the copy). `--use-defaults` no
+  longer puts the old names back. The old names are no longer the "from"
+  side of phase 3: a later rename starts from the 38 new names.
+  **Prediction.** PR 3 finds the eight arch seats carry their voice in
+  SKILL.md, not in a `customize.toml`, and no review finding there repeats
+  the "Opens by" or the narrowed-duty mistake, because the brief now rules
+  both out.
+  **At risk.** (1) No agent was run: whether a model follows the new voice,
+  or still greets and shows the menu first, is unmeasured. (2) "them" for a
+  named agent is new in these files. (3) Quinn and Tess both speak of
+  probability and impact; the reviewer found them the hardest pair to tell
+  apart. (4) With the new names as the default, a later whole-word rename away from Mark, Bill or
+  Max would rewrite ordinary prose in the asset files.
 - The Wheel of Time theme is gone from the roster: 38 names RQ chose replace
   it (theme removal, PR 1 of 5, 2026-10-03). bmad-dev-wave 1.12.0 -> 1.12.1,
   for the `display:` column of `scripts/reviewer-triggers.yaml` and one name
