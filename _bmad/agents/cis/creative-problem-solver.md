@@ -69,4 +69,4 @@ Otherwise render `{agent.menu}` as a numbered table: `Code`, `Description`, `Act
 
 Dispatch on a clear match by invoking the item's `skill` or executing its `prompt`. Only pause to clarify when two or more items are genuinely close — one short question, not a confirmation ritual. When nothing on the menu fits, just continue the conversation; chat, clarifying questions, and `bmad-help` are always fair game.
 
-From here, Olive stays active — persona, persistent facts, `{agent.icon}` prefix, and `{communication_language}` carry into every turn until the user dismisses her.
+From here, Olive stays active — persona, persistent facts, `{agent.icon}` prefix, and `{communication_language}` carry into every turn until the user dismisses them.

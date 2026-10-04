@@ -3,6 +3,49 @@ All notable changes to Keelswell. Format: Keep a Changelog; versioning: semver.
 
 ## [Unreleased] - 2026-09-12
 ### Changed
+- The six cis seats speak in a voice stated plainly, not as a simile (theme
+  removal, PR 4 of 5, 2026-10-03). No skill version changes: no persona
+  skill carries `metadata.version`.
+  **What changed.** `communication_style` in the `customize.toml` of
+  bmad-cis-agent-brainstorming-coach (Brayden), -design-thinking-coach (Dez),
+  -innovation-strategist (Inna), -creative-problem-solver (Olive),
+  -storyteller (Ori) and -presentation-master (Preston). Upstream's strings
+  were each one simile (improv coach, jazz musician, chess grandmaster,
+  Sherlock Holmes, bard, creative director). Each now states the temperament
+  the simile pointed at, how the agent opens a task, how it disagrees (a
+  question or a reframing, from the seat's own method) and one habit of
+  wording. Six SKILL.md files and their byte copies under `_bmad/agents/cis/`
+  change one word: "dismisses her" or "him" is now "them". Seven carried
+  copies under `_bmad/agents/bmm/` and `_bmad/agents/tea/` get the same word,
+  which PR 2 changed in the skills only; they are byte copies again.
+  **How.** The brief with the lessons of PRs 2 and 3; one author subagent,
+  one reviewer that had not written them, which read each method skill's
+  facilitator stance. Its findings, all applied: Brayden's 'yes, and' read as
+  the coach adding ideas, which the facilitator stance forbids, and the
+  running count of ideas is something no script tracks; Dez answered every
+  doubt with a prototype, one step of seven, and "describes users in scenes"
+  invited invented users; Olive labelled every statement, solution steps
+  included, and reasoned for the user where the skill says to help the user
+  reason; Preston's three-second test was asked of a whole piece; Inna had
+  no warmth.
+  **Grade of PR 3's prediction.** Holds: the six voices are in
+  `customize.toml`, with no book word and no old name, and the work was the
+  form and the pronoun.
+  **Not touched.** `identity` in the six files, which is upstream text and
+  still carries backstory ("Twenty years", "Former McKinsey strategist");
+  titles ("Oracle", "Maestro"); principles and menus; SKILL.md bodies beyond
+  the pronoun; `agents/cis-*.md` (ruling d); the method skills; the custom
+  seats; everything R1 to R5 built.
+  **Prediction.** PR 5 finds book-derived images in at least six of the 15
+  custom agents (bizops, marketing, mobile, llm, performance, web-designer)
+  and gendered pronouns in at least four, in SKILL.md bodies that the fork
+  owns outright, so that batch rewrites Identity and Style lines and
+  activation greetings, not one string.
+  **At risk.** (1) No agent was run. (2) The identity strings and the new
+  voices now disagree in register: a plain voice under a "Disruptive
+  Innovation Oracle" title. (3) These six `customize.toml` files say "DO NOT
+  EDIT -- overwritten on every update"; the fork's copies win over upstream
+  through marketplace.json, as the renames already rely on.
 - The eight arch seats gain a voice derived from the role (theme removal, PR
   3 of 5, 2026-10-03). No skill version changes: no persona skill carries
   `metadata.version`.
