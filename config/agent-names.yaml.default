@@ -3,119 +3,119 @@ agents:
   # Core BMAD (8 agents)
   - role: core-bmad-master
     bmad_default: BMad Master
-    display_name: Rand al'Thor
+    display_name: Max
   - role: bmm-analyst
     bmad_default: Analyst (Mary)
-    display_name: Moiraine Damodred
+    display_name: Analisa
   - role: bmm-pm
     bmad_default: PM (John)
-    display_name: Egwene al'Vere
+    display_name: Rod
   - role: bmm-architect
     bmad_default: Architect (Winston)
-    display_name: Perrin Aybara
+    display_name: Archie
   - role: bmm-dev
     bmad_default: Developer (Amelia)
-    display_name: Mat Cauthon
+    display_name: Devon
   - role: bmm-ux-designer
     bmad_default: UX Designer (Sally)
-    display_name: Min Farshaw
+    display_name: Yuki
   - role: bmm-tech-writer
     bmad_default: Tech Writer (Paige)
-    display_name: Loial
+    display_name: Ryder
   - role: bmm-qa
     bmad_default: Quinn QA
-    display_name: Aviendha
+    display_name: Quinn
   # Architecture Expansion Pack (8 agents)
   - role: arch-infrastructure-analyst
     bmad_default: Infra Analyst (Alex)
-    display_name: Verin Mathwin
+    display_name: Ingrid
   - role: arch-cloud-architect
     bmad_default: Cloud Architect (Morgan)
-    display_name: Elayne Trakand
+    display_name: Skye
   - role: arch-data-architect
     bmad_default: Data Architect (Casey)
-    display_name: Cadsuane Melaidhrin
+    display_name: Jason
   - role: arch-integration-architect
     bmad_default: Integration Architect (River)
-    display_name: Androl Genhald
+    display_name: Inez
   - role: arch-platform-engineer
     bmad_default: Platform Engineer (Sam)
-    display_name: Rhuarc
+    display_name: Platt
   - role: arch-cost-optimizer
     bmad_default: Cost Optimizer (Taylor)
-    display_name: Berelain sur Paendrag
+    display_name: Costa
   - role: arch-security-reviewer
     bmad_default: Security Reviewer (Jordan)
-    display_name: Lan Mandragoran
+    display_name: Seku
   - role: arch-architecture-governor
     bmad_default: Architecture Governor (Quinn)
-    display_name: Sorilea
+    display_name: Gov
   # CIS (6 agents)
   - role: cis-brainstorming-coach
     bmad_default: Carson (Brainstorming Coach)
-    display_name: Siuan Sanche
+    display_name: Brayden
   - role: cis-design-thinking-coach
     bmad_default: Maya (Design Thinking Coach)
-    display_name: Nynaeve al'Meara
+    display_name: Dez
   - role: cis-innovation-strategist
     bmad_default: Victor (Innovation Strategist)
-    display_name: Logain Ablar
+    display_name: Inna
   - role: cis-creative-problem-solver
     bmad_default: Dr. Quinn (Creative Problem Solver)
-    display_name: Birgitte Silverbow
+    display_name: Olive
   - role: cis-storyteller
     bmad_default: Sophia (Storyteller)
-    display_name: Thom Merrilin
+    display_name: Ori
   - role: cis-presentation-master
     bmad_default: Caravaggio (Presentation Master)
-    display_name: Morgase Trakand
+    display_name: Preston
   # TEA (1 agent)
   - role: tea-murat
     bmad_default: Murat (TEA)
-    display_name: Galad Damodred
+    display_name: Tess
   # Custom (15 agents)
   - role: custom-sre
     bmad_default: SRE / DevOps
-    display_name: Tam al'Thor
+    display_name: Reese
   - role: custom-growth
     bmad_default: Growth Strategist
-    display_name: Tuon
+    display_name: Grover
   - role: custom-accessibility
     bmad_default: Accessibility
-    display_name: Setalle Anan
+    display_name: Cici
   - role: custom-analytics
     bmad_default: Analytics / BI
-    display_name: Hurin
+    display_name: Lytta
   - role: custom-legal
     bmad_default: Legal Advisor
-    display_name: Gareth Bryne
+    display_name: Lex
   - role: custom-ml
     bmad_default: ML/AI Engineer
-    display_name: Damer Flinn
+    display_name: Mel
   - role: custom-billing
     bmad_default: Monetization / Billing
-    display_name: Bayle Domon
+    display_name: Bill
   - role: custom-appsec
     bmad_default: Application Security
-    display_name: Juilin Sandar
+    display_name: Seth
   - role: custom-performance
     bmad_default: Performance / Capacity
-    display_name: Jain Farstrider
+    display_name: Perry
   - role: custom-bizops
     bmad_default: Business Operations
-    display_name: Basel Gill
+    display_name: Bizzy
   - role: custom-llm
     bmad_default: LLM Surface Engineering
-    display_name: Talmanes Delovinde
+    display_name: Elle
   - role: custom-mobile
     bmad_default: Mobile / App Store
-    display_name: Egeanin Tamarath
+    display_name: Moby
   - role: custom-marketing
     bmad_default: Marketing / SEO
-    display_name: Aludra
+    display_name: Mark
   - role: custom-web-designer
     bmad_default: Web Designer
-    display_name: Leane Sharif
+    display_name: Webb
   - role: custom-design-critic
     bmad_default: Design Critic
-    display_name: Tarna Feir
+    display_name: Critt

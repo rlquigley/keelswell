@@ -33,9 +33,11 @@ All notable changes to Keelswell. Format: Keep a Changelog; versioning: semver.
   `customize.toml`; every SKILL.md body beyond the one pronoun; `agents/*.md`
   (ruling d), so `agents/core-bmad-master.md` and `agents/bmm-qa.md` now
   differ from their `_bmad/agents/` copies in the Style paragraph;
-  `config/agent-names.yaml.default`, which RQ approved updating and a
-  permission check stopped: it is a one-line hand step; the arch, cis and
-  custom seats; everything R1 to R5 built.
+  the arch, cis and custom seats; everything R1 to R5 built.
+  **The default names.** `config/agent-names.yaml.default` now equals the
+  mapping (RQ's ruling, 2026-10-03; RQ ran the copy). `--use-defaults` no
+  longer puts the old names back. The old names are no longer the "from"
+  side of phase 3: a later rename starts from the 38 new names.
   **Prediction.** PR 3 finds the eight arch seats carry their voice in
   SKILL.md, not in a `customize.toml`, and no review finding there repeats
   the "Opens by" or the narrowed-duty mistake, because the brief now rules
@@ -44,7 +46,8 @@ All notable changes to Keelswell. Format: Keep a Changelog; versioning: semver.
   or still greets and shows the menu first, is unmeasured. (2) "them" for a
   named agent is new in these files. (3) Quinn and Tess both speak of
   probability and impact; the reviewer found them the hardest pair to tell
-  apart. (4) `--use-defaults` still copies the old names into the mapping.
+  apart. (4) With the new names as the default, a later whole-word rename away from Mark, Bill or
+  Max would rewrite ordinary prose in the asset files.
 - The Wheel of Time theme is gone from the roster: 38 names RQ chose replace
   it (theme removal, PR 1 of 5, 2026-10-03). bmad-dev-wave 1.12.0 -> 1.12.1,
   for the `display:` column of `scripts/reviewer-triggers.yaml` and one name
