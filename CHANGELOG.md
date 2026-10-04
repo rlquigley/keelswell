@@ -3,6 +3,43 @@ All notable changes to Keelswell. Format: Keep a Changelog; versioning: semver.
 
 ## [Unreleased] - 2026-09-12
 ### Changed
+- The eight arch seats gain a voice derived from the role (theme removal, PR
+  3 of 5, 2026-10-03). No skill version changes: no persona skill carries
+  `metadata.version`.
+  **What changed.** A `## Voice` section, one second-person paragraph, in the
+  SKILL.md of bmad-agent-arch-infrastructure-analyst (Ingrid),
+  -cloud-architect (Skye), -data-architect (Jason), -integration-architect
+  (Inez), -platform-engineer (Platt), -cost-optimizer (Costa),
+  -security-reviewer (Seku) and -architecture-governor (Gov), placed after
+  the Overview and before the resolution rules. Each says what the job makes
+  the agent distrust, how it opens a task, how it disagrees, and the unit or
+  artifact it speaks in. These seats never had a themed voice, so nothing was
+  removed: the section is an addition and the Overview is not edited. The
+  byte copies under `_bmad/agents/arch/` carry the same section.
+  **How.** The PR 2 brief plus the lessons of its review; one author
+  subagent, one reviewer that had not written them. Its findings, all
+  applied: Seku put a STRIDE category on every finding, compliance gaps
+  included; Skye and Gov disagreed the same way, and Gov's way only fitted
+  an ADR; Ingrid cited requirement IDs the skill never assigns; Skye's one
+  example was AWS only; Jason, Inez and Costa spoke in relational, REST and
+  monthly terms on seats that also cover graph stores, gRPC and three-year
+  TCO.
+  **Grade of PR 2's prediction.** Holds: the arch voice lives in SKILL.md
+  (there is no `customize.toml`), and the review found no "Opens by" and no
+  narrowed duty of the kind PR 2 met. It did find the neighbouring mistake,
+  a habit of wording narrower than the seat's range, in five of eight.
+  **Not touched.** Frontmatter, Overview, activation steps, capabilities,
+  operating rules and assets of the eight skills; `agents/arch-*.md` (ruling
+  d), which now differ from their `_bmad/agents/arch/` copies by the new
+  section; the roster descriptions in module.yaml and the config files; the
+  cis and custom seats; everything R1 to R5 built.
+  **Prediction.** PR 4 finds the six cis voices in `customize.toml`, already
+  free of book words (they were upstream's own), and its work is the pronoun
+  line and the four-part form, not theme removal.
+  **At risk.** (1) No agent was run. (2) The opener restates the intake the
+  skill limits to its design-heavy capabilities, so a research or checklist
+  request may get one extra question. (3) The skill listing budget: each
+  SKILL.md grew by about 100 words of body, none of description.
 - The core nine speak in a voice derived from the role (theme removal, PR 2
   of 5, 2026-10-03). No skill version changes: no persona skill carries
   `metadata.version`.
