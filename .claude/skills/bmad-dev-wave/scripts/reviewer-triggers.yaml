@@ -267,7 +267,7 @@ reviewers:
     display: "Bizzy"
     source: "docs/agent-inventory.md:165"
     trigger: "invoked directly, not by a wave. Any act that names an owner (a filing, a payment account, a contract, a license), or a dated obligation coming due"
-    inert: "the inventory's own trigger says he is invoked directly, not by a wave. A dated filing obligation is not a condition in a diff, so no wave dispatches him and this script never returns him."
+    inert: "the inventory's own trigger says Bizzy is invoked directly, not by a wave. A dated filing obligation is not a condition in a diff, so no wave dispatches Bizzy and this script never returns Bizzy."
 
   # --- Group 2 of docs/agent-inventory.md: useful, prompt-level value.
   # Their entries end with a "Keep after an upgrade if" line, which describes a
@@ -490,8 +490,8 @@ reviewers:
     skill: agent-web-designer
     display: "Webb"
     source: "none"
-    trigger: "she builds; she does not review"
-    inert: "a builder, not a reviewer. Item 6.4 dispatches her at step 6 to do the build-and-verify pass, before anything exists to review. Step 10 reviews what was built, so this script never returns her; her partner custom-design-critic is the step-10 half of that pair. Ruled 2026-09-14."
+    trigger: "Webb builds; Webb does not review"
+    inert: "a builder, not a reviewer. Item 6.4 dispatches Webb at step 6 to do the build-and-verify pass, before anything exists to review. Step 10 reviews what was built, so this script never returns Webb; Webb's partner custom-design-critic is the step-10 half of that pair. Ruled 2026-09-14."
 
   - role: core-bmad-master
     skill: bmad-master
@@ -511,7 +511,8 @@ reviewers:
   # always and means nothing), bmm-tech-writer has no doc surface in evidence,
   # and arch-security-reviewer is deliberately unseated so security is not
   # dispatched twice. bmm-qa is excluded for a different reason: Phase 3 moved
-  # her off grading this wave on purpose, and seating her here would reverse it.
+  # Quinn off grading this wave on purpose, and seating Quinn here would reverse
+  # it.
 
   - role: tea-murat
     skill: bmad-tea
@@ -594,7 +595,7 @@ reviewers:
     display: "Quinn"
     source: "derived-2026-09-14"
     trigger: "the wave adds or changes a story file, an acceptance-criteria artifact, a Gherkin feature, or a traceability map"
-    note: "Caveat, recorded rather than hidden: Phase 3 moved her off grading this wave, so step 3 is still where she designs and step 8's evaluator is still deliberately not her. This row is the acceptance-mapping half of her authority, not a re-seat at the evaluator's chair."
+    note: "Caveat, recorded rather than hidden: Phase 3 moved Quinn off grading this wave, so step 3 is still where Quinn designs and step 8's evaluator is still deliberately not Quinn. This row is the acceptance-mapping half of Quinn's authority, not a re-seat at the evaluator's chair."
     paths:
       - "**/stories/**"
       - "**/*.feature"
@@ -863,7 +864,7 @@ reviewers:
     source: "derived-2026-09-14"
     trigger: "the wave adds or changes production source outside a test tree"
     generalist: "yes"
-    note: "A second opinion on the diff, from the seat that writes code for a living. Dispatched at step 10 as a fresh subagent, so this is not the context that built the wave and not the Phase 3 conflict an earlier draft of this row claimed: that ruling is about the SAME context grading itself and about an evaluator that can write, and neither applies to a fresh reviewer with no writing tools. He is the generalist in a table of specialists, so he fires wherever implementation landed and the specialists answer only for their own domain."
+    note: "A second opinion on the diff, from the seat that writes code for a living. Dispatched at step 10 as a fresh subagent, so this is not the context that built the wave and not the Phase 3 conflict an earlier draft of this row claimed: that ruling is about the SAME context grading itself and about an evaluator that can write, and neither applies to a fresh reviewer with no writing tools. Devon is the generalist in a table of specialists, so Devon fires wherever implementation landed and the specialists answer only for their own domain."
     paths:
       - "**/*.py"
       - "**/*.ts"

@@ -23,7 +23,7 @@ agents:
     title: "Master Orchestrator"
     icon: "🧭"
     team: software-development
-    description: "Master orchestrator and universal executor of BMad capabilities. Use when the user asks to talk to the BMad Master or requests the orchestrator."
+    description: "Master orchestrator and universal executor of BMad capabilities. Use when the user asks to talk to Max, the BMad Master, or requests the orchestrator."
 
   # BMM (DF-1 carried persona; the other BMM agents are declared
   # by the upstream bmm module.yaml -- redeclaring them here makes the

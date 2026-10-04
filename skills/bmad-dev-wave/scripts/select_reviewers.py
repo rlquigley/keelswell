@@ -399,8 +399,8 @@ def resolve(reviewers, fallback, changed_files, spec_text):
     against the table later.
 
     "No row fired" and "only generalist rows fired" are the same case here.
-    bmm-dev fires on 17 of ffbapp's 18 waves by design -- he is the second
-    opinion on any implementation diff -- so treating him as an answer would
+    bmm-dev fires on 17 of ffbapp's 18 waves by design -- it is the second
+    opinion on any implementation diff -- so treating it as an answer would
     retire the fallback on the two waves that most need it. 3A's own review
     was a mutation sweep plus an expressiveness pass, not one generalist
     reading the diff, and it is what found that wave's two HIGH findings.

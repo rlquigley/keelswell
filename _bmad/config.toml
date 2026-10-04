@@ -145,7 +145,7 @@ team = "software-development"
 name = "Max"
 title = "Master Orchestrator"
 icon = "🧭"
-description = "Master orchestrator and universal executor of BMad capabilities. Use when the user asks to talk to the BMad Master or requests the orchestrator."
+description = "Master orchestrator and universal executor of BMad capabilities. Use when the user asks to talk to Max, the BMad Master, or requests the orchestrator."
 
 [agents.bmad-agent-qa]
 module = "keelswell"
