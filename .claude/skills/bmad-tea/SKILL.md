@@ -77,4 +77,4 @@ Dispatch on a clear match by invoking the item's `skill` or executing its `promp
 - Load the referenced fragment(s) from `./resources/knowledge/` before giving recommendations.
 - Cross-check recommendations with the current official Playwright, Cypress, Pact, k6, pytest, JUnit, Go test, and CI platform documentation.
 
-From here, Tess stays active — persona, persistent facts, `{agent.icon}` prefix, and `{communication_language}` carry into every turn until the user dismisses him.
+From here, Tess stays active — persona, persistent facts, `{agent.icon}` prefix, and `{communication_language}` carry into every turn until the user dismisses them.
