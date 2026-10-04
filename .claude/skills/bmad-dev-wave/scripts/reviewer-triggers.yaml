@@ -106,7 +106,7 @@ reviewers:
 
   - role: custom-ml
     skill: agent-ml
-    display: "Damer Flinn"
+    display: "Mel"
     source: "docs/agent-inventory.md:89"
     trigger: "the wave trains, scores, selects, or validates a model, or touches a train/test split, a backtest window, or a feature table"
     paths:
@@ -133,7 +133,7 @@ reviewers:
 
   - role: custom-sre
     skill: agent-sre
-    display: "Tam al'Thor"
+    display: "Reese"
     source: "docs/agent-inventory.md:108"
     trigger: "the wave adds or changes a long-running job, a run manifest, a scheduled task, a health probe, or anything that writes a ledger or spend record"
     paths:
@@ -158,7 +158,7 @@ reviewers:
 
   - role: custom-appsec
     skill: agent-appsec
-    display: "Juilin Sandar"
+    display: "Seth"
     source: "docs/agent-inventory.md:140"
     trigger: "the wave handles user-supplied text that reaches a prompt, a query, or a filename; adds or changes an authorization boundary, an access token, a share link, or a webhook receiver; or adds a dependency"
     paths:
@@ -201,7 +201,7 @@ reviewers:
 
   - role: custom-accessibility
     skill: agent-accessibility
-    display: "Setalle Anan"
+    display: "Cici"
     source: "docs/agent-inventory.md:193"
     trigger: "the wave ships or changes a rendered surface: a template, a component, a stylesheet, a color token, a focus behaviour, or a form"
     paths:
@@ -235,7 +235,7 @@ reviewers:
 
   - role: custom-billing
     skill: agent-billing
-    display: "Bayle Domon"
+    display: "Bill"
     source: "docs/agent-inventory.md:217"
     trigger: "the wave adds or changes a payment provider call, a webhook receiver, a subscription state transition, an entitlement grant, an invoice, or a tax mapping"
     paths:
@@ -264,7 +264,7 @@ reviewers:
 
   - role: custom-bizops
     skill: agent-bizops
-    display: "Basel Gill"
+    display: "Bizzy"
     source: "docs/agent-inventory.md:165"
     trigger: "invoked directly, not by a wave. Any act that names an owner (a filing, a payment account, a contract, a license), or a dated obligation coming due"
     inert: "the inventory's own trigger says he is invoked directly, not by a wave. A dated filing obligation is not a condition in a diff, so no wave dispatches him and this script never returns him."
@@ -277,7 +277,7 @@ reviewers:
 
   - role: custom-analytics
     skill: agent-analytics
-    display: "Hurin"
+    display: "Lytta"
     source: "derived-2026-09-14"
     trigger: "the wave adds or changes an emitted analytics event, a metric or KPI definition, a dashboard, a warehouse or reporting table, or a funnel step"
     paths:
@@ -301,7 +301,7 @@ reviewers:
 
   - role: custom-performance
     skill: agent-performance
-    display: "Jain Farstrider"
+    display: "Perry"
     source: "derived-2026-09-14"
     trigger: "the wave adds or changes a cache, a connection pool, an autoscaling or rate-limit threshold, a queue or worker pool, a load or capacity test, or a stated latency budget"
     paths:
@@ -330,7 +330,7 @@ reviewers:
 
   - role: custom-legal
     skill: agent-legal
-    display: "Gareth Bryne"
+    display: "Lex"
     source: "derived-2026-09-14"
     trigger: "the wave adds or changes a consent flow, a data-retention or deletion path, a terms-of-service or privacy document, a third-party license or attribution surface, or a jurisdiction-dependent rule"
     paths:
@@ -355,7 +355,7 @@ reviewers:
 
   - role: custom-growth
     skill: agent-growth
-    display: "Tuon"
+    display: "Grover"
     source: "derived-2026-09-14"
     trigger: "the wave adds or changes a signup or onboarding step, a pricing or tier presentation, a referral or invite flow, a lifecycle email or notification sequence, or a churn or retention path"
     paths:
@@ -379,7 +379,7 @@ reviewers:
 
   - role: custom-llm
     skill: agent-llm
-    display: "Talmanes Delovinde"
+    display: "Elle"
     source: "derived-2026-09-14"
     trigger: "the wave adds or changes a prompt template or system prompt, a call to a text-generation API, a retrieval or grounding path, an answer-quality eval, or a per-answer inference budget"
     paths:
@@ -406,7 +406,7 @@ reviewers:
 
   - role: custom-mobile
     skill: agent-mobile
-    display: "Egeanin Tamarath"
+    display: "Moby"
     source: "derived-2026-09-14"
     trigger: "the wave adds or changes an app-store metadata or disclosure file, an in-app-purchase call, a push-notification or background-task registration, a mobile build or signing configuration, or a release-channel definition"
     paths:
@@ -432,7 +432,7 @@ reviewers:
 
   - role: custom-marketing
     skill: agent-marketing
-    display: "Aludra"
+    display: "Mark"
     source: "derived-2026-09-14"
     trigger: "the wave adds or changes a public landing or marketing page, a sitemap, robots file, or meta/OpenGraph tag, a store or directory listing text, or a campaign-attribution parameter"
     paths:
@@ -456,7 +456,7 @@ reviewers:
 
   - role: custom-design-critic
     skill: agent-design-critic
-    display: "Tarna Feir"
+    display: "Critt"
     source: "derived-2026-09-14"
     trigger: "the wave adds or changes a rendered surface: a template, page, view, component, stylesheet, or design token"
     paths:
@@ -488,14 +488,14 @@ reviewers:
 
   - role: custom-web-designer
     skill: agent-web-designer
-    display: "Leane Sharif"
+    display: "Webb"
     source: "none"
     trigger: "she builds; she does not review"
     inert: "a builder, not a reviewer. Item 6.4 dispatches her at step 6 to do the build-and-verify pass, before anything exists to review. Step 10 reviews what was built, so this script never returns her; her partner custom-design-critic is the step-10 half of that pair. Ruled 2026-09-14."
 
   - role: core-bmad-master
     skill: bmad-master
-    display: "Rand al'Thor"
+    display: "Max"
     source: "none"
     trigger: "none nameable"
     inert: "docs/agent-inventory.md calls this the only one of the sixteen for which no trigger is nameable: the router role it would fill is already filled by skill routing and by bmad-help. Item 6.4 resolves it by naming one request that should route to it, which is a sentence rather than a condition in a diff."
@@ -515,7 +515,7 @@ reviewers:
 
   - role: tea-murat
     skill: bmad-tea
-    display: "Galad Damodred"
+    display: "Tess"
     source: "derived-2026-09-14"
     trigger: "the wave adds or changes a test fixture set, a test-support module, a conftest, a verify script, or a CI test lane"
     paths:
@@ -541,7 +541,7 @@ reviewers:
 
   - role: arch-data-architect
     skill: bmad-agent-arch-data-architect
-    display: "Cadsuane Melaidhrin"
+    display: "Jason"
     source: "derived-2026-09-14"
     trigger: "the wave adds or changes a database migration, a schema or model definition, an index, or a data pipeline stage"
     paths:
@@ -561,7 +561,7 @@ reviewers:
 
   - role: arch-integration-architect
     skill: bmad-agent-arch-integration-architect
-    display: "Androl Genhald"
+    display: "Inez"
     source: "derived-2026-09-14"
     trigger: "the wave adds or changes an HTTP route, an OpenAPI or protobuf or GraphQL contract, a message topic or consumer, or a public API version"
     paths:
@@ -591,7 +591,7 @@ reviewers:
 
   - role: bmm-qa
     skill: bmad-agent-qa
-    display: "Aviendha"
+    display: "Quinn"
     source: "derived-2026-09-14"
     trigger: "the wave adds or changes a story file, an acceptance-criteria artifact, a Gherkin feature, or a traceability map"
     note: "Caveat, recorded rather than hidden: Phase 3 moved her off grading this wave, so step 3 is still where she designs and step 8's evaluator is still deliberately not her. This row is the acceptance-mapping half of her authority, not a re-seat at the evaluator's chair."
@@ -604,7 +604,7 @@ reviewers:
 
   - role: arch-security-reviewer
     skill: bmad-agent-arch-security-reviewer
-    display: "Lan Mandragoran"
+    display: "Seku"
     source: "derived-2026-09-14"
     trigger: "the wave adds or changes a cryptographic call, key or secret handling, a trust-boundary crossing, or a named compliance control"
     paths:
@@ -629,7 +629,7 @@ reviewers:
 
   - role: arch-architecture-governor
     skill: bmad-agent-arch-architecture-governor
-    display: "Sorilea"
+    display: "Gov"
     source: "derived-2026-09-14"
     trigger: "the wave adds or changes an ADR, a dependency-direction or module-boundary rule, or a lint, format or type-check standard"
     note: "Note: a trigger on 'the wave cites an architecture decision' was rejected. Every ffbapp wave cites an AD-n, so it would fire always and mean nothing. These patterns fire on the rules themselves changing."
@@ -654,7 +654,7 @@ reviewers:
 
   - role: bmm-tech-writer
     skill: bmad-agent-tech-writer
-    display: "Loial"
+    display: "Ryder"
     source: "derived-2026-09-14"
     trigger: "the wave adds or changes a README, a changelog, a contributing guide, or a documentation site page outside the wave's own bookkeeping"
     paths:
@@ -672,7 +672,7 @@ reviewers:
 
   - role: arch-infrastructure-analyst
     skill: bmad-agent-arch-infrastructure-analyst
-    display: "Verin Mathwin"
+    display: "Ingrid"
     source: "derived-2026-09-14"
     trigger: "the wave adds or changes an infrastructure requirements artifact, a feasibility assessment, or an integration inventory"
     paths:
@@ -686,7 +686,7 @@ reviewers:
 
   - role: arch-cloud-architect
     skill: bmad-agent-arch-cloud-architect
-    display: "Elayne Trakand"
+    display: "Skye"
     source: "derived-2026-09-14"
     trigger: "the wave adds or changes a cloud provider SDK call, a managed-service client, or a region or account configuration"
     paths:
@@ -707,7 +707,7 @@ reviewers:
 
   - role: bmm-analyst
     skill: bmad-agent-analyst
-    display: "Moiraine Damodred"
+    display: "Analisa"
     source: "derived-2026-09-14"
     trigger: "the wave adds or changes a product brief, a market or domain research artifact, or a stated business requirement"
     paths:
@@ -723,7 +723,7 @@ reviewers:
 
   - role: bmm-pm
     skill: bmad-agent-pm
-    display: "Egwene al'Vere"
+    display: "Rod"
     source: "derived-2026-09-14"
     trigger: "the wave adds or changes the PRD, an epics document, or a numbered functional requirement"
     paths:
@@ -735,7 +735,7 @@ reviewers:
 
   - role: bmm-architect
     skill: bmad-agent-architect
-    display: "Perrin Aybara"
+    display: "Archie"
     source: "derived-2026-09-14"
     trigger: "the wave adds or changes an architecture spine, a solution design, or a component-boundary definition"
     paths:
@@ -751,7 +751,7 @@ reviewers:
 
   - role: bmm-ux-designer
     skill: bmad-agent-ux-designer
-    display: "Min Farshaw"
+    display: "Yuki"
     source: "derived-2026-09-14"
     trigger: "the wave adds or changes a UX specification, a user flow, a wireframe, or an interaction spec"
     paths:
@@ -770,7 +770,7 @@ reviewers:
 
   - role: cis-brainstorming-coach
     skill: bmad-cis-agent-brainstorming-coach
-    display: "Siuan Sanche"
+    display: "Brayden"
     source: "derived-2026-09-14"
     trigger: "the wave adds or changes a brainstorming or ideation artifact"
     paths:
@@ -783,7 +783,7 @@ reviewers:
 
   - role: cis-design-thinking-coach
     skill: bmad-cis-agent-design-thinking-coach
-    display: "Nynaeve al'Meara"
+    display: "Dez"
     source: "derived-2026-09-14"
     trigger: "the wave adds or changes a design-thinking artifact: an empathy map, a journey map, or a persona definition"
     paths:
@@ -799,7 +799,7 @@ reviewers:
 
   - role: cis-innovation-strategist
     skill: bmad-cis-agent-innovation-strategist
-    display: "Logain Ablar"
+    display: "Inna"
     source: "derived-2026-09-14"
     trigger: "the wave adds or changes a business-model or disruption-strategy artifact"
     paths:
@@ -814,7 +814,7 @@ reviewers:
 
   - role: cis-creative-problem-solver
     skill: bmad-cis-agent-creative-problem-solver
-    display: "Birgitte Silverbow"
+    display: "Olive"
     source: "derived-2026-09-14"
     trigger: "the wave adds or changes a problem statement, a root-cause analysis, or a decision record for a contested trade-off"
     paths:
@@ -829,7 +829,7 @@ reviewers:
 
   - role: cis-storyteller
     skill: bmad-cis-agent-storyteller
-    display: "Thom Merrilin"
+    display: "Ori"
     source: "derived-2026-09-14"
     trigger: "the wave adds or changes narrative or positioning copy: a pitch, a messaging document, or launch narrative"
     paths:
@@ -845,7 +845,7 @@ reviewers:
 
   - role: cis-presentation-master
     skill: bmad-cis-agent-presentation-master
-    display: "Morgase Trakand"
+    display: "Preston"
     source: "derived-2026-09-14"
     trigger: "the wave adds or changes a presentation deck or slide source"
     paths:
@@ -859,7 +859,7 @@ reviewers:
 
   - role: bmm-dev
     skill: bmad-agent-dev
-    display: "Mat Cauthon"
+    display: "Devon"
     source: "derived-2026-09-14"
     trigger: "the wave adds or changes production source outside a test tree"
     generalist: "yes"
@@ -892,7 +892,7 @@ reviewers:
 
   - role: arch-platform-engineer
     skill: bmad-agent-arch-platform-engineer
-    display: "Rhuarc"
+    display: "Platt"
     source: "derived-2026-09-14"
     trigger: "the wave adds or changes a CI or CD workflow, a container or orchestration manifest, an infrastructure-as-code file, a deployment or release configuration, or an observability target"
     paths:
@@ -926,7 +926,7 @@ reviewers:
 
   - role: arch-cost-optimizer
     skill: bmad-agent-arch-cost-optimizer
-    display: "Berelain sur Paendrag"
+    display: "Costa"
     source: "derived-2026-09-14"
     trigger: "the wave adds or changes a paid-service call, a compute or storage provisioning parameter, a spend or budget ceiling, a batch or scheduling window that changes spend, or a data-egress path"
     paths:

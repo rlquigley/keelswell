@@ -39,7 +39,7 @@ fork touches either.
 
 Class A -- fork edits to upstream-owned skills: overwritten from the
 upstream package. As of v0.4.0 the only such edit (the
-bmad-retrospective Mat Cauthon recast) ships via marketplace.json, and
+bmad-retrospective Devon recast) ships via marketplace.json, and
 custom-module skills WIN over the upstream package for the same skill
 id (scratch-verified for the 13 vanilla renames). Keep it that way: any
 future fork edit to an upstream-owned skill must either be added to
@@ -71,7 +71,7 @@ defect to fix by hand.
 Class C -- installer-owned regeneration, absorbed by design:
 `_bmad/config.toml` comes back with upstream names, but the
 `_bmad/custom/config.toml` overlay pins re-win at resolution
-(scratch-verified: resolver yields all Wheel of Time names after a
+(scratch-verified: resolver yields all the fork's display names after a
 refresh). `config.yaml` files reset `user_name`/timestamps and derive
 `project_name` from the directory name -- cosmetic, restorable with git.
 
@@ -105,9 +105,9 @@ resolvers.
 4. Restore class B via the git checkout above; re-apply intended
    catalog deltas if the upstream version added real skills.
 5. Verify: `python3 _bmad/scripts/resolve_config.py --project-root .
-   --key agents` shows Wheel of Time names; `./install.sh
+   --key agents` shows the fork's display names; `./install.sh
    --validate-only --skip-mcp-check` exits 0; spot-activate one vanilla
-   agent (expects its WoT persona). Precondition for the validate step:
+   agent (expects its fork display name). Precondition for the validate step:
    config/agent-names.yaml.default must carry the same agents as
    config/agent-names.yaml (the validator asserts equal counts). Sync
    the .default whenever an agent is added, or this step fails for a
@@ -292,7 +292,7 @@ agents' descriptor blocks come from the upstream module.yaml files
 pins do not travel with a marketplace install and the upstream
 duplicate-emission bug (filed: bmad-method#2606) blocks redeclaring
 those agents in keelswell's module.yaml. The skills themselves still
-greet under Wheel of Time names (the fork's marketplace copies win);
+greet under the fork's display names (the fork's marketplace copies win);
 only registry consumers (party-mode rosters, help displays) see the
 upstream name. Cosmetic; fix by copying the fork's roster-pin blocks
 into the target project's _bmad/custom/config.toml.

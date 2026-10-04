@@ -19,7 +19,7 @@ allowed-tools:
   - Bash
   - Task
 metadata:
-  version: 1.12.0
+  version: 1.12.1
   output-locations:
     - ../<project>-wave-<id>/                 # sibling worktree, branch wave-<id>-<suffix>
     - .bmad/wave-<id>/checkpoint.json         # plus step-N.done markers (main repo)
@@ -246,7 +246,7 @@ worth having. The evaluator is structurally unable to edit: that is a tool
 list the harness enforces, not an instruction it is asked to honour.
 
 The definition is fork-owned and deliberately not a BMAD persona.
-`bmad-agent-qa` (Aviendha) is untouched and still holds her seat; she is no
+`bmad-agent-qa` (Quinn) is untouched and still holds her seat; she is no
 longer the one who grades this wave. `.claude/agents/` is invisible to the
 installer's agent registry, so nothing here can collide with an upstream
 module the way a `module.yaml` declaration would.
@@ -667,6 +667,9 @@ there is nothing to block.
   names. Do not retry the same write through a different tool.
 
 ## Version history
+- 1.12.1 (2026-10-03, theme removal, PR 1): the `display:` column of
+  `scripts/reviewer-triggers.yaml` and one name in step 10 carry the 38 new
+  display names. No trigger pattern, selector rule or step changed.
 - 1.12.0 (2026-10-02, R5 of docs/reviews/harness-engineering-review-v1.md,
   second part): the skill gains `evals/`, three balanced pairs that enter the
   wave at the step under test and grade what the session leaves on disk: the

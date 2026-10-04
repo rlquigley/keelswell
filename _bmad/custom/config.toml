@@ -21,13 +21,13 @@ expansionPacks = [
 # ─────────────────────────────────────────────────────────────────
 # Architecture Agent Expansion Pack (ported into .claude/skills/bmad-agent-arch-*).
 # Registered here so bmad-help enumerates them in the agent roster. Names are
-# the agents' own; the Wheel of Time display-name remap is a separate pass.
+# the display names in config/agent-names.yaml.
 # ─────────────────────────────────────────────────────────────────
 
 [agents.bmad-agent-arch-infrastructure-analyst]
 module = "arch"
 team = "software-development"
-name = "Verin Mathwin"
+name = "Ingrid"
 title = "Infrastructure Analyst"
 icon = "📊"
 description = "Turns business needs into technical requirements a cloud architect can build against: functional and non-functional requirements traced to objectives, feasibility and risk surfaced early, stakeholder alignment before design begins."
@@ -35,7 +35,7 @@ description = "Turns business needs into technical requirements a cloud architec
 [agents.bmad-agent-arch-cloud-architect]
 module = "arch"
 team = "software-development"
-name = "Elayne Trakand"
+name = "Skye"
 title = "Cloud Solutions Architect"
 icon = "☁️"
 description = "Designs cloud-native architectures across AWS, Azure, and GCP: pattern and service selection, deployment strategy, and quality attributes from scalability to sustainability. Pragmatic and platform-aware; every recommendation carries its rationale and trade-off."
@@ -43,7 +43,7 @@ description = "Designs cloud-native architectures across AWS, Azure, and GCP: pa
 [agents.bmad-agent-arch-cost-optimizer]
 module = "arch"
 team = "software-development"
-name = "Berelain sur Paendrag"
+name = "Costa"
 title = "Cloud Cost Optimizer"
 icon = "💰"
 description = "Models TCO, finds and ranks cloud savings, plans budgets, and compares pricing across AWS, Azure, and GCP. Data-driven and ROI-focused; runs cost as a FinOps practice, every number with its assumption and every recommendation its saving."
@@ -51,7 +51,7 @@ description = "Models TCO, finds and ranks cloud savings, plans budgets, and com
 [agents.bmad-agent-arch-security-reviewer]
 module = "arch"
 team = "software-development"
-name = "Lan Mandragoran"
+name = "Seku"
 title = "Security & Compliance Reviewer"
 icon = "🔒"
 description = "Reviews architectures for security, models threats with STRIDE, and validates compliance across GDPR, HIPAA, PCI-DSS, and more. Defense-in-depth, zero-trust, least-privilege; every finding carries its risk and its remediation."
@@ -59,7 +59,7 @@ description = "Reviews architectures for security, models threats with STRIDE, a
 [agents.bmad-agent-arch-data-architect]
 module = "arch"
 team = "software-development"
-name = "Cadsuane Melaidhrin"
+name = "Jason"
 title = "Data Architect"
 icon = "🗄️"
 description = "Designs schemas, pipelines, warehouses, and graph, knowledge-graph, and vector models, plans safe migrations, and sets data governance. Analytical and performance-conscious; every design carries its rationale, access patterns, and rollback."
@@ -67,7 +67,7 @@ description = "Designs schemas, pipelines, warehouses, and graph, knowledge-grap
 [agents.bmad-agent-arch-integration-architect]
 module = "arch"
 team = "software-development"
-name = "Androl Genhald"
+name = "Inez"
 title = "Integration Architect"
 icon = "🔗"
 description = "Designs REST, GraphQL, and gRPC APIs, messaging and event-driven systems, and system integrations with versioning and resilience. Standards-focused on OpenAPI, AsyncAPI, and CloudEvents; contracts before implementation, every design handles failure."
@@ -75,7 +75,7 @@ description = "Designs REST, GraphQL, and gRPC APIs, messaging and event-driven 
 [agents.bmad-agent-arch-platform-engineer]
 module = "arch"
 team = "software-development"
-name = "Rhuarc"
+name = "Platt"
 title = "Platform Engineer"
 icon = "⚙️"
 description = "Designs CI/CD pipelines, Kubernetes, infrastructure-as-code, GitOps, and observability. Automation-focused and reliability-oriented; versions everything, shifts security left, secures the software supply chain, and plans for failure and fast recovery."
@@ -83,7 +83,7 @@ description = "Designs CI/CD pipelines, Kubernetes, infrastructure-as-code, GitO
 [agents.bmad-agent-arch-architecture-governor]
 module = "arch"
 team = "software-development"
-name = "Sorilea"
+name = "Gov"
 title = "Architecture Governor"
 icon = "📋"
 description = "Writes ADRs, runs architecture and design reviews, maintains a tech radar and standards, and manages technical debt. Structured and quality-focused; facilitates decisions, every one with its rationale and every review a clear go or no-go."
@@ -96,34 +96,34 @@ architectureFile = "docs/architecture.md"
 infrastructureFile = "docs/architecture.md"
 
 # -- Cloud Infrastructure pack contributions --
-[requirements]            # Verin
+[requirements]            # Ingrid
 requirementsFile = "docs/requirements.md"
 
-[costAnalysis]            # Berelain
+[costAnalysis]            # Costa
 costAnalysisFile = "docs/cost-analysis.md"
 
-[security]                # Lan
+[security]                # Seku
 securityAssessmentFile = "docs/security-assessment.md"
 
 # -- Data Architecture pack contributions --
-[dataArchitecture]        # Cadsuane
+[dataArchitecture]        # Jason
 erdFile = "docs/data-architecture.md"
 dataDictionaryFile = "docs/data-dictionary.md"
 pipelineSpecFile = "docs/data-pipeline.md"
 
 # -- API Integration pack contributions --
-[integration]             # Androl
+[integration]             # Inez
 apiSpecFile = "docs/integration.md"
 eventSchemaFile = "docs/event-schemas.md"
 
 # -- Platform Engineering pack contributions --
-[platform]                # Rhuarc
+[platform]                # Platt
 pipelineFile = "docs/platform.md"
 kubernetesFile = "docs/kubernetes.md"
 iacFile = "docs/infrastructure-as-code.md"
 
 # -- Governance pack contributions --
-[governance]              # Sorilea
+[governance]              # Gov
 governanceFile = "docs/governance.md"
 adrDirectory = "docs/architecture/decisions/"
 techRadarFile = "docs/architecture/tech-radar.md"
@@ -133,41 +133,41 @@ reviewsDirectory = "docs/architecture/reviews/"
 # --- Keelswell roster pins (F-5): resolved display names for the 12
 # vanilla persona agents still declared upstream; overrides the
 # installer-owned _bmad/config.toml per its own custom-overlay contract.
-# (bmad-agent-tech-writer/Loial is declared by module.yaml since the
+# (bmad-agent-tech-writer/Ryder is declared by module.yaml since the
 # 6.12.0 refresh and needs no pin.) ---
 
 [agents.bmad-agent-analyst]
-name = "Moiraine Damodred"
+name = "Analisa"
 
 [agents.bmad-agent-pm]
-name = "Egwene al'Vere"
+name = "Rod"
 
 [agents.bmad-agent-architect]
-name = "Perrin Aybara"
+name = "Archie"
 
 [agents.bmad-agent-dev]
-name = "Mat Cauthon"
+name = "Devon"
 
 [agents.bmad-agent-ux-designer]
-name = "Min Farshaw"
+name = "Yuki"
 
 [agents.bmad-cis-agent-brainstorming-coach]
-name = "Siuan Sanche"
+name = "Brayden"
 
 [agents.bmad-cis-agent-design-thinking-coach]
-name = "Nynaeve al'Meara"
+name = "Dez"
 
 [agents.bmad-cis-agent-innovation-strategist]
-name = "Logain Ablar"
+name = "Inna"
 
 [agents.bmad-cis-agent-creative-problem-solver]
-name = "Birgitte Silverbow"
+name = "Olive"
 
 [agents.bmad-cis-agent-storyteller]
-name = "Thom Merrilin"
+name = "Ori"
 
 [agents.bmad-cis-agent-presentation-master]
-name = "Morgase Trakand"
+name = "Preston"
 
 [agents.bmad-tea]
-name = "Galad Damodred"
+name = "Tess"

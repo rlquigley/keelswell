@@ -51,7 +51,7 @@ available because they carry per-seat attribution:
 
 - `_bmad-output/planning-artifacts/review-party-epics-waves-2026-08-20.md`,
   67 findings, all ruled and folded, each attributed inline
-  (`(Damer Flinn.)`).
+  by persona name in parentheses.
 - `ux-designs/ux-ffbapp-2026-08-08/party-review-findings-2026-08-08.md`,
   attributed in a summary table.
 - `architecture/architecture-ffbapp-2026-08-10/reviews/review-party.md`,
@@ -65,7 +65,7 @@ a document because the epic has not been built, that is said too.
 
 ## Group 1: Earns its place (6)
 
-### agent-ml (Damer Flinn)
+### agent-ml (Mel)
 
 **Failure prevented:** temporal leakage in a model backtest. Selecting
 or validating on the same weeks the verdict is evaluated on, which
@@ -89,7 +89,7 @@ He also set the PRD's calibrated-confidence meaning (`prd.md:451`).
 **Trigger:** the wave trains, scores, selects, or validates a model, or
 touches a train/test split, a backtest window, or a feature table.
 
-### agent-sre (Tam al'Thor)
+### agent-sre (Reese)
 
 **Failure prevented:** a run that cannot be reproduced or accounted
 for. Interrupted work disappearing from the ledger, and a failing
@@ -109,7 +109,7 @@ watches the web process only."
 manifest, a scheduled task, a health probe, or anything that writes a
 ledger or spend record.
 
-### agent-appsec (Juilin Sandar)
+### agent-appsec (Seth)
 
 **Failure prevented:** attacker-controlled bytes reaching a place that
 trusts them. A composition prompt, a raw storage bucket, an access
@@ -142,7 +142,7 @@ a query, or a filename; adds or changes an authorization boundary, an
 access token, a share link, or a webhook receiver; or adds a
 dependency.
 
-### agent-bizops (Basel Gill)
+### agent-bizops (Bizzy)
 
 **Failure prevented:** signing in a name that does not exist yet, and
 missing a dated filing obligation. Both are irreversible in a way code
@@ -166,7 +166,7 @@ prose, and that is part of why it held.
 owner (a filing, a payment account, a contract, a license), or a dated
 obligation coming due.
 
-### agent-accessibility (Setalle Anan)
+### agent-accessibility (Cici)
 
 **Failure prevented:** shipping a screen that a keyboard or
 screen-reader user cannot operate, against a conformance floor the
@@ -193,7 +193,7 @@ named and real; the prevention is not yet demonstrated.
 **Trigger:** the wave ships or changes a rendered surface: a template,
 a component, a stylesheet, a color token, a focus behaviour, or a form.
 
-### agent-billing (Bayle Domon)
+### agent-billing (Bill)
 
 **Failure prevented:** double-charging or double-granting on a
 redelivered provider event, and entitlements welded to billing shape
@@ -207,7 +207,7 @@ entitlements independent of billing shape, with tiers as entitlement
 bundles. He filed EW-42, EW-43 and EW-44 on unsourced and unowned
 subscription mechanics (a season-pass end date with no defined source,
 monthly's offer window unowned, the founding-rate mark consumed one
-epic before anything creates it). In the UX review he and Tuon filed
+epic before anything creates it). In the UX review he and Grover filed
 PR-17: the league pass has no UX surface anywhere in the spec.
 
 **Thin spot:** Epic 20 onward is unbuilt, so nothing has reached code.
@@ -232,7 +232,7 @@ the persona, and compare what each filed. Keep the persona only if it
 files something the bare domain prompt did not. The per-agent lines
 below say what to look for.
 
-### agent-analytics (Hurin)
+### agent-analytics (Lytta)
 
 **Failure named:** a success metric that reads zero because no story
 emits the event it counts. EW-34 (the decision-made and
@@ -251,7 +251,7 @@ Nothing of his reached code.
 uninstrumented metrics. If a Claude 6 traceability pass catches them,
 he is redundant, not wrong.
 
-### agent-performance (Jain Farstrider)
+### agent-performance (Perry)
 
 **Failure named:** a capacity requirement with nothing that verifies
 it. EW-37 (nothing produces the beta latency evidence the Ask-budget
@@ -265,13 +265,13 @@ artifact floor). `prd.md:398` and SM-10 (`prd.md:618`) both cite him.
 **Keep after an upgrade if:** the closure NFR pass still accepts an
 unverified capacity claim.
 
-### agent-legal (Gareth Bryne)
+### agent-legal (Lex)
 
 **Failure named:** a consent or attribution obligation carried by no
 story. EW-49 (the member-imports consent question is carried by no
 story, and the coverage bookkeeping is wrong twice), EW-50 (a
 counsel-not-delivered disposition missing), EW-62, PA-12 (CC-BY-4.0
-attribution has no named render home), and PR-13 with Lan (the
+attribution has no named render home), and PR-13 with Seku (the
 world-variant rule silent on league display names).
 
 **Why consumable:** his own operating rule is that he produces a risk
@@ -282,12 +282,12 @@ code.
 **Keep after an upgrade if:** a bare compliance review still misses
 obligations that exist in the PRD but appear in no story.
 
-### agent-growth (Tuon)
+### agent-growth (Grover)
 
 **Failure named:** thinnest with any evidence at all. Two findings,
-both co-filed: EW-34 with Hurin, EW-67 with three others (a wave-map
+both co-filed: EW-34 with Lytta, EW-67 with three others (a wave-map
 cycle-check sentence that is false for its intra-serial edges), plus
-PR-17 with Bayle Domon and PA-3 with Hurin.
+PR-17 with Bill and PA-3 with Lytta.
 
 **Why consumable:** no finding is his alone. Co-filing is real signal
 about the room, not about the seat.
@@ -295,7 +295,7 @@ about the room, not about the seat.
 **Keep after an upgrade if:** he files something first, on his own, in
 one review.
 
-### agent-llm (Talmanes Delovinde)
+### agent-llm (Elle)
 
 **Failure named:** generated text inventing facts, and an unmapped
 prompt-injection path.
@@ -304,7 +304,7 @@ prompt-injection path.
 (`grounding-design.md`, `injection-exposure-map.md`,
 `calibrated-confidence-review.md`, `eval-harness-plan.md`,
 `inference-cost-budget.md`), all inputs to `epics.md`. But the
-injection map's actual verdict came from Juilin, and Talmanes' only
+injection map's actual verdict came from Seth, and Elle's only
 party finding is EW-65, a Low about blurb ownership. Phase 1 builds no
 LLM surface, so the failure he exists for has had no chance to occur.
 
@@ -313,7 +313,7 @@ runs with him and produces a grounding or confidence finding the
 generic reviewers missed. Until such a wave exists, this entry cannot
 be settled either way.
 
-### agent-mobile (Egeanin Tamarath)
+### agent-mobile (Moby)
 
 **Failure named:** store-rejection risk, and store material pulled
 ahead of a ruled deferral. EW-53 (story 23.1's "store strings" clause
@@ -330,7 +330,7 @@ rules rather than the persona.
 **Keep after an upgrade if:** a store submission is actually on the
 roadmap. One party appearance and one memlog is the whole record.
 
-### agent-marketing (Aludra)
+### agent-marketing (Mark)
 
 **Failure named:** activating a share surface whose contents are still
 barred, and routing installability to a story that cannot render its
@@ -347,7 +347,7 @@ next epic and she files against it.
 Nobody can name a failure these prevent. Not a recommendation to
 delete; a recommendation for how to find out.
 
-### agent-web-designer (Leane Sharif)
+### agent-web-designer (Webb)
 
 **Why no answer:** zero hits in artifacts, git log, and 87
 transcripts. Added in PR #49 on 2026-08-25 and never activated. Phase
@@ -367,18 +367,18 @@ result against a wave built without the loop. The question is whether
 the verification loop catches things, which is answerable in one wave;
 the persona around it is a separate question.
 
-### agent-design-critic (Tarna Feir)
+### agent-design-critic (Critt)
 
 **Why no answer:** zero hits, same PR, same reason. Never activated.
 
 **How to find out:** she is the natural pair to the entry above, and
 her independence claim (she never edits, so her verdict stays
-independent) is testable in one wave: run her against a surface Leane
+independent) is testable in one wave: run her against a surface Webb
 built and see whether the defect list contains anything the builder's
 own verification pass missed. If it does not, the independence buys
 nothing and one of the two is enough.
 
-### core-bmad-master (Rand al'Thor)
+### core-bmad-master (Max)
 
 **Why no answer:** zero hits in artifacts, git log, and 87
 transcripts. `Skill(bmad-master)` was never called; the customization
@@ -408,9 +408,9 @@ names across `bmad-dev-wave`, `bmad-close-epic`, `bmad-create-wave`,
 
 So, as shipped:
 
-- a wave landing a payment surface gets no Bayle Domon;
-- a wave shipping a screen gets no Setalle Anan and no Tarna Feir;
-- waves 4A and 4B, which landed the model work, got no Damer Flinn,
+- a wave landing a payment surface gets no Bill;
+- a wave shipping a screen gets no Cici and no Critt;
+- waves 4A and 4B, which landed the model work, got no Mel,
   and 4B is where the defect that 5D's reviewer eventually caught
   originated.
 
@@ -513,7 +513,7 @@ to check next time:
   possible yet. When Phase 2 builds those epics, check whether the
   findings that looked load-bearing on paper actually prevented
   anything. If they did not, both move to Consumable.
-- **Falsifiable claim:** Damer Flinn's entry predicts that a wave
+- **Falsifiable claim:** Mel's entry predicts that a wave
   touching a train/test split without him produces a leakage defect
   that a bare reviewer misses. Wave 4B is weak evidence for this
   already. The next such wave settles it.
