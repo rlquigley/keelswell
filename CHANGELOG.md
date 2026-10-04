@@ -3,6 +3,68 @@ All notable changes to Keelswell. Format: Keep a Changelog; versioning: semver.
 
 ## [Unreleased] - 2026-09-12
 ### Changed
+- The 15 custom agents speak in a voice derived from the role (theme
+  removal, PR 5 of 5, 2026-10-03). No skill version changes: no persona
+  skill carries `metadata.version`.
+  **What changed.** Two layouts, two forms. Eight skills with an Overview
+  paragraph (agent-sre Reese, -growth Grover, -accessibility Cici, -analytics
+  Lytta, -legal Lex, -ml Mel, -web-designer Webb, -design-critic Critt) gain
+  a `## Voice` section as the arch seats did. Seven with an Identity block
+  (agent-appsec Seth, -billing Bill, -performance Perry, -bizops Bizzy, -llm
+  Elle, -mobile Moby, -marketing Mark) have their `Identity:` and `Style:`
+  lines rewritten, and every principle, scope line and greeting that used
+  the old image now states the same rule in plain words: the inn (Bizzy),
+  the fireworks (Mark), the ship and its empire (Moby), the deadpan aside
+  (Elle), the roads travelled (Perry), and "remade your own presentation"
+  (Webb). One capability name changed, its code did not: `[RP] Release
+  Passage Plan` is `[RP] Release Plan`. Four descriptions changed, in step
+  in the SKILL.md, `module.yaml` and `_bmad/config.toml`: legal, bizops and
+  design-critic lose a gendered pronoun, marketing loses "every display
+  prepared to the second and priced to the shot". Every "Use when" trigger
+  is intact. `docs/agent-inventory.md` quotes the new design-critic line.
+  **How.** The brief with the lessons of PRs 2 to 4; two author subagents,
+  one per layout; one reviewer that wrote neither; one sweep subagent over
+  the whole tree. Review findings, all applied: Moby cited guideline numbers
+  one store does not have and a review status no stateless skill knows; Seth
+  disagreed exactly as Seku does, and now argues from the file and line of
+  the shipped diff; Bizzy's habit covered two of six capabilities; Elle
+  reported an eval score nothing in the skill produces; Reese, Perry, Lytta
+  and Lex each fixed one unit or one capability's method onto every output;
+  Mark kept a trait of the old character.
+  **Grade of PR 4's prediction.** Holds: seven custom agents carried a
+  book-derived image (six predicted) and five a gendered pronoun (four
+  predicted), and the batch rewrote Identity lines, Style lines, principles
+  and greetings.
+  **The sweep, whole tree.** Old names: none outside the nine pre-0.5.0
+  skill ids kept in the inventory. Book words: none. All 38 names agree
+  across the mapping, its default, module.yaml, both config files, the 16
+  `customize.toml` files and the trigger table; 15 descriptions agree across
+  three files; 21 carried copies are byte copies of their skill;
+  `install.sh --validate-only --skip-mcp-check` exits 0.
+  **Not touched.** `agents/*.md` (ruling d): nine files there still hold
+  images, about 22 by the sweep's count. Capability codes, operating rules,
+  artifact locations, provenance paragraphs. Everything R1 to R5 built.
+  **Left as found, for RQ to rule on.** (1) Gendered pronouns for agents
+  remain in `skills/bmad-dev-wave/SKILL.md` (11 lines), in the notes of
+  `reviewer-triggers.yaml` (6 lines), in two comments of
+  `select_reviewers.py` and one of its test, all R5 work under ruling (e),
+  and in 38 lines of `docs/agent-inventory.md`. (2) `skills/bmad-master/
+  SKILL.md` never says Max: it calls itself "the BMad Master", as its
+  description always did. (3) `_bmad/config.toml` descriptions for 11
+  upstream-declared agents still carry upstream's similes ("a bard weaving
+  an epic"); the overlay pins only their names. (4) "Tess / Murat (TEA)" in
+  the QA skill and its carried persona. (5) Whether `agents/` should be
+  deleted: the installer never reads it, it reaches no instance, and it now
+  differs from every surface that is read.
+  **Prediction.** After the instance hand step, `install.sh --validate-only
+  --skip-mcp-check --target-project` exits 0 on ffbapp and green-ledger,
+  `resolve_config.py --key agents` shows the 38 new names, and no code in
+  either `bmad-help.csv` repeats.
+  **At risk.** (1) No agent was run in any of the five PRs: the voices are
+  reviewed text, not measured behavior. (2) Four voices run 2 to 10 words
+  over the brief's 110. (3) Many voices open on "distrusts"; they read as
+  one hand. (4) The eval pairs were not re-run; pair C's graders match
+  reviewers by role and skill id, which did not change.
 - The six cis seats speak in a voice stated plainly, not as a simile (theme
   removal, PR 4 of 5, 2026-10-03). No skill version changes: no persona
   skill carries `metadata.version`.
