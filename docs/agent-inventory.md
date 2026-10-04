@@ -372,7 +372,7 @@ the persona around it is a separate question.
 **Why no answer:** zero hits, same PR, same reason. Never activated.
 
 **How to find out:** she is the natural pair to the entry above, and
-her independence claim (she never edits, so her verdict stays
+her independence claim (Critt never edits, so the verdict stays
 independent) is testable in one wave: run her against a surface Webb
 built and see whether the defect list contains anything the builder's
 own verification pass missed. If it does not, the independence buys
