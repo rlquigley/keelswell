@@ -3,6 +3,26 @@ All notable changes to Keelswell. Format: Keep a Changelog; versioning: semver.
 
 ## [Unreleased] - 2026-09-12
 ### Fixed
+- The [IR] menu item of Rod and Archie opens a skill that exists
+  (2026-10-05). Both `customize.toml` files pointed it at
+  `bmad-check-implementation-readiness`, which bmad-method 6.12.0 removed:
+  upstream folded the readiness gate into `bmad-sprint-planning` and
+  re-pointed its own two menus there. The fork's copies of the bmm agents win
+  over upstream's, so they kept the old target; the item has been dead in
+  the fork since the 2026-09-11 refresh and in both instances since theirs
+  on 2026-10-05. The two items now carry upstream's target and description.
+  **What was measured.** Every `skill` named by a menu item in the 16
+  `customize.toml` files resolves to an installed skill; before, these two
+  did not.
+  **The check.** `.github/workflows/ci.yml` gains a fifth step, "Every agent
+  menu item opens a skill that exists": each `skill` in a
+  `skills/*/customize.toml` menu must be a directory under `.claude/skills`.
+  Run against the commit before this fix it fails on exactly these two
+  items; run after, it passes. It is what will catch the same thing at the
+  next upstream refresh.
+  **Not touched.** The other menu items, which still route through v6 shim
+  names that upstream removes at v7. No skill version: neither skill carries
+  `metadata.version`.
 - The secret scan scans again (2026-10-05). `.gitleaks.toml` had an
   allowlist and no `[extend] useDefault = true`, and a gitleaks config
   without that block replaces the default rules with none. Every commit in

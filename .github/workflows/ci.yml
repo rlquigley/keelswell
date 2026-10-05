@@ -1,6 +1,6 @@
 # Keelswell CI. R5 of docs/reviews/harness-engineering-review-v1.md.
 #
-# Four checks, no secret and no model call. The reviewer-selection replay is
+# Five checks, no secret and no model call. The reviewer-selection replay is
 # not one of them: its fixture is a private instance's and is not committed,
 # so test_replay.py skips that test here and says why. The eval pairs never
 # run here either.
@@ -66,6 +66,27 @@ jobs:
 
       - name: Harness invariants
         run: ./install.sh --validate-only --skip-mcp-check
+
+      # The fork's copies of upstream agents win over upstream's, so an
+      # upstream refresh that removes a skill leaves their menus pointing at
+      # nothing (bmad-check-implementation-readiness, gone in 6.12.0).
+      - name: Every agent menu item opens a skill that exists
+        run: |
+          python3 - <<'PY'
+          import glob, os, sys, tomllib
+
+          have = set(os.listdir(".claude/skills"))
+          dead = []
+          for path in sorted(glob.glob("skills/*/customize.toml")):
+              with open(path, "rb") as f:
+                  menu = tomllib.load(f).get("agent", {}).get("menu", [])
+              dead += [f"{path}: [{m.get('code')}] {m['skill']}"
+                       for m in menu if m.get("skill") and m["skill"] not in have]
+          for line in dead:
+              print(f"::error::menu item opens a skill that is not installed: {line}")
+          print("ok" if not dead else f"{len(dead)} dead menu target(s)")
+          sys.exit(1 if dead else 0)
+          PY
 
       - name: A skill version bump needs a CHANGELOG line
         if: github.event_name == 'pull_request'
