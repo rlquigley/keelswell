@@ -1,11 +1,20 @@
 title = "Keelswell gitleaks config"
 
-[allowlist]
-  description = "Vendored BMAD external-module content: manifest checksums and test-pattern doc fixtures, not credentials"
-  paths = [
-    '''_bmad/_config/files-manifest\.csv''',
-    '''\.agents/skills/bmad-tea/resources/knowledge/api-testing-patterns\.md''',
-    '''\.agents/skills/bmad-testarch-.*/resources/knowledge/api-testing-patterns\.md''',
-    '''\.claude/skills/bmad-tea/resources/knowledge/api-testing-patterns\.md''',
-    '''\.claude/skills/bmad-testarch-.*/resources/knowledge/api-testing-patterns\.md''',
-  ]
+# Without this block a config file replaces gitleaks' rules instead of adding
+# to them, and a config that only lists allowlists scans with no rules at all.
+# The file did exactly that from 2026-07-09 to 2026-10-05.
+[extend]
+useDefault = true
+
+# The pre-commit hook pipes the staged diff to `gitleaks stdin`, which has no
+# file paths, so every exception here is a pattern, not a path.
+
+[[allowlists]]
+  description = "BMAD installer manifest rows (_bmad/_config/files-manifest.csv): a file path and its sha256 checksum, not a credential"
+  regexTarget = "line"
+  regexes = [ '''","[0-9a-f]{64}"''' ]
+
+[[allowlists]]
+  description = "Upstream TEA doc fixture (api-testing-patterns.md): the public JWT header for HS256, cut off with an ellipsis"
+  regexTarget = "line"
+  regexes = [ '''eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9\.\.\.''' ]

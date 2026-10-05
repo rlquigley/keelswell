@@ -333,6 +333,15 @@ Then, in order:
    <instance>` from the fork; `resolve_config.py --key agents` in the
    instance shows the fork's 38 names (the pins in
    `_bmad/custom/config.toml` survive: the installer preserves that file).
+4a. An instance that tracks `_bmad/_config/files-manifest.csv` (ffbapp
+   does; green-ledger ignores it) is refused by the gitleaks pre-commit hook
+   at the commit: a manifest row is a file path and a sha256, and a path
+   with "key" or "api" in it beside 64 hex characters reads as an API key.
+   Do not pass `--no-verify`. Give the instance a `.gitleaks.toml` like the
+   fork's: `[extend] useDefault = true` and a line allowlist for
+   `","[0-9a-f]{64}"`. A config with allowlists and no `[extend]` block
+   loads no rules and passes everything; the fork's own file was that from
+   2026-07-09 to 2026-10-05.
 5. Stage from a list, not a directory: `git ls-files -m -d -o
    --exclude-standard -- <skill trees> _bmad` written to a file, read, then
    `git add --pathspec-from-file`. Nothing outside the skill trees, `_bmad`
