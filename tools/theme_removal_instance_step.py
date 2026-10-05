@@ -2,7 +2,7 @@
 """Apply the Keelswell theme removal (fork PRs 34 to 39) to one instance.
 
 Run from the fork root on main:
-    python3 tools/theme_removal_instance_step.py <instance-dir> [--check]
+    python3 tools/theme_removal_instance_step.py <instance-dir> [--check] [--catalogs-only]
 
 Four surfaces: the skill files that changed since BASE, in every Keelswell
 skill tree the instance has; name and description lines of the [agents.*]
@@ -11,7 +11,9 @@ where present, added where the instance has none); and the Keelswell rows of
 _bmad/_config/bmad-help.csv and _bmad/keelswell/module-help.csv, spliced as
 text. Edits in place, never stages or commits. Aborts before writing anything
 if an instance file is not what the fork shipped at BASE. --check writes
-nothing. Needs PyYAML, as install.sh does. See the runbook section "Instances:
+nothing. --catalogs-only does the catalog rows alone: the installer
+regenerates both catalogs on an upstream refresh, and this puts the display
+names and menu codes back (runbook, "Instances: refreshing upstream"). Needs PyYAML, as install.sh does. See the runbook section "Instances:
 the theme removal is a hand step".
 """
 import csv, io, pathlib, re, subprocess, sys, tomllib, yaml
@@ -22,9 +24,24 @@ CODES = dict(zip(
     "agent-appsec agent-performance agent-bizops agent-llm agent-mobile agent-marketing "
     "agent-web-designer agent-design-critic".split(),
     "ARE AGR ACI ALY ALE AME ABI ASE APR ABZ AEL AMO AMA AWE ACR".split()))
+# The 23 other persona rows keep the codes the 6.10 installer gave them. The
+# 6.12 installer no longer makes codes unique (architect comes back as A,
+# integration architect as AIA), so the codes are written, not trusted.
+KEPT = dict(zip(
+    "bmad-master bmad-agent-qa bmad-agent-analyst bmad-agent-pm bmad-agent-architect bmad-agent-dev "
+    "bmad-agent-ux-designer bmad-agent-tech-writer bmad-cis-agent-brainstorming-coach "
+    "bmad-cis-agent-design-thinking-coach bmad-cis-agent-innovation-strategist "
+    "bmad-cis-agent-creative-problem-solver bmad-cis-agent-storyteller bmad-cis-agent-presentation-master "
+    "bmad-tea bmad-agent-arch-infrastructure-analyst bmad-agent-arch-cloud-architect "
+    "bmad-agent-arch-cost-optimizer bmad-agent-arch-security-reviewer bmad-agent-arch-data-architect "
+    "bmad-agent-arch-integration-architect bmad-agent-arch-platform-engineer "
+    "bmad-agent-arch-architecture-governor".split(),
+    "M Q A P ARC D UD TW CAB CAD CAI CAC CAS CAP T AIA ACA ACO ASR ADA AIT APE AAG".split()))
+assert len(KEPT) == 23 and len(set(KEPT.values())) == 23 and not set(KEPT.values()) & set(CODES.values())
 fork = pathlib.Path.cwd()
 inst = pathlib.Path(sys.argv[1]).expanduser().resolve()
 check = "--check" in sys.argv
+catalogs_only = "--catalogs-only" in sys.argv   # after an upstream refresh: surface 4 alone
 
 def git(*a):
     r = subprocess.run(["git", *a], capture_output=True, text=True)
@@ -37,7 +54,7 @@ writes, changed = {}, []          # path -> new text ; instance-relative paths
 
 # ---- surface 1: skill files
 files = [f[len("skills/"):] for f in git("diff", "--name-only", BASE, "HEAD", "--", "skills").split()]
-trees = [t for t in (".claude/skills", ".agents/skills") if (inst / t / "bmad-dev-wave").is_dir()]
+trees = [] if catalogs_only else [t for t in (".claude/skills", ".agents/skills") if (inst / t / "bmad-dev-wave").is_dir()]
 for t in trees:
     for f in files:
         p = inst / t / f
@@ -66,52 +83,54 @@ def desc(skill):
     d = re.search(r"^description: (.*)$", (fork / "skills" / skill / "SKILL.md").read_text(), re.M).group(1).strip()
     return d[1:-1] if d[:1] == d[-1:] == '"' else d
 
-# ---- surface 2: [agents.*] tables in _bmad/config.toml
-p = inst / "_bmad/config.toml"; text = p.read_text(encoding="utf-8"); out = []; cur = None; n = 0; skipped = []
-for line in text.split("\n"):
-    m = re.match(r"\[agents\.([^\]]+)\]", line)
-    if m: cur = m.group(1)
-    elif line.startswith("["): cur = None
-    if cur in new_mod:
-        for key in ("name", "description"):
-            if line.startswith(f"{key} = "):
-                old, new = old_mod[cur][key], new_mod[cur][key]
-                assert '"' not in new and "\\" not in new
-                if line != f'{key} = "{old}"':
-                    if cur not in skipped: skipped.append(cur)
-                elif old != new:
-                    line = f'{key} = "{new}"'; n += 1
-    out.append(line)
-if skipped != [] and skipped != ["bmad-agent-tech-writer"]:
-    die(f"_bmad/config.toml tables not as the fork shipped them: {skipped}")
-new_text = "\n".join(out); tomllib.loads(new_text); writes[p] = new_text
-print(f"_bmad/config.toml: {n} lines (name or description) in {len(new_mod) - len(skipped)} tables"
-      + (f"; left alone: {skipped} (declared by an upstream module in this instance)" if skipped else ""))
+skipped = []
+if not catalogs_only:
+    # ---- surface 2: [agents.*] tables in _bmad/config.toml
+    p = inst / "_bmad/config.toml"; text = p.read_text(encoding="utf-8"); out = []; cur = None; n = 0; skipped = []
+    for line in text.split("\n"):
+        m = re.match(r"\[agents\.([^\]]+)\]", line)
+        if m: cur = m.group(1)
+        elif line.startswith("["): cur = None
+        if cur in new_mod:
+            for key in ("name", "description"):
+                if line.startswith(f"{key} = "):
+                    old, new = old_mod[cur][key], new_mod[cur][key]
+                    assert '"' not in new and "\\" not in new
+                    if line != f'{key} = "{old}"':
+                        if cur not in skipped: skipped.append(cur)
+                    elif old != new:
+                        line = f'{key} = "{new}"'; n += 1
+        out.append(line)
+    if skipped != [] and skipped != ["bmad-agent-tech-writer"]:
+        die(f"_bmad/config.toml tables not as the fork shipped them: {skipped}")
+    new_text = "\n".join(out); tomllib.loads(new_text); writes[p] = new_text
+    print(f"_bmad/config.toml: {n} lines (name or description) in {len(new_mod) - len(skipped)} tables"
+          + (f"; left alone: {skipped} (declared by an upstream module in this instance)" if skipped else ""))
 
-# ---- surface 2b: name pins in _bmad/custom/config.toml, where the instance has them
-p = inst / "_bmad/custom/config.toml"
-if p.is_file():
-    text = p.read_text(encoding="utf-8"); k = 0
-    def pin(m):
-        global k
-        if m.group(1) in rename: k += 1; return f'name = "{rename[m.group(1)]}"'
-        return m.group(0)
-    new_text = re.sub(r'^name = "([^"]*)"$', pin, text, flags=re.M)
-    # Pins the instance lacks (RQ's ruling, 2026-10-03): the fork's name-only pins
-    # for the upstream-declared seats, plus the tech writer where the instance's
-    # table is upstream's.
-    fork_pins = tomllib.loads((fork / "_bmad/custom/config.toml").read_text())["agents"]
-    want = {c: v["name"] for c, v in fork_pins.items() if set(v) == {"name"}}
-    if skipped: want["bmad-agent-tech-writer"] = new_name["bmad-agent-tech-writer"]
-    have = tomllib.loads(new_text).get("agents", {})
-    add = {c: nm for c, nm in want.items() if "name" not in have.get(c, {})}
-    if any(c in have for c in add): die("_bmad/custom/config.toml has a table for a seat with no name; pin it by hand")
-    if add:
-        new_text = new_text.rstrip("\n") + "\n\n# --- Keelswell roster pins: display names for the seats upstream declares ---\n"
-        new_text += "".join(f'\n[agents.{c}]\nname = "{nm}"\n' for c, nm in add.items())
-    tomllib.loads(new_text)
-    if k or add: writes[p] = new_text
-    print(f"_bmad/custom/config.toml: {k} name pins renamed, {len(add)} added")
+    # ---- surface 2b: name pins in _bmad/custom/config.toml, where the instance has them
+    p = inst / "_bmad/custom/config.toml"
+    if p.is_file():
+        text = p.read_text(encoding="utf-8"); k = 0
+        def pin(m):
+            global k
+            if m.group(1) in rename: k += 1; return f'name = "{rename[m.group(1)]}"'
+            return m.group(0)
+        new_text = re.sub(r'^name = "([^"]*)"$', pin, text, flags=re.M)
+        # Pins the instance lacks (RQ's ruling, 2026-10-03): the fork's name-only pins
+        # for the upstream-declared seats, plus the tech writer where the instance's
+        # table is upstream's.
+        fork_pins = tomllib.loads((fork / "_bmad/custom/config.toml").read_text())["agents"]
+        want = {c: v["name"] for c, v in fork_pins.items() if set(v) == {"name"}}
+        if skipped: want["bmad-agent-tech-writer"] = new_name["bmad-agent-tech-writer"]
+        have = tomllib.loads(new_text).get("agents", {})
+        add = {c: nm for c, nm in want.items() if "name" not in have.get(c, {})}
+        if any(c in have for c in add): die("_bmad/custom/config.toml has a table for a seat with no name; pin it by hand")
+        if add:
+            new_text = new_text.rstrip("\n") + "\n\n# --- Keelswell roster pins: display names for the seats upstream declares ---\n"
+            new_text += "".join(f'\n[agents.{c}]\nname = "{nm}"\n' for c, nm in add.items())
+        tomllib.loads(new_text)
+        if k or add: writes[p] = new_text
+        print(f"_bmad/custom/config.toml: {k} name pins renamed, {len(add)} added")
 
 # ---- surface 3: Keelswell rows of the help catalogs, spliced as text
 def splice(rel):
@@ -125,7 +144,9 @@ def splice(rel):
         if len(row) != 13: die(f"{rel}:{i+1} is not a 13-column row")
         name = new_name[skill]
         if skill in CODES: row[2], row[3] = f"Agent {name}", CODES[skill]
-        elif not row[2].startswith(name + ", "): row[2] = f"{name}, {row[2]}"
+        else:
+            if not row[2].startswith(name + ", "): row[2] = f"{name}, {row[2]}"
+            row[3] = KEPT[skill]
         row[4] = desc(skill)
         buf = io.StringIO(); csv.writer(buf, lineterminator="").writerow(row)
         if buf.getvalue() != line: lines[i] = buf.getvalue(); k += 1

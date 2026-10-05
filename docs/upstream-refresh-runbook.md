@@ -286,6 +286,68 @@ and the table of `bmad-agent-tech-writer` where an upstream module declares
 it in the instance -- the pin carries that name. Three upstream menu codes
 (SP, ST, TR) repeat in `bmad-help.csv` before and after; none is Keelswell's.
 
+## Instances: refreshing upstream
+
+An instance stays on the upstream version it was installed with: the
+surgical recipe copies fork-shipped skills and never touches upstream-owned
+ones or `_bmad/scripts/`. Both instances sat on bmad-method 6.10.0 while the
+fork ran 6.12.0, and the lag showed only when a 6.10 skill failed (bmad-help
+ran `uv run --python 3.11` inside a project that needs 3.13). Compare
+`_bmad/_config/manifest.yaml` in the instance and the fork before blaming a
+fork change.
+
+Refresh an instance to the version the fork is on, never past it. From the
+instance root, on a branch, clean tree, the fork on an up-to-date `main`:
+
+    npx bmad-method@<fork's version> install --directory . \
+        --custom-source <fork path> --tools <every ide in the manifest> \
+        --yes --user-name <name> --shims \
+        --pin tea=<fork's> --pin cis=<fork's> --pin bmb=<fork's> \
+        --pin bmad-loop=<fork's>
+
+Why each flag: `--tools` must carry every entry of the instance's `ides:`
+list or the installer wipes the missing tool's tree (green-ledger records
+`claude-code` and `cursor`); no `--modules`, as in the procedure above;
+`--user-name` stops the reset to the system name; `--shims` because the
+fork's mirrors of the bmm agents still route through v6 shim names; the pins
+because an instance installed on the stable channel floats past the fork
+otherwise, and with them the instance's skill tree comes out byte-identical
+to the fork's `.claude/skills`. Read the fork's versions from its
+`_bmad/_config/manifest.yaml`.
+
+Then, in order:
+
+1. Delete the three backups the installer leaves: `_bmad/config.toml.bak`,
+   `_bmad/config.user.toml.bak`, `_bmad/keelswell/module-help.csv.bak`.
+2. Put the catalog rows back. The installer regenerates
+   `_bmad/_config/bmad-help.csv` and `_bmad/keelswell/module-help.csv` with
+   bare displays, and at 6.12 its menu codes are no longer unique (architect
+   comes back as `A`, integration architect as `AIA`). From the fork root:
+   `python3 tools/theme_removal_instance_step.py <instance> --catalogs-only`
+   writes the 38 displays and all 38 codes; afterwards the Keelswell rows
+   are identical to what the instance had.
+3. Where the instance's `.gitignore` is an allowlist (green-ledger), add
+   `!_bmad/scripts/config_utils.py` and `!_bmad/scripts/render_skill.py`
+   beside the two resolver scripts: 6.12's resolvers import the first.
+4. `./install.sh --validate-only --skip-mcp-check --target-project
+   <instance>` from the fork; `resolve_config.py --key agents` in the
+   instance shows the fork's 38 names (the pins in
+   `_bmad/custom/config.toml` survive: the installer preserves that file).
+5. Stage from a list, not a directory: `git ls-files -m -d -o
+   --exclude-standard -- <skill trees> _bmad` written to a file, read, then
+   `git add --pathspec-from-file`. Nothing outside the skill trees, `_bmad`
+   and, where step 3 applied, `.gitignore` belongs in the commit.
+
+Rehearsed on scratch copies of both instances on 2026-10-05, 6.10.0 to
+6.12.0: the installer exits 0 in about ten seconds; 83 files deleted, 109
+(ffbapp) or 103 (green-ledger, per tree) modified and 17 paths added under
+each skill tree; three skills go away (`bmad-check-implementation-readiness`,
+`bmad-index-docs`, `bmad-shard-doc`); 111 skills per tree; tea goes v1.19.1
+to v1.19.0 and, in ffbapp, bmad-loop v0.9.0 to v0.8.1, which is the pin
+doing its job; `.claude/settings.json`, hooks and agent definitions are not
+touched; validation exits 0; 257 and 12 unit tests pass in the instance
+tree; the staging list is 306 paths in ffbapp and 569 in green-ledger.
+
 ## Subagent routing: the tier table, the re-pin and the override
 
 `core/config.yaml` is the tier table and nothing else: two tiers

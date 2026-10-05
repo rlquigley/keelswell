@@ -3,6 +3,37 @@ All notable changes to Keelswell. Format: Keep a Changelog; versioning: semver.
 
 ## [Unreleased] - 2026-09-12
 ### Changed
+- The instance helper can put the catalog rows back after an upstream
+  refresh, and the runbook says how to refresh an instance (2026-10-05).
+  **Why.** Both instances are on bmad-method 6.10.0; the fork has run
+  6.12.0 since 2026-09-11. RQ ruled: refresh them to 6.12.0, the version the
+  fork was built against, not upstream's newer 6.12.1.
+  **What changed.** `tools/theme_removal_instance_step.py` gains
+  `--catalogs-only`, which skips the skill files, the agents tables and the
+  pins and writes the Keelswell rows of the two catalogs alone. It now
+  writes the menu codes of the 23 other persona rows as well as the 15
+  custom ones: the 6.12 installer regenerates the catalog with codes that
+  repeat (architect `A` beside analyst `A`, integration architect `AIA`
+  beside infrastructure analyst `AIA`; 31 unique codes in 39 rows), where
+  6.10 made them unique. `docs/upstream-refresh-runbook.md` gains
+  "Instances: refreshing upstream": the command and why each flag, five
+  steps after it, and what the rehearsal measured.
+  **What was measured.** The refresh was run on scratch copies of both
+  instances. The installer exits 0; each skill tree comes out byte-identical
+  to the fork's `.claude/skills`; `_bmad/custom/config.toml` is preserved and
+  the resolver shows the 38 names; after `--catalogs-only` all 39 Keelswell
+  rows equal the instance's current rows; validation exits 0; 257 and 12
+  unit tests pass in the refreshed tree.
+  **Not touched.** The instances: the refresh is RQ's to run. `install.sh`.
+  **Prediction.** On the real instances the staging list is 306 paths in
+  ffbapp and 569 in green-ledger, validation exits 0, and `/bmad-help` in
+  ffbapp reports no config failure with the `--no-project` edit gone.
+  **At risk.** (1) The pins move tea from v1.19.1 to v1.19.0 in both
+  instances and bmad-loop from v0.9.0 to v0.8.1 in ffbapp. (2) Three
+  upstream skills are removed, and the fork's pm and architect menus still
+  name one of them, `bmad-check-implementation-readiness`: that item is
+  already dead in the fork. (3) ffbapp is mid-epic; wave 6B will be the
+  first wave run on 6.12 upstream skills.
 - The master and QA launchers carry their own principles and stay quiet
   about what an instance never has (2026-10-05). Found on the first run of
   a rewritten voice: `/bmad-master` in ffbapp greeted as Max, then reported
