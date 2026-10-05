@@ -14,6 +14,12 @@ All notable changes to Keelswell. Format: Keep a Changelog; versioning: semver.
   **What was measured.** Every `skill` named by a menu item in the 16
   `customize.toml` files resolves to an installed skill; before, these two
   did not.
+  **The check.** `.github/workflows/ci.yml` gains a fifth step, "Every agent
+  menu item opens a skill that exists": each `skill` in a
+  `skills/*/customize.toml` menu must be a directory under `.claude/skills`.
+  Run against the commit before this fix it fails on exactly these two
+  items; run after, it passes. It is what will catch the same thing at the
+  next upstream refresh.
   **Not touched.** The other menu items, which still route through v6 shim
   names that upstream removes at v7. No skill version: neither skill carries
   `metadata.version`.
