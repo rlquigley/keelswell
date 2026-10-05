@@ -72,7 +72,7 @@ or validating on the same weeks the verdict is evaluated on, which
 produces a number that looks like evidence and is not.
 
 **Evidence:** the strongest chain in the slate, finding to constraint.
-He filed EW-1, EW-2 and EW-9 on 2026-08-20, the only High-severity
+Mel filed EW-1, EW-2 and EW-9 on 2026-08-20, the only High-severity
 findings any custom agent filed in that review. EW-2 ("nothing bounds
 the data that computes an archetype assignment, so future weeks can
 leak into the with-archetype twin") became AC-5.1-1e and five tests in
@@ -84,7 +84,7 @@ politeness" and its traceability pass calls it "the epic's best
 example of a defence built in both layers on purpose". EW-1 is cited
 as a source in
 `implementation-artifacts/6-1-pre-registered-gate-spec-registry.md`.
-He also set the PRD's calibrated-confidence meaning (`prd.md:451`).
+Mel also set the PRD's calibrated-confidence meaning (`prd.md:451`).
 
 **Trigger:** the wave trains, scores, selects, or validates a model, or
 touches a train/test split, a backtest window, or a feature table.
@@ -102,7 +102,7 @@ test, and it is part of what makes Epic 4's reproducibility cap
 provable at all (`epic-closure/epic-4/testarch-nfr.md`,
 `code-review.md`). EW-11 ("interrupted runs vanish from the ledger")
 landed as `launcher.abort()` with spend retained. At the architecture
-layer he filed PA-7: "a dead pipeline pages nobody; the uptime probe
+layer Reese filed PA-7: "a dead pipeline pages nobody; the uptime probe
 watches the web process only."
 
 **Trigger:** the wave adds or changes a long-running job, a run
@@ -120,22 +120,22 @@ standing spec. EW-19 drove raw-column-only writes and back-projection
 across three Epic 2 stories (`project_display_names()` sweeping 11,824
 player rows). PA-4 and PA-5 at the architecture layer: object storage
 carrying no classification, and the web credential reaching raw
-quarantine. His security verdict on the injection exposure map
+quarantine. Seth's security verdict on the injection exposure map
 (`llm-surfaces/.../reviews/review-security-verdict.md`) found SV-1,
 attacker-controlled display names reaching the composition prompt, and
 produced the IX-R1 delimiting spec whose Level A was adopted by
-founder ruling 2026-08-16. `prd.md:164` and `prd.md:226` cite him for
+founder ruling 2026-08-16. `prd.md:164` and `prd.md:226` cite Seth for
 splitting view links from claim invites into separate, rotatable,
 revocable powers.
 
-**Caveat, recorded because it is the honest half:** he was named in
+**Caveat, recorded because it is the honest half:** Seth was named in
 the review dispatch of two waves (1B and 5D) and no wave-level
-`review-party.md` attributes a single finding to him, there or
+`review-party.md` attributes a single finding to Seth, there or
 anywhere; the fifteen waves that dispatched a bare "security review"
-produced findings anyway. His
+produced findings anyway. Seth's
 value shows at the architecture and planning layer, not inside the
-wave loop. That is an argument for changing where he is called, not
-for keeping him out of it.
+wave loop. That is an argument for changing where Seth is called, not
+for keeping Seth out of it.
 
 **Trigger:** the wave handles user-supplied text that reaches a prompt,
 a query, or a filename; adds or changes an authorization boundary, an
@@ -151,14 +151,14 @@ defects are not.
 **Evidence:** the only agent whose output left the repository. Five
 sessions across PRs #3, #11, #17, #18, #19, #35, #50. The LLC was
 formed 2026-08-13; the license was filed 2026-08-25 and the trademark
-2026-08-27, both after it, which is his own "entity before signatures"
-principle holding in the right order. `planning-artifacts/entity/`
-holds fifteen artifacts an attorney actually consumed, including a
-counsel-intake memo, an asset schedule, and a route comparison. He
-also filed EW-47: Epic 20's done definition omitted Stripe merchant
-onboarding.
+2026-08-27, both after it, which is Bizzy's own "entity before
+signatures" principle holding in the right order.
+`planning-artifacts/entity/` holds fifteen artifacts an attorney
+actually consumed, including a counsel-intake memo, an asset schedule,
+and a route comparison. Bizzy also filed EW-47: Epic 20's done
+definition omitted Stripe merchant onboarding.
 
-**Note:** zero code effect, by design. His value is a dated calendar
+**Note:** zero code effect, by design. Bizzy's value is a dated calendar
 and a packet on disk, which is closer to the memory layer than to
 prose, and that is part of why it held.
 
@@ -173,20 +173,20 @@ screen-reader user cannot operate, against a conformance floor the
 product had already ruled for itself (WCAG 2.2 AA, `prd.md:633`).
 
 **Evidence:** the most precise findings in the slate. In the UX review
-she filed PR-1 through PR-5, two of them High: dark-mode primary
+Cici filed PR-1 through PR-5, two of them High: dark-mode primary
 buttons failing AA contrast with no on-accent token defined, and no
 visible-focus law anywhere plus a mock that strips the focus outline
 on the ask input. PR-3 (inline links color-only, below 3:1 in both
 themes) and PR-4 (WCAG 2.2-specific criteria unenumerated) followed.
-In the epics review she filed EW-54 (the public accuracy page, the
+In the epics review Cici filed EW-54 (the public accuracy page, the
 trigger surface for NFR-7, carries zero accessibility text), EW-55
 (the Playwright floor the coverage rests on is not an accessibility
-instrument) and EW-61. `addendum.md:94` credits her for the strategy
+instrument) and EW-61. `addendum.md:94` credits Cici for the strategy
 line that the casual tier's audience makes accessibility a
 build-it-from-the-start decision.
 
 **Thin spot, stated plainly:** none of it has reached code, because
-Phase 1 shipped no user interface. Her findings are measurable and
+Phase 1 shipped no user interface. Cici's findings are measurable and
 specialist, and the conformance floor is ruled, so the failure is
 named and real; the prevention is not yet demonstrated.
 
@@ -201,13 +201,13 @@ so a pricing change requires a schema change.
 
 **Evidence:** PA-9, "billing-event ingestion needs idempotency on the
 provider event id", which is the classic Stripe webhook failure and
-was filed before any billing code existed. `prd.md:506` cites him for
+was filed before any billing code existed. `prd.md:506` cites Bill for
 the structural decision that capabilities are granted through
 entitlements independent of billing shape, with tiers as entitlement
-bundles. He filed EW-42, EW-43 and EW-44 on unsourced and unowned
+bundles. Bill filed EW-42, EW-43 and EW-44 on unsourced and unowned
 subscription mechanics (a season-pass end date with no defined source,
 monthly's offer window unowned, the founding-rate mark consumed one
-epic before anything creates it). In the UX review he and Grover filed
+epic before anything creates it). In the UX review Bill and Grover filed
 PR-17: the league pass has no UX surface anywhere in the spec.
 
 **Thin spot:** Epic 20 onward is unbuilt, so nothing has reached code.
@@ -245,11 +245,11 @@ through and iOS rates with no denominator event).
 **Why consumable, not earning:** these are traceability failures, and
 `bmad-close-epic` already runs `testarch-trace` against the epics'
 acceptance clauses. The harness has a second mechanism for this class.
-Nothing of his reached code.
+Nothing of Lytta's reached code.
 
 **Keep after an upgrade if:** the bare traceability pass still misses
 uninstrumented metrics. If a Claude 6 traceability pass catches them,
-he is redundant, not wrong.
+Lytta is redundant, not wrong.
 
 ### agent-performance (Perry)
 
@@ -257,7 +257,7 @@ he is redundant, not wrong.
 it. EW-37 (nothing produces the beta latency evidence the Ask-budget
 deferral resolves on), EW-38 (FR-31's peak-capacity consequence has no
 verifying story), PA-10 (batch-API turnaround can consume the 24-hour
-artifact floor). `prd.md:398` and SM-10 (`prd.md:618`) both cite him.
+artifact floor). `prd.md:398` and SM-10 (`prd.md:618`) both cite Perry.
 
 **Why consumable:** same overlap as analytics, against
 `testarch-nfr` at closure rather than `testarch-trace`.
@@ -274,7 +274,7 @@ counsel-not-delivered disposition missing), EW-62, PA-12 (CC-BY-4.0
 attribution has no named render home), and PR-13 with Seku (the
 world-variant rule silent on league display names).
 
-**Why consumable:** his own operating rule is that he produces a risk
+**Why consumable:** Lex's own operating rule is that Lex produces a risk
 assessment and names the professional who signs off, so the decision
 leaves the harness either way. Real findings, low severity, none in
 code.
@@ -289,27 +289,27 @@ both co-filed: EW-34 with Lytta, EW-67 with three others (a wave-map
 cycle-check sentence that is false for its intra-serial edges), plus
 PR-17 with Bill and PA-3 with Lytta.
 
-**Why consumable:** no finding is his alone. Co-filing is real signal
-about the room, not about the seat.
+**Why consumable:** no finding is Grover's alone. Co-filing is real
+signal about the room, not about the seat.
 
-**Keep after an upgrade if:** he files something first, on his own, in
-one review.
+**Keep after an upgrade if:** Grover files something first, alone,
+in one review.
 
 ### agent-llm (Elle)
 
 **Failure named:** generated text inventing facts, and an unmapped
 prompt-injection path.
 
-**Evidence, and its limit:** he produced five substantial artifacts
+**Evidence, and its limit:** Elle produced five substantial artifacts
 (`grounding-design.md`, `injection-exposure-map.md`,
 `calibrated-confidence-review.md`, `eval-harness-plan.md`,
 `inference-cost-budget.md`), all inputs to `epics.md`. But the
 injection map's actual verdict came from Seth, and Elle's only
 party finding is EW-65, a Low about blurb ownership. Phase 1 builds no
-LLM surface, so the failure he exists for has had no chance to occur.
+LLM surface, so the failure Elle exists for has had no chance to occur.
 
 **Keep after an upgrade if:** the first wave that builds an answer path
-runs with him and produces a grounding or confidence finding the
+runs with Elle and produces a grounding or confidence finding the
 generic reviewers missed. Until such a wave exists, this entry cannot
 be settled either way.
 
@@ -321,9 +321,9 @@ is unimplementable or pulls store material ahead of the ruled
 deferral), EW-64 (the notification-prompt-shown event asserted only in
 the iOS-scoped story), EW-67.
 
-**Why consumable, with a twist:** his content is external fact (store
+**Why consumable, with a twist:** Moby's content is external fact (store
 guidelines, commission programs, anti-steering state) and those change
-on rulings and settlements, not on model releases. So he goes stale on
+on rulings and settlements, not on model releases. So Moby goes stale on
 a second clock, and the right move at an upgrade is to re-check the
 rules rather than the persona.
 
@@ -340,7 +340,7 @@ own identity strings. EW-51 and EW-52.
 nothing downstream.
 
 **Keep after an upgrade if:** a launch or a public surface is in the
-next epic and she files against it.
+next epic and Mark files against it.
 
 ## Group 3: No answer (3)
 
@@ -353,7 +353,7 @@ delete; a recommendation for how to find out.
 transcripts. Added in PR #49 on 2026-08-25 and never activated. Phase
 1 shipped no user interface, so the trigger never fired.
 
-**The irony worth recording:** her skill carries the only real
+**The irony worth recording:** Webb's skill carries the only real
 *structure* in the slate, a five-step verification loop (open the app
 in the browser, check at 375/768/1280, check each in light and dark,
 screenshot and read what changed rather than assuming the CSS worked,
@@ -362,7 +362,7 @@ report what was verified at which sizes). That is the layer
 run.
 
 **How to find out:** the first wave that ships a rendered surface,
-dispatch her and let her do the build-and-verify pass. Compare the
+dispatch Webb and let Webb do the build-and-verify pass. Compare the
 result against a wave built without the loop. The question is whether
 the verification loop catches things, which is answerable in one wave;
 the persona around it is a separate question.
@@ -371,9 +371,9 @@ the persona around it is a separate question.
 
 **Why no answer:** zero hits, same PR, same reason. Never activated.
 
-**How to find out:** she is the natural pair to the entry above, and
-her independence claim (Critt never edits, so the verdict stays
-independent) is testable in one wave: run her against a surface Webb
+**How to find out:** Critt is the natural pair to the entry above, and
+its independence claim (Critt never edits, so the verdict stays
+independent) is testable in one wave: run Critt against a surface Webb
 built and see whether the defect list contains anything the builder's
 own verification pass missed. If it does not, the independence buys
 nothing and one of the two is enough.
@@ -514,6 +514,6 @@ to check next time:
   findings that looked load-bearing on paper actually prevented
   anything. If they did not, both move to Consumable.
 - **Falsifiable claim:** Mel's entry predicts that a wave
-  touching a train/test split without him produces a leakage defect
+  touching a train/test split without Mel produces a leakage defect
   that a bare reviewer misses. Wave 4B is weak evidence for this
   already. The next such wave settles it.

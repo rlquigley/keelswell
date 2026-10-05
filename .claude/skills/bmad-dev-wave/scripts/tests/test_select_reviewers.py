@@ -323,7 +323,7 @@ class StructuralVocabulary(unittest.TestCase):
 
 
 class Generalist(unittest.TestCase):
-    """bmm-dev answers for no domain, so he never stands in for one."""
+    """bmm-dev answers for no domain, so it never stands in for one."""
 
     def test_the_generalist_fires_on_any_implementation_diff(self):
         _, result = run(["src/contract/grammar.py"])

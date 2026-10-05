@@ -3,6 +3,50 @@ All notable changes to Keelswell. Format: Keep a Changelog; versioning: semver.
 
 ## [Unreleased] - 2026-09-12
 ### Changed
+- Theme removal, follow-ups RQ ruled on 2026-10-03 after PR 5 (PR 6).
+  bmad-dev-wave 1.12.1 -> 1.12.2.
+  **What changed.** (1) No agent is gendered in the files PR 5 left as
+  found: `skills/bmad-dev-wave/SKILL.md` (11 lines), the notes of
+  `scripts/reviewer-triggers.yaml` (6 values and one comment), one docstring
+  in `scripts/select_reviewers.py`, one in its test, and 38 lines of
+  `docs/agent-inventory.md`. Each pronoun became the name, the role id or
+  "it". RQ lifted ruling (e) for these words; no key, role, skill, display,
+  path, glob, pattern, code token or assertion changed, and the 257 tests
+  pass with no edit to what they assert. (2) `skills/bmad-master/SKILL.md`
+  says Max: heading, overview, the fallback identity, the greeting, the
+  stays-active line, and "talk to Max, the BMad Master" in the description,
+  in step in `module.yaml` and `_bmad/config.toml`. (3) `agents/` is deleted
+  in this PR's second commit: 38 carried-persona files the installer never
+  read, that reached no instance, and that after PRs 2 to 5 differed from
+  every surface that is read. `install.sh` still names the directory in
+  phase 3 and in one phase-6 grep; both skip a directory that is not there.
+  `docs/agent-inventory.md` still cites `agents/` paths for the pass it
+  records.
+  **How.** One subagent did the pronoun pass; the diff of the two Python
+  files is two docstrings. A sentence that was more than a one-word swap is
+  quoted in the PR body.
+  **Grade of PR 5's prediction.** Not gradable yet: the instance hand step
+  has not been run. On scratch copies of both instances the helper's result
+  validated with exit 0 and `resolve_config.py --key agents` showed the 38
+  new names; in ffbapp that needed 13 name pins the instance never had, a
+  fourth surface the prediction did not name.
+  **Not touched.** `install.sh`; the graders; trigger patterns and selector
+  logic; CHANGELOG history, which still quotes the old inert text of the
+  bizops row; `_bmad/config.toml` descriptions of the 11 upstream-declared
+  seats, which keep upstream's similes; "Tess / Murat (TEA)".
+  **Prediction.** After the hand step, a `/bmad-help` listing in either
+  instance shows no old name, and a wave run in ffbapp dispatches reviewers
+  by the same role ids as before.
+  **At risk.** (1) The eval pairs were not re-run after words changed in
+  `bmad-dev-wave/SKILL.md`; the changed lines are in notes and rationale,
+  not in a step's instruction. (2) The instance helper was applied to
+  scratch copies and dry-run against the instances; it has not yet been run
+  for real on either.
+  **The instance helper.** `tools/theme_removal_instance_step.py`, with a
+  runbook section, "Instances: the theme removal is a hand step". It names
+  an instance's four surfaces (skill files, `[agents.*]` lines, name pins,
+  catalog rows), aborts before writing on any drift from fork commit
+  0493ff6, and never stages or commits.
 - The 15 custom agents speak in a voice derived from the role (theme
   removal, PR 5 of 5, 2026-10-03). No skill version changes: no persona
   skill carries `metadata.version`.
