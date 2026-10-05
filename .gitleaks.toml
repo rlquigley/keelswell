@@ -2,7 +2,8 @@ title = "Keelswell gitleaks config"
 
 # Without this block a config file replaces gitleaks' rules instead of adding
 # to them, and a config that only lists allowlists scans with no rules at all.
-# The file did exactly that from 2026-07-09 to 2026-10-05.
+# install.sh copies this file into a fresh target, so keep it free of
+# anything that is true of one repository only.
 [extend]
 useDefault = true
 

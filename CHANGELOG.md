@@ -3,6 +3,30 @@ All notable changes to Keelswell. Format: Keep a Changelog; versioning: semver.
 
 ## [Unreleased] - 2026-09-12
 ### Fixed
+- A fresh instance gets a gitleaks config that scans (2026-10-05).
+  `install.sh --target-project` now writes `.gitleaks.toml` into a target
+  that has none: the fork's own file, retitled for the project. Before, a
+  fresh target had no config, so the default rules refused its first commit
+  on installer checksum rows and one upstream doc fixture, and the two ways
+  out were `--no-verify` or a config with no `[extend]` block, which scans
+  nothing. The fork's file loses its one sentence that was true of this
+  repository only.
+  **What was measured.** A fresh install into a scratch directory, `git
+  init` under the machine's hook, first commit of everything: no leaks
+  found, commit made. The same content with the config moved aside: 9
+  findings. The installer does not overwrite a config the target already
+  has.
+  **Also measured, and no change made.** RQ asked for `/bmad-help` rosters
+  to include Max and Tess, which two sessions on 2026-10-05 had left out.
+  Eight headless runs of `/bmad-help list the agents` on a copy of ffbapp
+  after its refresh to 6.12.0: all 38 names in 8 of 8, five of them with no
+  change at all (two with project settings only, three with RQ's user
+  settings). A catalog note written to force the roster was in three of the
+  eight and made no difference, so it was not kept. The omission went away
+  with the refresh, against what this session had said. $3.65 in total.
+  **Not touched.** `install.sh` phase 4 installs upstream unpinned: the
+  fresh target above came out on bmad-method 6.12.1 while the fork is on
+  6.12.0.
 - The [IR] menu item of Rod and Archie opens a skill that exists
   (2026-10-05). Both `customize.toml` files pointed it at
   `bmad-check-implementation-readiness`, which bmad-method 6.12.0 removed:
