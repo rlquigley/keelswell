@@ -2,6 +2,37 @@
 All notable changes to Keelswell. Format: Keep a Changelog; versioning: semver.
 
 ## [Unreleased] - 2026-09-12
+### Fixed
+- The secret scan scans again (2026-10-05). `.gitleaks.toml` had an
+  allowlist and no `[extend] useDefault = true`, and a gitleaks config
+  without that block replaces the default rules with none. Every commit in
+  this repository since the first, 2026-07-09, passed a pre-commit scan that
+  could not fail. Found when ffbapp, which has no config file and so runs
+  the default rules, refused the 6.12 refresh commit on five checksum rows.
+  **What changed.** `.gitleaks.toml`: the `[extend]` block, and two
+  allowlists by pattern in place of five by path. The hook pipes the staged
+  diff to `gitleaks stdin`, which carries no file paths, so a path allowlist
+  never applied there. One pattern is an installer manifest row (a quoted
+  path, then a quoted sha256); the other is the truncated public JWT header
+  in upstream's TEA doc fixture. The runbook's refresh section gains step
+  4a.
+  **What was measured.** With the old file a line shaped like a GitHub
+  token passes; with the new one it is caught, and so is a complete test
+  JWT. Under the new file every tracked line of this repository, scanned as
+  one diff, is clean. Full history under the default rules: 145 findings in
+  three commits, all `generic-api-key`, all in three places: manifest rows,
+  that one doc fixture, and `gitleaks-report.json`, an old scan report that
+  quoted the same rows and was untracked on 2026-09-28. No provider-specific
+  rule fired. The same scan of ffbapp and green-ledger found only the first
+  two kinds.
+  **Not done.** The 42 findings in the deleted report file stay in history.
+  green-ledger carries a copy of the same no-rule config and needs the same
+  fix by hand. A fresh instance gets no config from the installer.
+  **At risk.** (1) The default rules are what they are: a secret that
+  matches no rule was never going to be caught and still is not. (2) The
+  eval harness copies this file into each trial; a trial fixture that trips
+  a default rule will now refuse its commit.
+
 ### Changed
 - The instance helper can put the catalog rows back after an upstream
   refresh, and the runbook says how to refresh an instance (2026-10-05).
