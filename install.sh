@@ -204,6 +204,14 @@ PY
   sed "s/{init_timestamp}/$ts/g" templates/HANDOFF.md.template > "$T/HANDOFF.md"
   echo "  Computing {init_timestamp} ... $ts ; TODO.md and HANDOFF.md written"
   cp templates/.gitignore.template "$T/.gitignore"
+  # The fork's own gitleaks config, retitled: the default rules plus the two
+  # patterns every Keelswell tree trips (installer manifest rows, one upstream
+  # doc fixture). Without it a fresh target's first commit is refused, and
+  # the easy way out is a config with no [extend] block, which scans nothing.
+  if [ ! -f "$T/.gitleaks.toml" ]; then
+    sed "s/^title = .*/title = \"$pname gitleaks config\"/" .gitleaks.toml > "$T/.gitleaks.toml"
+    echo "  .gitleaks.toml written to $T/.gitleaks.toml (default rules, two pattern allowlists)"
+  fi
   cp -r templates/_bmad-output "$T/_bmad-output" 2>/dev/null || true
   echo "  Scaffolding $T/_bmad-output/ ... done (7 subdirectories)"
   mkdir -p "$T/.claude/skills" "$T/.claude/hooks" "$T/.claude/rules" "$T/.claude/agents"
