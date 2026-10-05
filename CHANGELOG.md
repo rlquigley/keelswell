@@ -3,6 +3,28 @@ All notable changes to Keelswell. Format: Keep a Changelog; versioning: semver.
 
 ## [Unreleased] - 2026-09-12
 ### Changed
+- The master and QA launchers carry their own principles and stay quiet
+  about what an instance never has (2026-10-05). Found on the first run of
+  a rewritten voice: `/bmad-master` in ffbapp greeted as Max, then reported
+  a missing persona file and an empty menu.
+  **What changed.** `skills/bmad-master/SKILL.md` and
+  `skills/bmad-agent-qa/SKILL.md`. (1) The Overview of each now holds the
+  core principles of its carried persona, with the master's boundaries and
+  Quinn's story-file permissions, word for word from
+  `_bmad/agents/core/bmad-master.md` and `_bmad/agents/bmm/qa.md`. No
+  instance has `_bmad/agents/`: the installer never copies it, so those
+  lines had never reached one. (2) Step 3 says a missing persona file is the
+  normal case in an installed project and is not mentioned. (3) Step 8 says
+  an empty `{agent.menu}` renders nothing and is not mentioned: the master
+  asks for the need in one line, Quinn asks what is to be reviewed. Neither
+  `customize.toml` has ever had a menu item.
+  **Not touched.** The two carried persona files, both `customize.toml`
+  files, the voices, every other launcher. No skill version: neither skill
+  carries `metadata.version`.
+  **Prediction.** After the two files reach ffbapp, `/bmad-master` greets
+  as Max with no caveat about a file or a menu.
+  **At risk.** The principles now live in two places in the fork, the
+  launcher and the carried file; an edit to one must reach the other.
 - Theme removal, follow-ups RQ ruled on 2026-10-03 after PR 5 (PR 6).
   bmad-dev-wave 1.12.1 -> 1.12.2.
   **What changed.** (1) No agent is gendered in the files PR 5 left as
