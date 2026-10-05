@@ -161,12 +161,31 @@ PY
   echo "Templating: ok"
 }
 
+upstream_pins() {
+  # The bmad-method version the fork is on, then a --pin for each external
+  # module the fork pins, read from the fork's own install record, so a
+  # target lands on what the fork was built against and not on upstream's
+  # latest (a fresh target came out on 6.12.1 against the fork's 6.12.0 on
+  # 2026-10-05).
+  python3 - <<'PY'
+import yaml
+m = yaml.safe_load(open("_bmad/_config/manifest.yaml"))
+out = [m["installation"]["version"]]
+for mod in m["modules"]:
+    if mod.get("channel") == "pinned" and mod.get("version"):
+        out += ["--pin", f"{mod['name']}={mod['version']}"]
+print(" ".join(out))
+PY
+}
+
 phase4_upstream() {
   echo "[4/6] Running upstream BMAD plugin install ..."
   local dir="${TARGET_PROJECT:-.}" src="${CUSTOM_SOURCE:-$FORK_ROOT}"
-  echo "  npx bmad-method install --directory $dir --custom-source $src --tools claude-code --modules bmm,cis,tea,bmb --yes"
+  local pins ver pinargs; pins=$(upstream_pins); ver=${pins%% *}; pinargs=${pins#* }
+  echo "  npx bmad-method@$ver install --directory $dir --custom-source $src --tools claude-code --modules bmm,cis,tea,bmb --yes $pinargs"
   if [ "$DRY_RUN" -eq 1 ]; then echo "  DRY-RUN: skipped"; return; fi
-  if npx bmad-method install --directory "$dir" --custom-source "$src" --tools claude-code --modules bmm,cis,tea,bmb --yes; then
+  # shellcheck disable=SC2086  # $pinargs is a list of --pin CODE=TAG words
+  if npx "bmad-method@$ver" install --directory "$dir" --custom-source "$src" --tools claude-code --modules bmm,cis,tea,bmb --yes $pinargs; then
     echo "Upstream install: ok (exit code 0)"
   else
     echo "  WARNING: upstream install exited non-zero (non-fatal pre-publish; see Phase 7 of the quickstart)"

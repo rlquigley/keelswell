@@ -3,6 +3,21 @@ All notable changes to Keelswell. Format: Keep a Changelog; versioning: semver.
 
 ## [Unreleased] - 2026-09-12
 ### Fixed
+- `install.sh` installs the upstream version the fork is on, not upstream's
+  latest (2026-10-05). Phase 4 ran `npx bmad-method install` unpinned, so a
+  fresh target came out on bmad-method 6.12.1 while the fork is on 6.12.0,
+  and its external modules floated to their latest stable tags. Phase 4 now
+  reads the fork's own install record, `_bmad/_config/manifest.yaml`, and
+  runs `npx bmad-method@<version>` with a `--pin` for every module the fork
+  pins (bmb, cis, tea, bmad-loop). The README's install line carries the
+  same version and pins.
+  **What was measured.** A fresh install into a scratch directory records
+  6.12.0, cis v0.2.1, tea v1.19.0, bmb v2.1.0: the fork's versions. Before
+  this change the same command recorded 6.12.1. `--dry-run` prints the
+  full command.
+  **Not touched.** The runbook's refresh command for an existing instance,
+  which already pins by hand; the `--modules` list, which is right for a
+  fresh target and wrong for a refresh (see the runbook).
 - A fresh instance gets a gitleaks config that scans (2026-10-05).
   `install.sh --target-project` now writes `.gitleaks.toml` into a target
   that has none: the fork's own file, retitled for the project. Before, a

@@ -5,7 +5,7 @@ names with install-time override), the Architecture Agent Expansion Pack, and
 seven wave-based development skills (/bmad-create-wave ... /bmad-wrap).
 
 Install into a project:
-    npx bmad-method install --directory . --custom-source https://github.com/rlquigley/keelswell@v0.8.0 --tools claude-code --modules bmm,cis,tea,bmb --yes
+    npx bmad-method@6.12.0 install --directory . --custom-source https://github.com/rlquigley/keelswell@v0.8.0 --tools claude-code --modules bmm,cis,tea,bmb --yes --pin bmb=v2.1.0 --pin cis=v0.2.1 --pin tea=v1.19.0
 
 The @tag pin installs the named release (clone cache records channel
 "pinned" plus the resolved SHA). Known upstream cosmetic: the persisted
