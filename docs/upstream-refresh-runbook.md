@@ -231,6 +231,61 @@ What to expect afterwards:
   (https://code.claude.com/docs/en/settings-reference#effortlevel); an
   instance that wants it adds that line by hand.
 
+## Instances: the theme removal is a hand step
+
+The 38 display names and the role-derived voices (CHANGELOG, theme removal,
+PRs 1 to 6, 2026-10-03) reach a live instance by hand, like everything else
+in this file. An instance carries them on four surfaces, and passing one
+proves nothing about the others:
+
+1. the skill files that changed since fork commit 0493ff6, in every
+   Keelswell skill tree the instance has (`.claude/skills`, and
+   `.agents/skills` only where it holds `bmad-dev-wave`);
+2. the `name` and `description` lines of the `[agents.*]` tables in
+   `_bmad/config.toml`, for the agents the fork's `module.yaml` declares;
+3. the name pins in `_bmad/custom/config.toml` for the seats upstream
+   declares -- renamed where the instance has them, added where it has none;
+4. the Keelswell rows of `_bmad/_config/bmad-help.csv` and
+   `_bmad/keelswell/module-help.csv`: the 15 custom agents get "Agent <Name>"
+   and a new menu code, the other 23 persona rows keep their code and gain
+   the name in front of the display.
+
+`tools/theme_removal_instance_step.py` does all four as text edits. It
+aborts before writing anything if an instance file is not byte-identical to
+what the fork shipped at 0493ff6, it never stages or commits, and it writes
+the list of tracked files it changed to `.git/keelswell-theme-files.txt` in
+the instance, so staging names each file. `--check` writes nothing.
+
+Run from the fork root on an up-to-date `main`. For an instance with a
+remote (ffbapp):
+
+    git -C <instance> switch main && git -C <instance> pull --ff-only
+    git -C <instance> switch -c keelswell/theme-removal
+    python3 tools/theme_removal_instance_step.py <instance>
+    ./install.sh --validate-only --skip-mcp-check --target-project <instance>
+    git -C <instance> add --pathspec-from-file=.git/keelswell-theme-files.txt
+    git -C <instance> status --short
+
+Read the status before committing: every staged line is an `M`, and nothing
+that was untracked before is staged. Then commit, push and open the pull
+request. For an instance with no remote (green-ledger), commit on the
+branch, switch to `main`, merge the branch with `--ff-only`, and delete the
+branch.
+
+Expected, measured by `--check` on 2026-10-05 against fork commit 6593aa3:
+ffbapp 62 files (58 skill files in one tree, 42 config lines, 13 pins
+added, 38 and 32 catalog rows); green-ledger 120 files, 119 tracked (58 in
+each of two trees, 13 pins renamed; `_bmad/keelswell/module-help.csv` is
+git-ignored there and changes on disk only). After it,
+`python3 _bmad/scripts/resolve_config.py --project-root . --key agents` in
+the instance shows the 38 names of `config/agent-names.yaml`.
+
+What it leaves: `skill-manifest.csv` and `files-manifest.csv` (installer
+output, staleness accepted), `_bmad-output/` (the instance's own record),
+and the table of `bmad-agent-tech-writer` where an upstream module declares
+it in the instance -- the pin carries that name. Three upstream menu codes
+(SP, ST, TR) repeat in `bmad-help.csv` before and after; none is Keelswell's.
+
 ## Subagent routing: the tier table, the re-pin and the override
 
 `core/config.yaml` is the tier table and nothing else: two tiers

@@ -39,8 +39,14 @@ All notable changes to Keelswell. Format: Keep a Changelog; versioning: semver.
   by the same role ids as before.
   **At risk.** (1) The eval pairs were not re-run after words changed in
   `bmad-dev-wave/SKILL.md`; the changed lines are in notes and rationale,
-  not in a step's instruction. (2) The instance helper lives in a session
-  scratchpad, not in the fork.
+  not in a step's instruction. (2) The instance helper was applied to
+  scratch copies and dry-run against the instances; it has not yet been run
+  for real on either.
+  **The instance helper.** `tools/theme_removal_instance_step.py`, with a
+  runbook section, "Instances: the theme removal is a hand step". It names
+  an instance's four surfaces (skill files, `[agents.*]` lines, name pins,
+  catalog rows), aborts before writing on any drift from fork commit
+  0493ff6, and never stages or commits.
 - The 15 custom agents speak in a voice derived from the role (theme
   removal, PR 5 of 5, 2026-10-03). No skill version changes: no persona
   skill carries `metadata.version`.
