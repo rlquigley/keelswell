@@ -17,9 +17,9 @@ the table, and not something CI can run.
 
 WHAT THE GOLDEN CAN AND CANNOT SHOW. Per wave it holds the role ids selected,
 whether the fallback fired, and the file counts. It catches a row that starts
-or stops firing on a wave. It cannot show why a row fired, and it is scored
-on the same eighteen waves the table was tuned on: it catches regressions,
-not generalization.
+or stops firing on a wave. It cannot show why a row fired, and eighteen of
+its twenty waves are the ones the table was tuned on: it catches regressions,
+and says little about generalization.
 
 Usage:
 
@@ -50,10 +50,13 @@ FIXTURE_DIRNAME = ".replay-fixture"
 # The eighteen merged waves the table was tuned on, each with the pull request
 # that merged it. The two lists do not pair by position; the pairing is from
 # each merge's branch name and the docs/wave-<id>/ directory its diff touches.
+# 6B and 5E (2026-10-17) merged after the tuning and are the first waves the
+# table was not fitted to; 5E is where the ML row missed a model-input change.
 WAVES = (
     ("1A", 29), ("1B", 38), ("1C", 43), ("2A", 54), ("2B", 61), ("2C", 62),
     ("3A", 60), ("3B", 70), ("3C", 74), ("3D", 68), ("3E", 73), ("4A", 76),
     ("4B", 80), ("5A", 82), ("5B", 84), ("5C", 85), ("5D", 88), ("6A", 78),
+    ("6B", 110), ("5E", 113),
 )
 
 

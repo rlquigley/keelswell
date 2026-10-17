@@ -246,6 +246,18 @@ class PathPrecision(unittest.TestCase):
         _, result = run(["src/platform/compute/models.py"])
         self.assertNotIn("custom-ml", roles(result))
 
+    def test_a_feature_builder_module_dispatches_the_ml_reviewer(self):
+        # ffbapp wave 5E changed engine/h1_features.py and selected no ML
+        # reviewer; the reviewer added by hand found the worst finding.
+        _, result = run(["src/engine/h1_features.py"])
+        self.assertIn("custom-ml", roles(result))
+
+    def test_a_navigation_module_is_not_a_model_input(self):
+        # 5E's nav.py was a model input in ffbapp's vocabulary only; in a web
+        # app nav is navigation, so the table does not name it (rule 5).
+        _, result = run(["src/web/nav.py", "src/web/components/navbar.py"])
+        self.assertNotIn("custom-ml", roles(result))
+
     def test_bookkeeping_paths_are_counted_and_excluded(self):
         _, result = run(["TODO.md", "HANDOFF.md", "docs/wave-9a/test-design.md",
                          "src/engine/backtest.py"])
