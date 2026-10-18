@@ -19,7 +19,7 @@ allowed-tools:
   - Bash
   - Task
 metadata:
-  version: 1.16.0
+  version: 1.17.0
   output-locations:
     - ../<project>-wave-<id>/                 # sibling worktree, branch wave-<id>-<suffix>
     - .bmad/wave-<id>/checkpoint.json         # plus step-N.done markers (main repo)
@@ -512,6 +512,45 @@ add a reviewer the script did not return, and do not drop one it did. Exit 2
 means the trigger table is malformed; quote its stderr and halt rather than
 choosing reviewers by hand, which is the behaviour 6.3 replaced.
 
+**Each reviewer works alone.** Reviewers run at the same time and every one
+of them mutates code, so before dispatching, give each its own place to do
+it, and put all of the following in its prompt. `{scratch}` is the
+session's scratchpad directory, or a temporary directory outside the
+repository when there is none; `<name>` is the reviewer's `skill`, or
+`fallback-<n>` for a fallback reviewer.
+
+- **Its own copy of the worktree**, made by you before dispatch:
+  `rsync -a --exclude .git --exclude .venv --exclude node_modules
+  --exclude __pycache__ {worktree}/ {scratch}/<name>/tree/`. The reviewer
+  runs lanes and applies mutations there and nowhere else. The wave's
+  worktree is read-only to it.
+- **Its own scratch directory**, `{scratch}/<name>/`, for its scripts and
+  output. Name no other reviewer's directory or skill in the prompt. Wave
+  5E's follow-up shared one directory, and one reviewer overwrote another's
+  mutation script.
+- **Its own verify database**, when the project's verify lanes take a
+  database name from the environment (read `tests/verify-*.sh`): a value
+  ending in `<name>`. Two lanes on one database corrupt each other's run.
+  A failure on a cluster-wide object, such as a database role, while
+  another lane runs is a known collision: rerun once before reporting it.
+- **Which tools work there.** The copy has no `.git`: prove each restore
+  with a checksum snapshot of every file before and after, not `git status`.
+  Apply mutations with a script that writes and restores bytes. Do not use
+  `git worktree add --detach` for reviewer copies: a session isolated in a
+  worktree by the desktop app is refused git and Edit in any other
+  checkout, and its subagents with it. When a call is refused, quote the
+  refusal and do not retry it through another tool.
+- **No commits past the secret scan.** A reviewer that wants a baseline
+  takes the checksum snapshot. It never runs `git init` and commits in the
+  copy, and never uses `--no-verify` or sets `core.hooksPath`: two wave 6B
+  reviewers did both to get past gitleaks.
+
+When every reviewer has returned, check that the wave's worktree is as it
+was: `git -C {worktree} status --porcelain` and `git -C {worktree} rev-parse
+HEAD` read the same as before dispatch. Say so in the review record. A
+difference is a finding against the review, not the wave: name the
+reviewer and restore from the evidence before going on.
+
 **Necessity, not a budget.** If eight rows fire, dispatch eight. If one fires,
 dispatch one. There is no cap in the script, none in the table, and none here,
 because a cap means choosing which real gaps to skip looking for. What keeps
@@ -674,6 +713,12 @@ there is nothing to block.
   names. Do not retry the same write through a different tool.
 
 ## Version history
+- 1.17.0 (2026-10-18, ffbapp's H1 rulings follow-up and wave 6B): step 10
+  gives each reviewer its own rsync copy of the worktree, its own scratch
+  directory and its own verify database, says which tools work there, and
+  forbids a commit past the secret scan; the session checks the worktree is
+  unchanged afterwards. Dispatch text only: the reviewer definition, the
+  hooks and the selector are unchanged.
 - 1.16.0 (2026-10-17, ffbapp wave 6B): the lifecycle rule denies a copy into
   a wave's `.bmad/wave-<id>/` directory (or `.bmad/` itself) whose source
   could carry `wave.md`. A target that is the directory names no record, so

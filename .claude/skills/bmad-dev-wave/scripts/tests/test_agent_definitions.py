@@ -66,5 +66,41 @@ class TestAgentDefinitions(unittest.TestCase):
                 self.assertIn(f"`{name}`", text)
 
 
+class TestReviewerIsolation(unittest.TestCase):
+    """What step 10's dispatch prompt gives each reviewer. ffbapp, 2026-10-07:
+    reviewers in sibling detached worktrees could not use git or Edit there
+    (the desktop app's worktree isolation), Tess overwrote the lead's script
+    in a shared scratch directory, and concurrent verify lanes collided on one
+    database. Wave 6B's reviewers bypassed gitleaks to commit a baseline."""
+
+    @classmethod
+    def setUpClass(cls):
+        text = SKILL.read_text(encoding="utf-8")
+        start = text.index("## The Reviewer Selection")
+        cls.section = text[start:text.index("## The Review Record", start)]
+
+    def test_each_reviewer_gets_its_own_copy_of_the_worktree(self):
+        self.assertIn("rsync", self.section)
+        self.assertIn("{scratch}/<name>/tree", self.section)
+
+    def test_each_reviewer_gets_its_own_scratch_directory(self):
+        self.assertIn("{scratch}/<name>/", self.section)
+        self.assertIn("Name no other reviewer", self.section)
+
+    def test_each_reviewer_gets_its_own_verify_database(self):
+        self.assertIn("Its own verify database", self.section)
+
+    def test_the_prompt_says_which_tools_work(self):
+        self.assertIn("git worktree add --detach", self.section)
+        self.assertIn("checksum", self.section)
+
+    def test_no_reviewer_commits_past_the_secret_scan(self):
+        self.assertIn("--no-verify", self.section)
+        self.assertIn("core.hooksPath", self.section)
+
+    def test_the_wave_worktree_is_checked_unchanged_afterwards(self):
+        self.assertIn("git -C {worktree} status --porcelain", self.section)
+
+
 if __name__ == "__main__":
     unittest.main()
