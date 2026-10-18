@@ -373,6 +373,61 @@ class TestInPlace(Base):
         self.assertEqual(code, 0, err)
 
 
+class TestInPlaceWrapPath(Base):
+    """ffbapp wave 5E: the session that recorded NEEDS_WORK was rooted in the
+    wave's worktree, the desktop app's isolation refused it the main checkout,
+    and the in-place rule refused it the worktree, so /bmad-wrap had nowhere
+    to write its triage file. A wrap file is not wave work."""
+
+    def setUp(self):
+        super().setUp()
+        self.wt = self.p.worktree("7A")
+        self.p.recorded_by("7A", "s1")
+        self.p.evaluation("7A", 1, "NEEDS_WORK")
+        self.triage = self.wt / "_bmad-output" / "session-wrap" / "2026-10-08T21-29-00Z" / "triage.md"
+
+    def write(self, path, cwd=None):
+        return self.p.pre("Write", session="s1", cwd=cwd, file_path=str(path), content="x\n")
+
+    def test_the_wrap_writes_its_triage_file_in_the_worktree(self):
+        code, _, err = self.write(self.triage)
+        self.assertEqual(code, 0, err)
+
+    def test_a_relative_path_from_a_session_rooted_in_the_worktree(self):
+        code, _, err = self.write("_bmad-output/session-wrap/2026-10-08T21-29-00Z/triage.md", cwd=self.wt)
+        self.assertEqual(code, 0, err)
+
+    def test_the_rest_of_the_wrap_stays_denied(self):
+        # TODO.md and HANDOFF.md are the wave branch's files; the next
+        # session reconciles them, as 5E's wrap left them.
+        for name in ("TODO.md", "HANDOFF.md", "_bmad-output/session-wrap.md"):
+            with self.subTest(name):
+                code, _, err = self.write(self.wt / name)
+                self.assertEqual(code, 2, name)
+                self.assertIn("DENIED (in-place)", err)
+
+    def test_a_path_that_only_starts_with_the_name_is_denied(self):
+        code, _, _ = self.write(self.wt / "_bmad-output" / "session-wrap-x" / "triage.md")
+        self.assertEqual(code, 2)
+
+    def test_climbing_out_of_the_wrap_directory_is_denied(self):
+        code, _, _ = self.write(f"{self.wt}/_bmad-output/session-wrap/../../src/x.py")
+        self.assertEqual(code, 2)
+
+    def test_the_exemption_is_for_file_tools_only(self):
+        # /bmad-wrap writes with Write. A shell command into the directory is
+        # still denied, so the exemption cannot carry a `git commit` or a
+        # script that writes elsewhere too.
+        code, _, _ = self.p.pre("Bash", session="s1",
+                                command=f"echo x > {self.triage}")
+        self.assertEqual(code, 2)
+
+    def test_a_wrap_directory_in_another_tree_is_not_what_is_exempted(self):
+        # The main checkout was never the in-place rule's to guard.
+        code, _, err = self.write(self.p.root / "_bmad-output" / "session-wrap" / "t" / "triage.md")
+        self.assertEqual(code, 0, err)
+
+
 class TestSessionEnd(Base):
     def pending(self, wave):
         d = self.p.root / ".bmad" / f"wave-{wave}"
