@@ -19,7 +19,7 @@ allowed-tools:
   - Bash
   - Task
 metadata:
-  version: 1.14.0
+  version: 1.16.0
   output-locations:
     - ../<project>-wave-<id>/                 # sibling worktree, branch wave-<id>-<suffix>
     - .bmad/wave-<id>/checkpoint.json         # plus step-N.done markers (main repo)
@@ -413,8 +413,11 @@ What the PreToolUse hook denies, reading only what is on disk:
   hook's entry point, in any shape the gate can or cannot read. The hook hands
   it the subagent's own report; a session calling it would hand it anything.
 - **lifecycle**: any write, move or delete of `.bmad/wave-<id>/wave.md` (or of
-  the directory holding it) that is not `wave_status.py`. Blocked is sticky
-  only if the session it blocks cannot edit the record.
+  the directory holding it) that is not `wave_status.py`, and any cp, rsync
+  or install into that directory of a source that could carry the record: one
+  named `wave.md`, a glob that could match it, a variable, a directory, or
+  anything under a recursive flag. Blocked is sticky only if the session it
+  blocks cannot edit the record.
 - **review**: `wave_status.py set --status in-review` for a wave whose latest
   evaluation is not PASS. There is no way into the review stage except through
   step 8's evaluator.
@@ -669,6 +672,11 @@ there is nothing to block.
   names. Do not retry the same write through a different tool.
 
 ## Version history
+- 1.16.0 (2026-10-17, ffbapp wave 6B): the lifecycle rule denies a copy into
+  a wave's `.bmad/wave-<id>/` directory (or `.bmad/` itself) whose source
+  could carry `wave.md`. A target that is the directory names no record, so
+  6B's merge session copied one in by hand. `wave_status.py adopt` is still
+  the route. No step changed.
 - 1.14.0 (2026-10-17, ffbapp wave 6B): `wave_status.py adopt` copies a
   worktree's `.bmad/wave-<id>/` into the main checkout, overwriting nothing
   and refusing on any file that differs. bmad-merge-wave 1.3.0 runs it

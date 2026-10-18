@@ -71,6 +71,7 @@ defined once.
 """
 
 import argparse
+import fnmatch
 import glob
 import json
 import os
@@ -108,6 +109,10 @@ LIFECYCLE_FILE = re.compile(r"(?:^|/)\.bmad/wave-[^/]+/wave\.md$", re.I)
 LIFECYCLE_NAMED = re.compile(r"\.bmad/wave-[^/\s'\"]+/wave\.md", re.I)
 # .bmad/ itself, or one wave's directory: removing either removes the record.
 LIFECYCLE_DIR = re.compile(r"(?:^|/)\.bmad(?:/wave-[^/]+)?$", re.I)
+# Copiers whose last operand is where the copy lands: a directory there
+# takes each source under its own name, so a record arrives unnamed. mv is
+# not here: a move into a wave's directory is already a write of LIFECYCLE_DIR.
+LIFECYCLE_COPIERS = {"cp", "rsync", "install"}
 
 WAVE_STATUS_NAMED = re.compile(r"wave_status", re.I)
 # The verb as a word, or the function behind it. Not Python's set( builtin.
@@ -503,6 +508,29 @@ class Shell:
                 return a, d, [x for x in argv[j + 1:] if not x.startswith("-")]
         return None
 
+    def copies_into(self, dir_re, name):
+        """Does the command copy into a directory `dir_re` matches a source that
+        names `name`, or one it cannot rule out carrying it: a glob that could
+        match it, a variable, a directory, or any source under a recursive flag?"""
+        for sc in self.cmds:
+            if sc.name not in LIFECYCLE_COPIERS:
+                continue
+            args = sc.argv[1:]
+            operands = [a for a in args if not a.startswith("-")]
+            if not operands or not any(
+                    dir_re.search(p) for p in _paths(_expand(operands[-1], self.env), sc.cwd)):
+                continue
+            if any(a in ("--recursive", "--archive")
+                   or (a.startswith("-") and not a.startswith("--") and set(a[1:]) & set("rRa"))
+                   for a in args):
+                return True
+            for t in operands[:-1]:
+                if "$" in t or fnmatch.fnmatchcase(name, _base(t)):
+                    return True
+                if any(os.path.isdir(p) for p in _paths(t, sc.cwd)):
+                    return True
+        return False
+
     def writes(self, file_re, named_re, removed_re=None):
         """Does the command write a path `file_re` matches, or name one
         (`named_re`) somewhere the parse cannot tell whether it is written?"""
@@ -734,10 +762,12 @@ def lifecycle_rule(target, shell):
            "  outside this session; the session it blocks may not."]
     if target is not None and LIFECYCLE_FILE.search(target):
         raise Deny("lifecycle", [f"{target} is a wave's lifecycle record."] + why)
-    if shell is not None and shell.writes(LIFECYCLE_FILE, LIFECYCLE_NAMED, LIFECYCLE_DIR):
+    if shell is not None and (shell.writes(LIFECYCLE_FILE, LIFECYCLE_NAMED, LIFECYCLE_DIR)
+                              or shell.copies_into(LIFECYCLE_DIR, "wave.md")):
         raise Deny("lifecycle", [
-            "This command writes, moves or deletes a .bmad/wave-<id>/wave.md record, or",
-            "  names one where the gate cannot tell whether it is written."] + why)
+            "This command writes, moves or deletes a .bmad/wave-<id>/wave.md record, names",
+            "  one where the gate cannot tell whether it is written, or copies into its",
+            "  directory a source that could carry one (wave.md, a glob, a directory)."] + why)
 
 
 def review_rule(root, shell):
