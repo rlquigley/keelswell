@@ -31,7 +31,7 @@ allowed-tools:
                   # TODO.md, HANDOFF.md; CLAUDE.md is readable but NOT
                   # on any writable path
 metadata:
-  version: 1.9.1
+  version: 1.10.0
   inputs:
     - --scope=session|day|since=<git-ref>   # contradiction-scan window;
                                             # default session
@@ -186,4 +186,15 @@ fresh inputs.
   writing; reconcile the edits into the correct worktree first. Do not
   write or commit from a checkout other than the one the session has
   been working in.
+- Wave gate denies a write after this session's step-8 NEEDS_WORK
+  (`DENIED (in-place)`): the session built the wave and may not edit its
+  worktree, and a session rooted in that worktree is usually refused the
+  main checkout too. The gate exempts one path, to the Write tool only:
+  `_bmad-output/session-wrap/` inside the wave's worktree. Write the
+  triage report there with the Write tool, never through Bash. TODO.md,
+  HANDOFF.md and step 6's commit stay denied: put their reconciled text
+  in the report under "Owed by the next session", leave the report
+  uncommitted, and say so in the confirmation. /bmad-resume-wave's
+  session commits it on the wave branch. Do not route around the gate
+  through another tool or another checkout.
 - Disk full or output directory unwritable: exit 1 (the only error exit).
