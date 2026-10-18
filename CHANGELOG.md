@@ -32,6 +32,41 @@ All notable changes to Keelswell. Format: Keep a Changelog; versioning: semver.
   a target given by `-t` or `--target-directory`, an archive extracted into
   the directory (tar, unzip), and a command the gate cannot parse, which is
   read only for a named record.
+- The wrap can always write its triage report (2026-10-17, bmad-dev-wave
+  1.15.0, bmad-wrap 1.10.0). ffbapp wave 5E's session ran dev-wave in its
+  own worktree and stopped at a step 8 NEEDS_WORK. The in-place rule then
+  denied it the worktree, as it should, and the desktop app's worktree
+  isolation denied it the main checkout, so /bmad-wrap had nowhere to
+  write and left its triage file to the next session. The rule now exempts
+  `_bmad-output/session-wrap/` inside the wave's worktree, to the file
+  tools only. bmad-wrap's error handling says to write the report there
+  with Write, put the TODO.md and HANDOFF.md text in it as owed, and leave
+  it uncommitted.
+  **Rulings.** RQ, 2026-10-17, revised from the kickoff's default: the
+  kickoff proposed exempting the main checkout's wrap directory, but the
+  in-place rule never guarded the main checkout; the denial there was the
+  desktop app's (its text: "a worktree-isolated session's git operations
+  must target its own worktree"), which no hook here can change. The
+  exemption goes where the session can write: its own worktree.
+  **What was measured.** Seven new gate tests. The two allow cases (an
+  absolute path, and a relative one from a session rooted in the worktree)
+  fail without the change, which is 5E's refusal reproduced. The five
+  guards hold: TODO.md and HANDOFF.md, a sibling name
+  (`session-wrap-x/`), a `../../src/x.py` climb, and a shell write into
+  the directory are all still denied. Four mutations (no exemption, all of
+  `_bmad-output/`, a prefix match without the separator, shell writes
+  exempt too) are each killed.
+  **Prediction.** The next ffbapp session that records NEEDS_WORK and runs
+  /bmad-wrap writes its triage file at
+  `<worktree>/_bmad-output/session-wrap/<ts>/triage.md` with no denial, and
+  the next session commits it on the wave branch.
+  **At risk.** The report rides the wave's branch, so it lands on main only
+  with the wave's PR. A wrap that tries Bash first (`mkdir -p`) is denied
+  once before it uses Write. A session isolated outside the wave's worktree
+  is not helped: the desktop app decides what it can write.
+  **Graded: the checkpoint PR.** Its prediction (`/bmad-merge-wave 5E`
+  adopts the record with no hand copy) waits on the instance update; the
+  5E worktree is still unswept. Not graded yet.
 - A wave's checkpoint survives its worktree's removal (2026-10-17,
   bmad-merge-wave 1.3.0, bmad-dev-wave 1.14.0). A session rooted in the
   wave's worktree writes `.bmad/wave-<id>/` there, where it is ignored, and

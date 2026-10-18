@@ -424,6 +424,8 @@ What the PreToolUse hook denies, reading only what is on disk:
 - **in-place**: after this session's evaluator returns NEEDS_WORK for a wave,
   any write into that wave's worktree by this session. The findings open the
   next session; the evaluator hook notes which session's evaluator it recorded.
+  One exemption, to the file tools only: `_bmad-output/session-wrap/` in the
+  worktree, so /bmad-wrap can still write its triage report.
 
 Paths match without regard to case, as the filesystem and the record reader
 do. The hook finds `.bmad/` in the main checkout and a wave's evaluation
@@ -677,6 +679,11 @@ there is nothing to block.
   could carry `wave.md`. A target that is the directory names no record, so
   6B's merge session copied one in by hand. `wave_status.py adopt` is still
   the route. No step changed.
+- 1.15.0 (2026-10-17, ffbapp wave 5E): the in-place rule exempts
+  `_bmad-output/session-wrap/` inside the wave's worktree, to the file tools
+  only. 5E's session, rooted in that worktree and refused the main checkout
+  by the desktop app's isolation, had nowhere to write its wrap. Every other
+  write into the worktree, and every shell write, is still denied.
 - 1.14.0 (2026-10-17, ffbapp wave 6B): `wave_status.py adopt` copies a
   worktree's `.bmad/wave-<id>/` into the main checkout, overwriting nothing
   and refusing on any file that differs. bmad-merge-wave 1.3.0 runs it

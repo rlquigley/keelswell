@@ -41,7 +41,11 @@ Six rules, each read off disk and none of them a judgement:
             prompt, and the session that built the wave is the one least able
             to judge whether a fix answered them. The evaluator hook notes
             the session whose evaluator it recorded, and that session is
-            held to it until a later session's evaluator is recorded.
+            held to it until a later session's evaluator is recorded. One
+            path is exempt, to the file tools only:
+            _bmad-output/session-wrap/ in that worktree, where /bmad-wrap
+            writes its triage file. A wrap is not wave work, and a session
+            rooted in the worktree may have nowhere else to write.
 
 It fails closed (R1 of docs/reviews/harness-engineering-review-v1.md). Claude
 Code lets a PreToolUse call through on any exit but 2, so an error in here, an
@@ -122,6 +126,8 @@ EVALUATE_WAVE_NAMED = re.compile(r"evaluate_wave", re.I)
 RECORD_WORD = re.compile(r"(?<![\w-])record(?![\w-])")
 
 PENDING_MARKER = "step-4.5.pending"
+# bmad-wrap's one output directory, exempt from the in-place rule.
+WRAP_DIR = Path("_bmad-output") / "session-wrap"
 SESSION_FILE = evaluate_wave.SESSION_FILE
 
 
@@ -875,6 +881,12 @@ def in_place_rule(root, tool, target, shell, session_id):
             "  edit that wave's worktree afterwards. The context that built the wave",
             "  is the context least able to judge whether a fix answered a finding.",
             f"  Halt. The findings open the next session: /bmad-resume-wave {label}."]
+        # A wrap file is not wave work. ffbapp 5E: a session rooted in the
+        # worktree, refused the main checkout by the desktop app's isolation,
+        # had nowhere else to put its triage file. File tools only, so the
+        # exemption carries no command that also writes somewhere else.
+        if target is not None and _inside(target.lower(), str(wt / WRAP_DIR).lower()):
+            continue
         if target is not None and _inside(target, str(wt)):
             raise Deny("in-place", [f"{tool} to {target}:"] + why)
         if shell is not None and shell.writes_into(str(wt)):
