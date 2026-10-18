@@ -3,6 +3,47 @@ All notable changes to Keelswell. Format: Keep a Changelog; versioning: semver.
 
 ## [Unreleased] - 2026-09-12
 ### Fixed
+- A wave's checkpoint survives its worktree's removal (2026-10-17,
+  bmad-merge-wave 1.3.0, bmad-dev-wave 1.14.0). A session rooted in the
+  wave's worktree writes `.bmad/wave-<id>/` there, where it is ignored, and
+  bmad-merge-wave read only the main checkout's, so `git worktree remove`
+  took the lifecycle record and every step marker with it. Wave 6B's was
+  copied out by hand before cleanup. New `wave_status.py adopt --from
+  <worktree>` copies every file the main checkout lacks, overwrites nothing,
+  and refuses on any file that differs, copying nothing. bmad-merge-wave
+  runs it at step 3, before removal; its preflight reads both places; its
+  step 5 archives the cleanup markers under `archive/cleanup/`, since their
+  names (`step-1.done` to `step-5.done`) overwrote the wave's own.
+  **Rulings.** RQ, 2026-10-17: merge-wave reads from the worktree and
+  copies; where dev-wave writes is unchanged. Writing to the main checkout
+  instead is not open to a session isolated in a worktree. The copy goes
+  through `wave_status.py` because only it writes `wave.md`.
+  **What was measured.** Eight new tests: a checkpoint written in a real
+  `git worktree` survives `git worktree remove` byte for byte and then
+  takes `set --status done` with its history intact; a second adopt copies
+  nothing; a differing record refuses and writes nothing. Four mutations
+  (copy nothing, overwrite a conflict, copy before the conflict check,
+  top level only) are each killed. On scratch copies of ffbapp's real
+  wave 5E state (merged, worktree not yet swept): 5 files adopted, 9
+  already identical, 0 conflicts, the main checkout's `evaluation-session`
+  kept. A gate test pins the route: a hand `cp` naming `wave.md` is denied
+  (lifecycle), `adopt` is allowed.
+  **Found, not fixed.** The lifecycle rule does not deny a copy whose
+  target is the directory (`cp x/wave.md .bmad/wave-7A/`), the hand copy
+  6B's session made. Filed for its own change.
+  **Prediction.** RQ's `/bmad-merge-wave 5E` in ffbapp, after the instance
+  update, adopts 5E's record, removes the worktree, and marks 5E done with
+  no hand copy. Preflight warns that `step-12.done` is missing (the
+  worktree has markers through 11).
+  **At risk.** A session isolated in a worktree may be refused the write
+  into the main checkout by the desktop app, as the 5E wrap was refused a
+  Write there; 6B's merge session copied by Bash and was not. A record
+  that differs in both places now stops merge-wave until the founder
+  deletes one.
+  **Graded: the ML-row PR.** Its prediction (the next ffbapp wave changing
+  a `*_features.py` module selects Mel) has no wave to grade it yet. Its
+  replay held: this PR leaves the table alone and the twenty-wave mean is
+  4.55.
 - The ML reviewer fires on a model's feature builder (2026-10-17,
   bmad-dev-wave 1.13.0). ffbapp wave 5E changed `engine/h1_features.py`,
   `archetype.py` and `nav.py`, all inputs to the H1 model, and the selector

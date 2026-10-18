@@ -19,11 +19,13 @@ allowed-tools:
   - Bash
   - Task
 metadata:
-  version: 1.13.0
+  version: 1.14.0
   output-locations:
     - ../<project>-wave-<id>/                 # sibling worktree, branch wave-<id>-<suffix>
     - .bmad/wave-<id>/checkpoint.json         # plus step-N.done markers (main repo)
     - .bmad/wave-<id>/wave.md                 # lifecycle status record (main repo)
+      # both: the worktree's own .bmad/ when the session is rooted there;
+      # bmad-merge-wave adopts it into the main repo before removal
     - <worktree>/docs/wave-<id>/test-design.md
     - <worktree>/docs/wave-<id>/verify-output.txt   # stamped by evaluate_wave.py verify, step 7
     - <worktree>/docs/wave-<id>/wave-diff.patch     # written by evaluate_wave.py dispatch, step 8
@@ -667,6 +669,11 @@ there is nothing to block.
   names. Do not retry the same write through a different tool.
 
 ## Version history
+- 1.14.0 (2026-10-17, ffbapp wave 6B): `wave_status.py adopt` copies a
+  worktree's `.bmad/wave-<id>/` into the main checkout, overwriting nothing
+  and refusing on any file that differs. bmad-merge-wave 1.3.0 runs it
+  before removing the worktree. Where this skill writes its checkpoint is
+  unchanged.
 - 1.13.0 (2026-10-17, ffbapp wave 5E): the `custom-ml` row fires on a
   `*_features.py` module, a model's feature builder. 5E changed one and
   selected no ML reviewer. The replay covers twenty waves, adding 6B and 5E,

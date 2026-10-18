@@ -613,6 +613,19 @@ class TestLifecycle(Base):
                 code, _, err = self.p.pre("Bash", command=command)
                 self.assertEqual(code, 0, err)
 
+    def test_merge_wave_adopts_a_worktree_record_through_the_script(self):
+        # bmad-merge-wave 1.3.0 step 3 copies the worktree's checkpoint into
+        # the main checkout before removal. A hand copy of wave.md is a
+        # write of the record; adopt is wave_status.py, the record's writer.
+        # Not yet denied: a copy whose target is the directory
+        # (`cp x/wave.md .bmad/wave-7A/`), which names no record to match.
+        wt = "/repo/.claude/worktrees/wave-7a-x"
+        code, _, err = self.p.pre("Bash", command=f"cp {wt}/.bmad/wave-7A/wave.md .bmad/wave-7A/wave.md")
+        self.assertEqual(code, 2, err)
+        self.assertIn("DENIED (lifecycle)", err)
+        code, _, err = self.p.pre("Bash", command=f"{TestParser.S} adopt --wave 7A --from {wt}")
+        self.assertEqual(code, 0, err)
+
 
 class TestFailsClosed(Base):
     def test_an_unreadable_event_is_denied(self):

@@ -17,7 +17,7 @@ allowed-tools:
   - Bash
   - Write
 metadata:
-  version: 1.2.1
+  version: 1.3.0
   inputs:
     - wave-id (positional, required)
     - --verbose (optional; full git output instead of one line per step)
@@ -39,7 +39,10 @@ takes its repo via `git -C <abs-path>`):
 - WORKTREE_PATH and BRANCH_NAME: **resolved by discovery, never by path
   convention** (see below).
 - CHECKPOINT_DIR: <MAIN_REPO>/.bmad/wave-<WAVE_ID>; CLEANUP_DIR:
-  <CHECKPOINT_DIR>/cleanup.
+  <CHECKPOINT_DIR>/cleanup. A session rooted in the wave's worktree writes
+  the checkpoint and the lifecycle record in
+  <WORKTREE_PATH>/.bmad/wave-<WAVE_ID>/ instead, which is ignored and goes
+  with the worktree; step 3 adopts it into CHECKPOINT_DIR before removal.
 
 ## Resolving the worktree and branch
 
@@ -92,14 +95,29 @@ branch.
 5. Branch ahead of merge: commits past the merged head mean orphan work;
    refuse and name the SHAs to cherry-pick first.
 6. Checkpoint: warn (not block) if checkpoint.json is missing or the last
-   marker is not step-12.done.
+   marker is not step-12.done, reading CHECKPOINT_DIR and, while the
+   worktree exists, <WORKTREE_PATH>/.bmad/wave-<WAVE_ID>/.
 
 ## Step 2: Pull main
 `git -C MAIN_REPO pull --ff-only origin main`. Verify local main is the merge
 SHA or a descendant; abort on divergence (force-push suspected).
 
 ## Step 3: Remove worktree
-`git -C MAIN_REPO worktree remove WORKTREE_PATH` -- always from the main
+First adopt the worktree's checkpoint into the main checkout, so removal
+cannot take the wave's record with it:
+
+    python3 {skill-root}/../bmad-dev-wave/scripts/wave_status.py adopt \
+        --project-root MAIN_REPO --wave WAVE_ID --from WORKTREE_PATH
+
+It copies every file under <WORKTREE_PATH>/.bmad/wave-<WAVE_ID>/ that
+CHECKPOINT_DIR lacks and overwrites nothing. Exit 0: adopted, or nothing to
+adopt. Exit 1: a file differs between the two copies; it names them and
+copies nothing. Stop there: which copy is right is the founder's call, and
+the wave gate denies this session a hand edit of `wave.md` in either place.
+Do not copy the checkpoint by hand: `wave.md` is written by `wave_status.py`
+and nothing else.
+
+Then `git -C MAIN_REPO worktree remove WORKTREE_PATH` -- always from the main
 repository path, never from inside the worktree being removed (the documented
 git foot-gun this skill exists to prevent). If removal leaves a stale
 registry entry: `git -C MAIN_REPO worktree prune` and re-verify. Absent
@@ -112,8 +130,10 @@ path is reachable only behind the verified-merged check -- never otherwise.
 
 ## Step 5: Verify cleanup
 Worktree directory absent; worktree registry clean; branch absent; archive
-checkpoint.json, the step-N.done markers, and the cleanup markers under
-CHECKPOINT_DIR/archive/. Then mark the wave done:
+checkpoint.json and the step-N.done markers under CHECKPOINT_DIR/archive/,
+and the cleanup markers under CHECKPOINT_DIR/archive/cleanup/. The cleanup
+markers are named step-1.done to step-5.done too, so archived beside the
+wave's own markers they would overwrite five of them. Then mark the wave done:
 
     python3 {skill-root}/../bmad-dev-wave/scripts/wave_status.py set \
         --project-root MAIN_REPO --wave WAVE_ID --status done
@@ -153,6 +173,14 @@ cleaned up; nothing to do", exit 0. A merged remote branch left undeleted is
 reported, not refused.
 
 ## Version history
+- 1.3.0 (2026-10-17, ffbapp wave 6B): step 3 adopts the worktree's
+  checkpoint into CHECKPOINT_DIR before removing the worktree, through
+  `wave_status.py adopt`. A session rooted in the worktree writes
+  `.bmad/wave-<id>/` there, ignored, so removal destroyed the record step 5
+  then tried to mark done; 6B's was copied out by hand. Preflight check 6
+  reads both places. Step 5 archives the cleanup markers under
+  `archive/cleanup/`, where they no longer overwrite the wave's own
+  `step-1.done` to `step-5.done`.
 - 1.2.1 (2026-10-01, R4 of docs/reviews/harness-engineering-review-v1.md):
   frontmatter only. `when-to-use` is `when_to_use`, the field Claude
   Code reads, so it now reaches the skill listing; `version` and `inputs` sit under

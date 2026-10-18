@@ -507,5 +507,116 @@ class Show(unittest.TestCase):
             self.assertEqual(states["8A"], (None, "unmigrated"))
 
 
+class AdoptFromWorktree(unittest.TestCase):
+    """A session rooted in the wave's worktree writes .bmad/wave-<id>/ there,
+    and bmad-merge-wave reads the main checkout's. ffbapp wave 6B's record
+    would have gone with its worktree; it was copied out by hand."""
+
+    def worktree(self, p, wave="7A"):
+        p.init_git()  # commits the wave map, so the worktree has it too
+        # ffbapp ignores .bmad/ through info/exclude, which every worktree shares.
+        exclude = p.root / ".git" / "info" / "exclude"
+        exclude.parent.mkdir(exist_ok=True)
+        with exclude.open("a") as f:
+            f.write(".bmad/\n")
+        wt = p.root / ".claude" / "worktrees" / f"wave-{wave.lower()}-x"
+        p.git("worktree", "add", "-q", "-b", f"claude/wave-{wave.lower()}-x", str(wt))
+        return wt
+
+    def in_tree(self, p, wt, *args):
+        """Run the script against the worktree, as dev-wave does there."""
+        out = subprocess.run([sys.executable, str(SCRIPT), *args,
+                              "--project-root", str(wt)], capture_output=True, text=True)
+        return out.returncode
+
+    def adopt(self, p, wt, wave="7A"):
+        return p.run("adopt", "--wave", wave, "--from", str(wt))
+
+    def test_a_checkpoint_written_in_the_worktree_survives_its_removal(self):
+        with project() as p:
+            wt = self.worktree(p)
+            self.assertEqual(self.in_tree(p, wt, "set", "--wave", "7A", "--status", "in-review"), 0)
+            src = wt / ".bmad" / "wave-7A"
+            for step in ("1", "4.5", "8", "12"):
+                (src / f"step-{step}.done").write_text("")
+            record = (src / "wave.md").read_bytes()
+
+            code, out, _ = self.adopt(p, wt)
+            self.assertEqual(code, 0)
+            self.assertIn("wave.md", out["adopted"])
+
+            p.git("worktree", "remove", str(wt))
+            self.assertFalse(wt.exists())
+            dst = p.root / ".bmad" / "wave-7A"
+            self.assertEqual((dst / "wave.md").read_bytes(), record)
+            for step in ("1", "4.5", "8", "12"):
+                self.assertTrue((dst / f"step-{step}.done").is_file(), step)
+            # merge-wave's step 5 then marks it done in the main checkout,
+            # and the history the worktree wrote is still the record's.
+            self.assertEqual(p.set("7A", "done")[0], 0)
+            text = p.record_text("7A")
+            self.assertIn("-> in-review", text)
+            self.assertIn("in-review -> done", text)
+
+    def test_adopting_twice_copies_nothing_the_second_time(self):
+        with project() as p:
+            wt = self.worktree(p)
+            self.in_tree(p, wt, "set", "--wave", "7A", "--status", "in-review")
+            self.assertEqual(self.adopt(p, wt)[0], 0)
+            code, out, _ = self.adopt(p, wt)
+            self.assertEqual(code, 0)
+            self.assertEqual(out["adopted"], [])
+            self.assertIn("wave.md", out["identical"])
+
+    def test_a_removed_worktree_is_nothing_to_adopt(self):
+        with project() as p:
+            code, out, _ = self.adopt(p, p.root / "gone")
+            self.assertEqual(code, 0)
+            self.assertEqual(out["adopted"], [])
+
+    def test_the_main_checkouts_own_files_are_kept(self):
+        # The evaluator hook writes evaluation-session beside the main
+        # checkout's .bmad/ (ffbapp 6B: the only file there).
+        with project() as p:
+            wt = self.worktree(p)
+            self.in_tree(p, wt, "set", "--wave", "7A", "--status", "in-review")
+            (p.wave_dir("7A") / "evaluation-session").write_text("abc\n")
+            self.assertEqual(self.adopt(p, wt)[0], 0)
+            self.assertEqual((p.root / ".bmad" / "wave-7A" / "evaluation-session").read_text(), "abc\n")
+
+    def test_a_differing_record_in_the_main_checkout_refuses_and_writes_nothing(self):
+        # ffbapp 5E: a hand copy left a stale wave.md in the main checkout.
+        with project() as p:
+            wt = self.worktree(p)
+            self.in_tree(p, wt, "set", "--wave", "7A", "--status", "in-review")
+            (wt / ".bmad" / "wave-7A" / "step-8.done").write_text("")
+            p.write_record("7A", "---\nwave: 7A\nstatus: in-progress\n---\n")
+            code, out, err = self.adopt(p, wt)
+            self.assertEqual(code, 1)
+            self.assertEqual(out["conflicts"], ["wave.md"])
+            self.assertIn("wave.md", err)
+            self.assertFalse((p.root / ".bmad" / "wave-7A" / "step-8.done").exists())
+            self.assertIn("status: in-progress", p.record_text("7A"))
+
+    def test_subdirectories_keep_their_place(self):
+        with project() as p:
+            wt = self.worktree(p)
+            self.in_tree(p, wt, "set", "--wave", "7A", "--status", "in-review")
+            (wt / ".bmad" / "wave-7A" / "archive").mkdir()
+            (wt / ".bmad" / "wave-7A" / "archive" / "step-3.done").write_text("")
+            self.assertEqual(self.adopt(p, wt)[0], 0)
+            self.assertTrue((p.root / ".bmad" / "wave-7A" / "archive" / "step-3.done").is_file())
+
+    def test_a_wave_not_in_the_map_refuses(self):
+        with project() as p:
+            self.assertEqual(self.adopt(p, p.root, wave="9Z")[0], 2)
+
+    def test_adopt_needs_from(self):
+        with project() as p:
+            code, _, err = p.run("adopt", "--wave", "7A")
+            self.assertEqual(code, 2)
+            self.assertIn("--from", err)
+
+
 if __name__ == "__main__":
     unittest.main()
