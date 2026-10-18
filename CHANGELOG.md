@@ -3,6 +3,35 @@ All notable changes to Keelswell. Format: Keep a Changelog; versioning: semver.
 
 ## [Unreleased] - 2026-09-12
 ### Fixed
+- The lifecycle rule denies a copy into the record's directory (2026-10-17,
+  bmad-dev-wave 1.16.0). It matched only a path naming
+  `.bmad/wave-<id>/wave.md`, so `cp /wt/.bmad/wave-7A/wave.md .bmad/wave-7A/`
+  and `cp -n src/* .bmad/wave-7A/` went through: the hand copy ffbapp wave
+  6B's merge session made, found while building `adopt`. A cp, rsync or
+  install whose last operand is a `.bmad/wave-<id>/` directory, or `.bmad/`,
+  trailing slash or not, is now denied when any source is named `wave.md`,
+  is a glob that could match it, holds a variable, is a directory on disk,
+  or the command carries a recursive flag (`-r`, `-R`, `-a`, `--recursive`,
+  `--archive`). mv was already denied there, as a write of the directory.
+  Touching a step marker, moving markers into `archive/`, copying another
+  file beside the record and `wave_status.py adopt` stay allowed.
+  **What was measured.** Two new tests and one widened. Of 14 copy shapes
+  into the directory, the old rule let 13 through (only mv was denied); all
+  14 are denied now. Four copies beside the record or out of it stay
+  allowed. 15 mutations of the new check (each recursive flag, the
+  variable, glob and directory clauses, the destination match and its
+  expansion, each copier, the wiring and the record's name) are each
+  killed; the long flags survived until a `--archive` case was added.
+  **Prediction.** The next merge-wave session that reaches for a hand copy
+  of a worktree's checkpoint into the main checkout is denied (lifecycle)
+  and the denial's text sends it to `wave_status.py`; no record arrives in
+  `.bmad/` except through `adopt` or `set`.
+  **At risk.** It refuses more than a record: a recursive copy into `.bmad/`
+  or a wave's directory, a source held in a variable, and a one-operand
+  `rsync -a .bmad/wave-7A/` listing are all denied. Not covered: ditto, scp,
+  a target given by `-t` or `--target-directory`, an archive extracted into
+  the directory (tar, unzip), and a command the gate cannot parse, which is
+  read only for a named record.
 - The wrap can always write its triage report (2026-10-17, bmad-dev-wave
   1.15.0, bmad-wrap 1.10.0). ffbapp wave 5E's session ran dev-wave in its
   own worktree and stopped at a step 8 NEEDS_WORK. The in-place rule then

@@ -672,14 +672,52 @@ class TestLifecycle(Base):
         # bmad-merge-wave 1.3.0 step 3 copies the worktree's checkpoint into
         # the main checkout before removal. A hand copy of wave.md is a
         # write of the record; adopt is wave_status.py, the record's writer.
-        # Not yet denied: a copy whose target is the directory
-        # (`cp x/wave.md .bmad/wave-7A/`), which names no record to match.
         wt = "/repo/.claude/worktrees/wave-7a-x"
-        code, _, err = self.p.pre("Bash", command=f"cp {wt}/.bmad/wave-7A/wave.md .bmad/wave-7A/wave.md")
-        self.assertEqual(code, 2, err)
-        self.assertIn("DENIED (lifecycle)", err)
+        for target in (".bmad/wave-7A/wave.md", ".bmad/wave-7A/"):
+            with self.subTest(target):
+                code, _, err = self.p.pre("Bash", command=f"cp {wt}/.bmad/wave-7A/wave.md {target}")
+                self.assertEqual(code, 2, err)
+                self.assertIn("DENIED (lifecycle)", err)
         code, _, err = self.p.pre("Bash", command=f"{TestParser.S} adopt --wave 7A --from {wt}")
         self.assertEqual(code, 0, err)
+
+    def test_a_copy_into_its_directory_that_could_carry_it_is_denied(self):
+        # ffbapp wave 6B's merge session: a copy whose target is the record's
+        # directory names no record, so the file match alone let it through.
+        self.p.bmad("7A")
+        carried = self.p.root / "carried"
+        carried.mkdir()
+        (carried / "wave.md").write_text("status: done\n")
+        wt = "/repo/.claude/worktrees/wave-7a-x"
+        for command in (f"cp {wt}/.bmad/wave-7A/wave.md .bmad/wave-7A",
+                        "cp -n src/* .bmad/wave-7A/",
+                        "cp -n carried/* .bmad/wave-7A/",
+                        "cp -n carried .bmad/wave-7A/",
+                        f"cp -R {wt}/.bmad/wave-7A/ .bmad/wave-7A",
+                        f"cp -r {wt}/.bmad/wave-7A .bmad/",
+                        f"rsync -a {wt}/.bmad/wave-7A/ .bmad/wave-7A/",
+                        f"rsync --archive {wt}/.bmad/wave-7A/ .bmad/wave-7A/",
+                        f"install -m 644 {wt}/.bmad/wave-7A/WAVE.md .bmad/wave-7a/",
+                        f"mv {wt}/.bmad/wave-7A/wave.md .bmad/wave-7A/",
+                        "cp checkpoint.json \"$SRC\" .bmad/wave-7A/",
+                        f"D=.bmad/wave-7A; cp {wt}/.bmad/wave-7A/wave.md \"$D/\"",
+                        f"bash -c 'cp {wt}/.bmad/wave-7A/wave.md .bmad/wave-7A/'"):
+            with self.subTest(command):
+                code, _, err = self.p.pre("Bash", command=command)
+                self.assertEqual(code, 2, err)
+                self.assertIn("DENIED (lifecycle)", err)
+
+    def test_copying_a_file_beside_it_or_the_record_out_is_allowed(self):
+        d = self.p.bmad("7A")
+        (d / "wave.md").write_text("x\n")
+        wt = "/repo/.claude/worktrees/wave-7a-x"
+        for command in (f"cp {wt}/.bmad/wave-7A/checkpoint.json .bmad/wave-7A/",
+                        f"cp -n {wt}/.bmad/wave-7A/*.json .bmad/wave-7A/",
+                        "cp .bmad/wave-7A/wave.md /tmp/wave.md",
+                        f"cp {wt}/.bmad/wave-7A/wave.md .bmad/wave-7A/archive/"):
+            with self.subTest(command):
+                code, _, err = self.p.pre("Bash", command=command)
+                self.assertEqual(code, 0, err)
 
 
 class TestFailsClosed(Base):
