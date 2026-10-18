@@ -118,6 +118,12 @@ reviewers:
       - "**/*calibrat*"
       - "**/features/**"
       - "**/feature_*"
+      # 2026-10-17. ffbapp wave 5E changed a model's feature builder
+      # (h1_features.py) and selected no ML reviewer; RQ added Mel by hand and
+      # Mel found the review's most consequential finding. The wave's other
+      # model inputs (archetype.py, nav.py) are named in ffbapp's vocabulary,
+      # and "nav" means navigation in a web app (rule 5), so they stay out.
+      - "**/*_features.py"
       - "**/*_model.py"
       - "**/models/*.py"
       - "**/evaluation/**"

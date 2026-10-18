@@ -19,7 +19,7 @@ allowed-tools:
   - Bash
   - Task
 metadata:
-  version: 1.12.2
+  version: 1.13.0
   output-locations:
     - ../<project>-wave-<id>/                 # sibling worktree, branch wave-<id>-<suffix>
     - .bmad/wave-<id>/checkpoint.json         # plus step-N.done markers (main repo)
@@ -667,6 +667,10 @@ there is nothing to block.
   names. Do not retry the same write through a different tool.
 
 ## Version history
+- 1.13.0 (2026-10-17, ffbapp wave 5E): the `custom-ml` row fires on a
+  `*_features.py` module, a model's feature builder. 5E changed one and
+  selected no ML reviewer. The replay covers twenty waves, adding 6B and 5E,
+  the first two merged after the table was tuned. No step changed.
 - 1.12.2 (2026-10-03, theme removal, follow-ups): no agent is gendered in
   this skill, the trigger table's notes or the selector's docstrings. Words
   only: no trigger pattern, selector rule, step or test assertion changed.

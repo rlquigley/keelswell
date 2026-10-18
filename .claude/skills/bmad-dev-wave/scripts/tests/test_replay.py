@@ -2,9 +2,9 @@
 """The reviewer-selection replay. Stdlib only; run with `python3 -m unittest`.
 
 R5 of docs/reviews/harness-engineering-review-v1.md. Replay runs
-select_reviewers.py over the eighteen waves the trigger table was tuned on and
-compares what it returns with fixtures/replay-golden.json, by wave and by
-role. It needs the fixture replay_fixture.py builds from a private instance,
+select_reviewers.py over the eighteen waves the trigger table was tuned on,
+plus the two that merged after it (6B, 5E), and compares what it returns
+with fixtures/replay-golden.json, by wave and by role. It needs the fixture replay_fixture.py builds from a private instance,
 which is not committed, so it SKIPS wherever that directory is absent -- a
 hosted CI runner included. Run it here before any change to the table.
 
@@ -35,7 +35,7 @@ class GoldenIsConsistent(unittest.TestCase):
         self.golden = rf.load_golden()
         self.rows, _ = sr.load_table(sr.DEFAULT_TABLE)
 
-    def test_the_golden_covers_the_eighteen_waves(self):
+    def test_the_golden_covers_every_replayed_wave(self):
         self.assertEqual([wave for wave, _ in rf.WAVES], list(self.golden["waves"]))
 
     def test_the_summary_is_the_sum_of_the_waves(self):

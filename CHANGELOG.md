@@ -3,6 +3,33 @@ All notable changes to Keelswell. Format: Keep a Changelog; versioning: semver.
 
 ## [Unreleased] - 2026-09-12
 ### Fixed
+- The ML reviewer fires on a model's feature builder (2026-10-17,
+  bmad-dev-wave 1.13.0). ffbapp wave 5E changed `engine/h1_features.py`,
+  `archetype.py` and `nav.py`, all inputs to the H1 model, and the selector
+  returned no `custom-ml`. RQ added Mel by hand and Mel found the review's
+  most consequential finding: QB codes reaching TE and WR units. The
+  `custom-ml` row gains one path, `**/*_features.py`.
+  **Rulings.** RQ, 2026-10-17: a generic glob only. `archetype` and `nav`
+  are ffbapp's words, and in a web app `nav` is navigation (precision rule
+  5), so neither enters the fork's table. `h1_features.py` alone fires the
+  row on 5E. The replay gains 6B and 5E, the first two waves merged after
+  the table was tuned.
+  **What was measured.** Replay over twenty waves, fixture rebuilt from
+  ffbapp at `c7c2fe9`: before, 90 selections, mean 4.50, no `custom-ml` on
+  5E (the real record's selection, reproduced cell for cell); after, 91
+  selections, mean 4.55. One cell moved: 5E gains `custom-ml`. The eighteen
+  tuned waves return their old golden unchanged (mean 4.33). Candidate globs
+  `*features*.py`, `*feature*.py` and `*features*` hit the same two files on
+  the same two waves; the tightest was kept. A new selector test reddens
+  with the glob removed.
+  **Prediction.** The next ffbapp wave that changes a `*_features.py` module
+  selects Mel without a hand addition. The twenty-wave mean stays at 4.55
+  until the replay gains a wave.
+  **At risk.** A project naming feature flags or product features
+  `*_features.py` (`billing_features.py`) would get an ML reviewer it does
+  not need. A model input not named `*_features.py` (5E's `archetype.py`,
+  `nav.py`) still selects nobody unless another file or the spec fires the
+  row. Graded by the checkpoint-location PR.
 - `install.sh` installs the upstream version the fork is on, not upstream's
   latest (2026-10-05). Phase 4 ran `npx bmad-method install` unpinned, so a
   fresh target came out on bmad-method 6.12.1 while the fork is on 6.12.0,
