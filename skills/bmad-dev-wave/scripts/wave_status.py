@@ -59,12 +59,18 @@ done -- and this record owns the stage.
   wave_status.py route --project-root P --wave 5D
   wave_status.py set   --project-root P --wave 5D --status in-progress
   wave_status.py show  --project-root P [--wave 5D]
+  wave_status.py adopt --project-root P --wave 5D --from <wave worktree>
 
-Exit codes (route and set):
-  0  proceed; route prints the stage and re-entry step
-  1  blocked -- route refused to dispatch, or set refused to overwrite
+Exit codes (route, set and adopt):
+  0  proceed; route prints the stage and re-entry step; adopt copied, or
+     found nothing to copy
+  1  blocked -- route refused to dispatch, or set refused to overwrite;
+     adopt found a file that differs between the two copies
   2  structural: no wave map, or the wave is not in it
   3  corrupt: the record exists and its status is missing or unrecognized
+
+`adopt` is bmad-merge-wave's, run before it removes a worktree: a session
+rooted in the wave's worktree writes this directory there (2026-10-17).
 
 `show` is read-only: it never writes, never backfills, and exits 0 whenever it
 could read the wave map, so a dashboard can render a corrupt or blocked wave
@@ -77,6 +83,7 @@ written to be acted on. Stdlib only.
 import argparse
 import json
 import re
+import shutil
 import subprocess
 import sys
 from datetime import datetime, timezone
@@ -591,6 +598,67 @@ def set_status(project_root, label, status, reason=None):
     return 0, result, lines
 
 
+def adopt(project_root, label, source_root):
+    """Copy a worktree's `.bmad/wave-<ID>/` into the project root's, before the
+    worktree is removed.
+
+    A session rooted in the wave's worktree writes the record and markers
+    there, and the directory is ignored, so `git worktree remove` takes it
+    with it (ffbapp wave 6B, copied out by hand). This is the copy, and it is
+    here because only this script writes `wave.md`.
+
+    Nothing is overwritten. A file the root already holds with the same bytes
+    is skipped; one it holds with different bytes is a conflict, and any
+    conflict refuses before anything is copied, naming the files. Which copy
+    is right is a human's call, as clearing a block is.
+    """
+    code, result, lines, resolved = _structural(project_root, label)
+    if resolved is None:
+        return code, result, lines
+    label = resolved
+
+    src = wave_dir(Path(source_root), label)
+    dst = wave_dir(project_root, label)
+    if src.resolve() == dst.resolve():
+        src_files = []
+    else:
+        src_files = sorted(p for p in src.rglob("*") if p.is_file()) if src.is_dir() else []
+
+    copy, identical, conflicts = [], [], []
+    for f in src_files:
+        rel = f.relative_to(src)
+        target = dst / rel
+        if not target.exists():
+            copy.append(rel)
+        elif target.is_file() and target.read_bytes() == f.read_bytes():
+            identical.append(rel)
+        else:
+            conflicts.append(rel)
+
+    result = {"wave": label, "from": str(src), "to": str(dst),
+              "adopted": [str(r) for r in copy],
+              "identical": [str(r) for r in identical],
+              "conflicts": [str(r) for r in conflicts]}
+    if conflicts:
+        return 1, result, [
+            f"REFUSE: wave {label}: {len(conflicts)} file(s) differ between",
+            f"  {src}",
+            f"  {dst}",
+        ] + [f"    {r}" for r in conflicts] + [
+            "  Nothing was copied. Decide which copy is right, then remove the",
+            "  other by hand and run adopt again. The worktree's wave.md is the",
+            "  one its session wrote last.",
+        ]
+    for rel in copy:
+        target = dst / rel
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(src / rel, target)
+    if not src_files:
+        return 0, result, [f"Wave {label}: no checkpoint at {src}; nothing to adopt."]
+    return 0, result, [f"Wave {label}: adopted {len(copy)} file(s) from {src} "
+                       f"({len(identical)} already identical)."]
+
+
 def show(project_root, label=None):
     """Read-only. Never writes, never backfills, never refuses a readable map."""
     labels = wave_map_labels(project_root)
@@ -638,16 +706,21 @@ def main():
     # names, so `--stat` binding to --status would be a spelling it cannot see.
     ap = argparse.ArgumentParser(description="Wave lifecycle status: read, write, route.",
                                  allow_abbrev=False)
-    ap.add_argument("verb", choices=["route", "set", "show"])
+    ap.add_argument("verb", choices=["route", "set", "show", "adopt"])
     ap.add_argument("--project-root", default=".", help="project root (default: cwd)")
     ap.add_argument("--wave", help="wave label as it appears in waves.md (e.g. 5D)")
     ap.add_argument("--status", help="for set: one of " + ", ".join(STATUSES))
     ap.add_argument("--reason", help="for set --status blocked: why, on one line")
+    ap.add_argument("--from", dest="source", help="for adopt: the wave's worktree")
     args = ap.parse_args()
 
     root = Path(args.project_root).resolve()
     if args.verb == "show":
         code, result, lines = show(root, args.wave)
+    elif args.verb == "adopt":
+        if not args.wave or not args.source:
+            ap.error("adopt needs --wave and --from")
+        code, result, lines = adopt(root, args.wave, Path(args.source).resolve())
     elif args.verb == "route":
         if not args.wave:
             ap.error("route needs --wave")
