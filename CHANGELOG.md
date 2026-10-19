@@ -3,6 +3,42 @@ All notable changes to Keelswell. Format: Keep a Changelog; versioning: semver.
 
 ## [Unreleased] - 2026-09-12
 ### Fixed
+- Each reviewer works alone (2026-10-18, bmad-dev-wave 1.17.0). ffbapp's
+  H1 rulings follow-up dispatched three reviewers into sibling detached
+  worktrees: the desktop app's worktree isolation refused them git and Edit
+  there, two shared one scratch directory (Tess overwrote the lead's
+  mutation script), and concurrent verify lanes shared one database. In
+  wave 6B two reviewers committed a baseline in their copies past gitleaks,
+  one with `--no-verify` and one with `core.hooksPath`. Step 10 now has the
+  session make each reviewer an rsync copy at `{scratch}/<name>/tree/`,
+  give it `{scratch}/<name>/` and its own verify database, and tell it that
+  restores are proved by checksum, that sibling worktrees do not work, and
+  that it never commits in the copy. After the review the session checks
+  the wave's worktree status and HEAD are unchanged.
+  **Rulings.** RQ, 2026-10-17: dispatch text only. The isolation is the
+  desktop app's, not a Keelswell or ffbapp hook (ffbapp's unregistered
+  `diff-composition-gate.sh` is a Stop reminder that never blocks), so no
+  hook here could change it; the reviewer definition is unchanged.
+  **What was measured.** Six new tests pin the block in step 10, red
+  before it was written. The block names no skill id, so a prompt built
+  from it still names only its own reviewer's skill, which is what the
+  pair C eval grader counts; `test_evals` passes. The rsync line run on
+  ffbapp's 5E worktree: exit 0, 440M down to 44M, no `.git` or `.venv`.
+  The route is the one wave 6B's seven reviewers and 5E's six used by hand
+  with no cross-contamination. No headless eval was run.
+  **Prediction.** The next ffbapp step 10 dispatches every reviewer with a
+  `{scratch}/<name>/` it alone writes, records an unchanged worktree in
+  `review-party.md`, and no reviewer reports a refused git or Edit call or
+  bypasses the secret scan.
+  **At risk.** A reviewer whose lanes need the virtualenv the copy leaves
+  out pays to rebuild it. A project whose verify database is not named in
+  `tests/verify-*.sh` gets no per-reviewer value. The checksum restore
+  proof is prose the reviewer follows, not a check anything enforces.
+  **Graded: the wrap PR.** Its prediction (the next NEEDS_WORK wrap writes
+  in the worktree with no denial) has had no ffbapp session to test it.
+  Not graded yet. The lifecycle-rule PR (bmad-dev-wave 1.16.0) predicts a
+  denial in the next merge-wave session that copies a checkpoint by hand;
+  none has run. Not graded yet.
 - The lifecycle rule denies a copy into the record's directory (2026-10-17,
   bmad-dev-wave 1.16.0). It matched only a path naming
   `.bmad/wave-<id>/wave.md`, so `cp /wt/.bmad/wave-7A/wave.md .bmad/wave-7A/`
