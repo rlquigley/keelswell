@@ -3,6 +3,30 @@ All notable changes to Keelswell. Format: Keep a Changelog; versioning: semver.
 
 ## [Unreleased] - 2026-09-12
 ### Fixed
+- Reviewers run their proofs in shapes an unattended run allows
+  (2026-10-22, bmad-dev-wave 1.18.0). The 2026-10-20 insights report named
+  reviewers losing Bash as step 10's most common friction. Every case was an
+  R5b eval trial: `run_evals.py` runs `claude -p` under `acceptEdits` with
+  only `python3`, `git`, `gh` and `bash` allowed, so a call outside those
+  is denied, not asked. Step 10's dispatch prompt now tells each reviewer to
+  write its scripts into its scratch directory with Write, run them as
+  `python3 <file>`, and make one command per Bash call: no `cd`, no leading
+  variable, no `;`/`&&`/`|` chain, no `mkdir`, `cp`, `shasum` or `find`.
+  **Rulings.** RQ, 2026-10-22: teach the reviewers; widen neither the eval
+  allowlist nor the instances' permission rules.
+  **What was measured.** Over the six pilot-2 pair-C trials, 117 reviewer
+  Bash calls, 37 denied. 36 of the 37 began with a command outside the
+  allowlist (`mkdir`, `cp`, `shasum`, `cd`, `for`), chained commands, or
+  set a custom variable before `python3`; one single `git -C` call was
+  denied too. Single `python3` and `git` calls otherwise all went through.
+  One new test pins the two phrases in the dispatch section. The trials
+  were not re-run: they cost real sessions.
+  **Prediction.** The next pair-C eval run has no reviewer Bash denial
+  except a single `git` call, and no reviewer re-dispatch for a denied
+  proof. In an interactive instance run, step 10 asks for fewer approvals.
+  **At risk.** It is prompt text: a reviewer may still chain commands. A
+  project whose rules allow more gains nothing, and one that does not allow
+  `python3` on scratch files still denies.
 - Each reviewer works alone (2026-10-18, bmad-dev-wave 1.17.0). ffbapp's
   H1 rulings follow-up dispatched three reviewers into sibling detached
   worktrees: the desktop app's worktree isolation refused them git and Edit
