@@ -19,7 +19,7 @@ allowed-tools:
   - Bash
   - Task
 metadata:
-  version: 1.17.0
+  version: 1.18.0
   output-locations:
     - ../<project>-wave-<id>/                 # sibling worktree, branch wave-<id>-<suffix>
     - .bmad/wave-<id>/checkpoint.json         # plus step-N.done markers (main repo)
@@ -540,6 +540,16 @@ repository when there is none; `<name>` is the reviewer's `skill`, or
   worktree by the desktop app is refused git and Edit in any other
   checkout, and its subagents with it. When a call is refused, quote the
   refusal and do not retry it through another tool.
+- **Commands that run with no one at the keyboard.** An unattended run
+  denies any Bash call its permission rules do not allow, and a proof
+  denied is a finding left unproven. Write each probe or mutation script
+  into `{scratch}/<name>/` with Write, which creates the directory, and run
+  it as `python3 {scratch}/<name>/<script>.py`; read with Read, Grep, Glob
+  or a single `git -C <path> ...`. One command per Bash call: no `cd` and
+  no variable set in front of the command, no chain with `;`, `&&` or `|`,
+  and no `mkdir`, `cp`, `shasum` or `find` (the script copies, hashes and
+  walks). In R5b's eval trials 37 of 117 reviewer Bash calls were denied,
+  and all but one broke this rule.
 - **No commits past the secret scan.** A reviewer that wants a baseline
   takes the checksum snapshot. It never runs `git init` and commits in the
   copy, and never uses `--no-verify` or sets `core.hooksPath`: two wave 6B
@@ -713,6 +723,10 @@ there is nothing to block.
   names. Do not retry the same write through a different tool.
 
 ## Version history
+- 1.18.0 (2026-10-22, R5b eval trials): step 10's dispatch prompt names
+  the command shapes an unattended run allows a reviewer: scripts written
+  to its scratch directory and run with `python3`, one command per Bash
+  call. Dispatch text only.
 - 1.17.0 (2026-10-18, ffbapp's H1 rulings follow-up and wave 6B): step 10
   gives each reviewer its own rsync copy of the worktree, its own scratch
   directory and its own verify database, says which tools work there, and
