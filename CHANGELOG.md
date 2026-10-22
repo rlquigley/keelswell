@@ -3,6 +3,23 @@ All notable changes to Keelswell. Format: Keep a Changelog; versioning: semver.
 
 ## [Unreleased] - 2026-09-12
 ### Added
+- `tools/run_wave.py` (2026-10-22): runs one wave of an instance headless,
+  for the "carry wave X through step N while I am away" runs the 2026-10-20
+  insights report counted at about twenty. `claude -p "/bmad-dev-wave <id>
+  ..."` in the project (or /bmad-resume-wave with `--resume`), told to stop
+  after `--through-step N`, to halt at every gate and refused call, and
+  never to merge. Permissions are the eval runner's (`acceptEdits`;
+  python3, git, gh, bash) plus rsync for step 10's reviewer copies;
+  `--allow` adds a rule; `--max-budget-usd` caps the spend. The stream goes
+  to `~/Library/Logs/keelswell/<project>/`, and the end prints where the
+  run stopped, the cost and every denied call.
+  **What was measured.** 6 tests against a stand-in `claude`, 12 mutations
+  each killed. One real run on an empty scratch project: the real CLI took
+  every flag, the session halted at step 1 on the missing skill without
+  working around a refused call, $0.14.
+  **At risk.** Not yet run on a real wave. A step that needs a command
+  outside the allowlist halts the run there; read the denials and rerun
+  with `--allow`. macOS log path by default.
 - `tools/instance_drift.py` (2026-10-22): reports, per instance, every fork
   skill and subagent definition that is `behind` (only older fork versions,
   files the fork has since deleted, or files missing), `drift` (content the
