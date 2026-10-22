@@ -2,6 +2,24 @@
 All notable changes to Keelswell. Format: Keep a Changelog; versioning: semver.
 
 ## [Unreleased] - 2026-09-12
+### Added
+- `tools/instance_drift.py` (2026-10-22): reports, per instance, every fork
+  skill and subagent definition that is `behind` (only older fork versions,
+  files the fork has since deleted, or files missing), `drift` (content the
+  fork never had) or `missing`, by matching each file's git blob hash
+  against the fork's whole history. With no argument it finds instances by
+  their manifest. Reads only; exits 1 when anything differs. Replaces the
+  hand comparison after each instance sync, and the fork's CLAUDE.md now
+  uses it to list instances (its earlier `find -maxdepth 5` missed a
+  `clients/<client>/<repo>` instance).
+  **What was measured.** 11 tests on a scratch fork with history, 14
+  mutations each killed. On the real instances: green-ledger and ffbapp
+  both match the fork. On a scratch copy of ffbapp with dev-wave's SKILL.md
+  rolled back to 1.16.0 and agent-ml's edited: one `behind`, one `drift`,
+  exit 1. CI runs `tools/tests`.
+  **At risk.** A file an instance received from a fork branch that never
+  merged reads as `drift`. An instance on another machine, or deeper than
+  `~/Projects/<a>/<b>/<c>/`, is not found; name it on the command line.
 ### Fixed
 - Each reviewer works alone (2026-10-18, bmad-dev-wave 1.17.0). ffbapp's
   H1 rulings follow-up dispatched three reviewers into sibling detached

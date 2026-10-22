@@ -9,14 +9,18 @@ CLAUDE.md from `templates/CLAUDE.md.template`, not from this file.
   instances at run time, never from a remembered list:
 
   ```bash
-  find ~/Projects -maxdepth 5 -path '*/_bmad/_config/manifest.yaml' -not -path '*/worktrees/*' -not -path '*/_archive/*' | xargs grep -l -i keelswell
+  python3 tools/instance_drift.py --list
   ```
 
-  Skip the fork's own entry. This repo is public: do not write instance or
-  client names into it.
+  It lists every project under `~/Projects` whose
+  `_bmad/_config/manifest.yaml` names the keelswell module, skipping
+  worktrees, `_archive` and the fork's own checkouts. This repo is public:
+  do not write instance or client names into it.
 - Mirror `skills/` to `.claude/skills/`, then copy the changed skills into
   each instance and run
   `./install.sh --validate-only --target-project <instance> --skip-mcp-check`.
-  Confirm each instance's skill trees match the fork before reporting done.
+  Before reporting done, `python3 tools/instance_drift.py` exits 0. Read
+  any `drift` row before a sync overwrites it: that file holds content the
+  fork never had.
 - Do not start a step that depends on a PR until
   `gh pr view <n> --json state` shows MERGED.

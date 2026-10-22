@@ -64,6 +64,9 @@ jobs:
           done
           exit $bad
 
+      - name: Tool tests
+        run: python3 -m unittest discover -s tools/tests
+
       - name: Harness invariants
         run: ./install.sh --validate-only --skip-mcp-check
 
