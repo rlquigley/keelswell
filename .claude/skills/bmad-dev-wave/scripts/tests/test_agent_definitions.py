@@ -94,6 +94,13 @@ class TestReviewerIsolation(unittest.TestCase):
         self.assertIn("git worktree add --detach", self.section)
         self.assertIn("checksum", self.section)
 
+    def test_the_prompt_names_the_command_shapes_that_run_unattended(self):
+        # R5b's eval trials: 37 of 117 reviewer Bash calls were denied, and
+        # all but one were a chain, a leading variable, or a command outside
+        # the run's python3 and git rules. A denied proof is an unproven finding.
+        self.assertIn("python3 {scratch}/<name>/", self.section)
+        self.assertIn("One command per Bash call", self.section)
+
     def test_no_reviewer_commits_past_the_secret_scan(self):
         self.assertIn("--no-verify", self.section)
         self.assertIn("core.hooksPath", self.section)
