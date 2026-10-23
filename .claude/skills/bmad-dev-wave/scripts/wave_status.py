@@ -48,7 +48,15 @@ rather than bookkeeping (RQ, 2026-09-11):
     Once a wave has a record, a garbled status is a refusal and not a guess.
     Without this half, deleting the status line would be an undocumented
     override of blocked; with it, clearing a block means writing a valid
-    status or deleting the whole file. Both are deliberate human acts.
+    status or deleting the whole file. Both are deliberate human acts. A
+    record that cannot be read, or that names a key twice, is corrupt too:
+    reading it as absent would let `set` write over a blocked record and
+    `route` backfill one (V2-10 of the harness review v2).
+
+TRANSITIONS. `set` writes only the moves in TRANSITIONS below, so a wave
+cannot jump from in-progress to done past the evaluator and the review stage
+(V2-01). Blocked is reachable from anything and leaves to nothing a skill
+writes. `route`'s one-time backfill is not a set and is not held to the table.
 
 The record lives at `.bmad/wave-<ID>/wave.md`, beside the checkpoint that
 directory already holds. Local and untracked, like every other piece of wave
@@ -67,7 +75,9 @@ Exit codes (route, set and adopt):
   1  blocked -- route refused to dispatch, or set refused to overwrite;
      adopt found a file that differs between the two copies
   2  structural: no wave map, or the wave is not in it
-  3  corrupt: the record exists and its status is missing or unrecognized
+  3  corrupt: the record exists and cannot be read, names a key twice, or
+     its status is missing or unrecognized; nothing is written
+  4  set only: TRANSITIONS does not allow this move; nothing is written
 
 `adopt` is bmad-merge-wave's, run before it removes a worktree: a session
 rooted in the wave's worktree writes this directory there (2026-10-17).
@@ -81,7 +91,10 @@ written to be acted on. Stdlib only.
 """
 
 import argparse
+import contextlib
+import fcntl
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -112,6 +125,23 @@ STAGES = {
 }
 
 STATUSES = tuple(STAGES)
+
+# current status -> the statuses `set` may write over it, and the skill that
+# writes each one. `None` is no record. A same-status set changes nothing but
+# the history (step 5 or 6 re-run, the third-pass "upstream fix" line, a
+# merge-wave re-run). Blocked has no row: only a human edits it away.
+TRANSITIONS = {
+    None:          {DRAFT,           # create-wave
+                    BLOCKED},        # SessionEnd hook, any halt
+    DRAFT:         {DRAFT, READY_FOR_DEV, BLOCKED},    # dev-wave step 5
+    READY_FOR_DEV: {READY_FOR_DEV, IN_PROGRESS, BLOCKED},  # dev-wave step 6
+    IN_PROGRESS:   {IN_PROGRESS, IN_REVIEW, BLOCKED},  # dev-wave end of step 9
+    IN_REVIEW:     {IN_REVIEW,
+                    IN_PROGRESS,     # dev-wave step 10, a fix re-checked by 7 and 8
+                    DONE,            # merge-wave step 5
+                    BLOCKED},
+    DONE:          {DONE, BLOCKED},
+}
 
 # "6A" -> epic 6, letter A. Epic numbers are not capped at one digit.
 WAVE_LABEL = re.compile(r"^(\d+)([A-Za-z]+)$")
@@ -202,6 +232,8 @@ def parse_record(text):
     A deliberately small parser: `key: value` scalars between the leading
     `---` fences, quotes stripped. The record is meant to be hand-edited, so
     it stays in the subset a human types correctly without a YAML reference.
+    A key given twice raises ValueError: which of two status lines is meant
+    is not something to guess.
     """
     lines = text.splitlines()
     if not lines or lines[0].strip() != "---":
@@ -215,23 +247,76 @@ def parse_record(text):
                 key, sep, value = line.partition(":")
                 if not sep:
                     continue
+                if key.strip() in front:
+                    raise ValueError(f"it names {key.strip()!r} twice")
                 front[key.strip()] = value.strip().strip("'\"")
             return front, "\n".join(lines[i + 1:])
     return None, text
 
 
 def read_record(project_root, label):
+    """The record, or None when there is no file. A file that cannot be read
+    or parsed comes back with `_corrupt` set, never as None: absent is what
+    lets route backfill and set write, and a corrupt record gets neither."""
     path = record_path(project_root, label)
     if not path.is_file():
         return None
     try:
         front, body = parse_record(path.read_text(encoding="utf-8", errors="ignore"))
-    except OSError:
-        return None
+    except OSError as e:
+        return {"status": None, "_body": "", "_corrupt": f"it cannot be read ({e.strerror})"}
+    except ValueError as e:
+        return {"status": None, "_body": "", "_corrupt": str(e)}
     if front is None:
         return {"status": None, "_body": body, "_malformed": True}
     front["_body"] = body
     return front
+
+
+def corrupt_refusal(project_root, label, record):
+    """(code 3, result, lines) when an existing record cannot be trusted, else None."""
+    path = record_path(project_root, label)
+    if record.get("_corrupt"):
+        return 3, {"wave": label, "error": "corrupt_record", "why": record["_corrupt"],
+                   "record": str(path)}, [
+            f"REFUSE: wave {label}'s record exists and {record['_corrupt']}.",
+            f"  {path}",
+            "  Nothing was written. A record that exists is authoritative, so one",
+            "  that cannot be read is refused rather than treated as absent: absent",
+            "  would let a set write over a blocked wave. A human repairs the file",
+            "  (its permissions, or the duplicated line), or deletes it to start the",
+            "  wave over.",
+        ]
+    if record.get("status") not in STATUSES:
+        found = record.get("status")
+        shown = "(missing)" if found in (None, "") else repr(found)
+        return 3, {"wave": label, "error": "unrecognized_status", "found": found,
+                   "valid": list(STATUSES), "record": str(path)}, [
+            f"REFUSE: wave {label}'s record exists and its status is {shown}.",
+            f"  {path}",
+            f"  Valid statuses: {', '.join(STATUSES)}.",
+            "  A record that exists is authoritative, so an unreadable status is",
+            "  refused rather than guessed. This is also what stops deleting the",
+            "  status line from working as a quiet override of blocked: write a",
+            "  valid status, or delete the whole file to start the wave over.",
+        ]
+    return None
+
+
+@contextlib.contextmanager
+def locked(project_root, label):
+    """Hold the wave's directory under an exclusive flock for a read, a
+    decision and a write, so two sets cannot both read the same history and
+    each drop the other's line (V2-34). The directory is locked rather than a
+    lock file, which adopt would copy along with the checkpoint."""
+    d = wave_dir(project_root, label)
+    d.mkdir(parents=True, exist_ok=True)
+    fd = os.open(d, os.O_RDONLY)
+    try:
+        fcntl.flock(fd, fcntl.LOCK_EX)
+        yield
+    finally:
+        os.close(fd)
 
 
 def history_lines(body):
@@ -273,6 +358,9 @@ def render_record(label, status, now, reason=None, blocked_at=None, history=()):
 
 def write_record(project_root, label, status, reason=None, note=None,
                  blocked_at=None, existing=None):
+    """Write the record whole through a temp file and os.replace, so a reader
+    never sees half of one. Call it inside `locked`, with `existing` read
+    there too."""
     now = datetime.now(timezone.utc).isoformat(timespec="seconds")
     history = list(history_lines(existing.get("_body", ""))) if existing else []
     was = (existing or {}).get("status") or "(none)"
@@ -282,10 +370,12 @@ def write_record(project_root, label, status, reason=None, note=None,
     history.append(entry)
     path = record_path(project_root, label)
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(
+    tmp = path.with_name(RECORD_NAME + ".tmp")
+    tmp.write_text(
         render_record(label, status, now, reason=reason,
                       blocked_at=blocked_at, history=history),
         encoding="utf-8")
+    os.replace(tmp, path)
     return now
 
 
@@ -474,28 +564,17 @@ def route(project_root, label):
         return code, result, lines
     label = resolved
 
-    record = read_record(project_root, label)
     backfilled = None
-
-    if record is None:
-        status, why = infer_status(project_root, label)
-        write_record(project_root, label, status, note=f"backfilled: {why}")
-        backfilled = why
+    with locked(project_root, label):
         record = read_record(project_root, label)
-    elif record.get("status") not in STATUSES:
-        found = record.get("status")
-        shown = "(missing)" if found in (None, "") else repr(found)
-        return 3, {"wave": label, "error": "unrecognized_status", "found": found,
-                   "valid": list(STATUSES),
-                   "record": str(record_path(project_root, label))}, [
-            f"REFUSE: wave {label}'s record exists and its status is {shown}.",
-            f"  {record_path(project_root, label)}",
-            f"  Valid statuses: {', '.join(STATUSES)}.",
-            "  A record that exists is authoritative, so an unreadable status is",
-            "  refused rather than guessed. This is also what stops deleting the",
-            "  status line from working as a quiet override of blocked: write a",
-            "  valid status, or delete the whole file to start the wave over.",
-        ]
+        if record is None:
+            status, why = infer_status(project_root, label)
+            write_record(project_root, label, status, note=f"backfilled: {why}")
+            backfilled = why
+            record = read_record(project_root, label)
+    refusal = corrupt_refusal(project_root, label, record)
+    if refusal:
+        return refusal
 
     status = record["status"]
 
@@ -561,7 +640,16 @@ def set_status(project_root, label, status, reason=None):
             f"  Valid statuses: {', '.join(STATUSES)}.",
         ]
 
+    with locked(project_root, label):
+        return _set_locked(project_root, label, status, reason)
+
+
+def _set_locked(project_root, label, status, reason):
     existing = read_record(project_root, label)
+    if existing is not None:
+        refusal = corrupt_refusal(project_root, label, existing)
+        if refusal:
+            return refusal
     if existing is not None and existing.get("status") == BLOCKED:
         return 1, {"wave": label, "error": "already_blocked", "requested": status,
                    "reason": existing.get("reason"),
@@ -572,6 +660,20 @@ def set_status(project_root, label, status, reason=None):
             f"  The requested status was {status}. Blocked is cleared by a human",
             "  editing the record or deleting it, and by nothing else -- a skill",
             "  that could write its way out of blocked is a retry loop, not a gate.",
+        ]
+
+    was = existing.get("status") if existing is not None else None
+    if status not in TRANSITIONS[was]:
+        allowed = sorted(TRANSITIONS[was], key=STATUSES.index)
+        return 4, {"wave": label, "error": "illegal_transition", "from": was,
+                   "requested": status, "allowed": allowed,
+                   "record": str(record_path(project_root, label))}, [
+            f"REFUSE: wave {label} cannot move from {was or '(no record)'} to {status}.",
+            f"  From {was or '(no record)'} a set may write: {', '.join(allowed)}.",
+            "  Nothing was written. Each status is entered by the step that earns it:",
+            "  in-review at the end of dev-wave step 9 on a PASS, done by merge-wave",
+            "  after an in-review wave's PR merged. A wave with no record gets one",
+            "  from route (step 1) or create-wave, not from a later step's set.",
         ]
 
     if reason:
@@ -682,7 +784,7 @@ def show(project_root, label=None):
                           "reentry_step": None})
             continue
         status = record.get("status")
-        if status not in STATUSES:
+        if status not in STATUSES or record.get("_corrupt"):
             waves.append({"wave": one, "status": status, "state": "corrupt",
                           "reentry_step": None})
             continue

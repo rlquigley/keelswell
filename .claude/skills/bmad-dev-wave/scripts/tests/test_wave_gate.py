@@ -313,6 +313,28 @@ class TestReview(Base):
         code, _, err = self.p.pre("Bash", command=self.SET + "in-review")
         self.assertEqual(code, 0, err)
 
+    def test_done_denied_with_no_evaluation(self):
+        """V2-01: done was the way into the review stage past the evaluator."""
+        code, _, err = self.p.pre("Bash", command=self.SET + "done")
+        self.assertEqual(code, 2)
+        self.assertIn("DENIED (review)", err)
+        self.assertIn("cannot be set done", err)
+
+    def test_done_denied_on_needs_work(self):
+        self.p.evaluation("7A", 1, "PASS")
+        self.p.evaluation("7A", 2, "NEEDS_WORK")
+        code, _, err = self.p.pre("Bash", command=self.SET + "done")
+        self.assertEqual(code, 2)
+        self.assertIn("NEEDS_WORK, not PASS", err)
+
+    def test_done_allowed_on_a_pass_that_merged(self):
+        """merge-wave's set: the worktree is gone and the records are on main."""
+        self.p.evaluation("7A", 1, "NEEDS_WORK")
+        self.p.evaluation("7A", 2, "PASS")
+        self.p.land("7A")
+        code, _, err = self.p.pre("Bash", command=self.SET + "done")
+        self.assertEqual(code, 0, err)
+
     def test_other_statuses_are_not_gated(self):
         for status in ("draft", "ready-for-dev", "in-progress", "blocked"):
             code, _, err = self.p.pre("Bash", command=self.SET + status)

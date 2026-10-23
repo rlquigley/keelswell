@@ -19,7 +19,7 @@ allowed-tools:
   - Bash
   - Task
 metadata:
-  version: 1.18.1
+  version: 1.19.0
   output-locations:
     - ../<project>-wave-<id>/                 # sibling worktree, branch wave-<id>-<suffix>
     - .bmad/wave-<id>/checkpoint.json         # plus step-N.done markers (main repo)
@@ -96,8 +96,10 @@ re-entered by /bmad-resume-wave.
 9.  Checkpoint preview: show the exact commits about to land; accept
     "approved", "edit: <instruction>", or "abort". A failing story may be
     demoted out of the wave (waves.md is updated and a follow-up wave queued).
+    On approval set the status to in-review, for every wave, including one
+    whose step 10 will not run: the review stage opens here, on step 8's PASS.
 10. Party-mode adversarial review -- load-bearing waves only (skipped by
-    --no-party): set the status to in-review, ask scripts/select_reviewers.py
+    --no-party): ask scripts/select_reviewers.py
     which reviewers this wave's own changes require (see The Reviewer
     Selection) and dispatch exactly those, each as `keelswell-wave-reviewer`
     (see The Routing); block on
@@ -105,7 +107,8 @@ re-entered by /bmad-resume-wave.
     step 11, always, including when the review found nothing and when it did
     not run (see The Review Record). A HIGH or CRITICAL finding fixed here
     sends the wave back through steps 7 and 8 before step 11: nothing else
-    re-checks a fix made after PASS.
+    re-checks a fix made after PASS. Set the status to in-progress before
+    the fix; step 9 sets in-review again on the new PASS.
 11. Commits and pull request. Parallel waves: exactly one foundation commit
     (every cross-cutting file every subagent edits -- pyproject.toml or the
     lockfile, errors.py, the CLI main, ci-fast.yml, the wave's
@@ -175,7 +178,8 @@ wave and the remedy. There is no flag and no override.
   0  proceed; the JSON carries status, stage and reentry_step
   1  the wave is blocked
   2  structural: no wave map, or the wave is not in it
-  3  the record exists and its status is missing or unrecognized
+  3  the record exists and cannot be read, names a key twice, or has a
+     missing or unrecognized status
 
 The six statuses and the step each re-enters at:
 
@@ -196,8 +200,16 @@ Advance the status with the same script, never by editing the record by hand:
     python3 {skill-root}/scripts/wave_status.py set \
         --project-root {project-root} --wave <id> --status <status>
 
-Write points are steps 5, 6 and 10 above, and every refusal in Error Handling
-that halts the wave, which writes `--status blocked --reason "<one line>"`.
+Write points are steps 5, 6 and 9 above, step 10 when a fix sends the wave
+back to in-progress, and every refusal in Error Handling that halts the wave,
+which writes `--status blocked --reason "<one line>"`.
+
+`set` makes only the moves in the script's transition table: draft ->
+ready-for-dev -> in-progress -> in-review -> done, in-review back to
+in-progress for a step-10 fix, a same-status set (history only), and blocked
+from anything. Anything else exits 4 and writes nothing; in particular a wave
+reaches done only from in-review, so not past step 8's evaluator. A record
+that cannot be read exits 3 and is never written over.
 
 ## Blocked is sticky
 
@@ -376,7 +388,9 @@ nothing.
 ### A fix at step 10 comes back through here
 
 A HIGH or CRITICAL party finding fixed at step 10 changes code the evaluator
-passed. Run step 7 again, then step 8: `dispatch` refuses the old verify stamp
+passed. Set the status to in-progress, then run step 7 again, then step 8, then
+step 9, which sets in-review again only on a PASS: `dispatch` refuses the old
+verify stamp
 once HEAD has moved, and when `review-party.md` is dated on or after the
 latest evaluation it adds the review record to the evidence, so the evaluator
 checks the fix against the finding.
@@ -418,9 +432,9 @@ What the PreToolUse hook denies, reading only what is on disk:
   named `wave.md`, a glob that could match it, a variable, a directory, or
   anything under a recursive flag. Blocked is sticky only if the session it
   blocks cannot edit the record.
-- **review**: `wave_status.py set --status in-review` for a wave whose latest
-  evaluation is not PASS. There is no way into the review stage except through
-  step 8's evaluator.
+- **review**: `wave_status.py set --status in-review` or `--status done` for
+  a wave whose latest evaluation is not PASS. There is no way into the review
+  stage except through step 8's evaluator.
 - **in-place**: after this session's evaluator returns NEEDS_WORK for a wave,
   any write into that wave's worktree by this session. The findings open the
   next session; the evaluator hook notes which session's evaluator it recorded.
@@ -683,8 +697,11 @@ preflight refusals are the exception: they fire before the wave opens, so
 there is nothing to block.
 - Wave blocked at preflight: refuse; quote the script's stderr. Not clearable
   by this skill or by any flag.
-- Wave record present with an unreadable status: refuse (exit 3). Repair the
-  record or delete it.
+- Wave record present but unreadable, with a key named twice, or with an
+  unreadable status: refuse (exit 3). Repair the record or delete it.
+- `set` exits 4: the transition table does not allow that move. Quote the
+  stderr, which names the moves that are allowed; do not reach the status by
+  another route.
 - Dirty working tree at preflight: refuse; name the dirty paths.
 - Earlier epic closure-pending at preflight: refuse; name the epic and its
   merged waves, and point at /bmad-close-epic. Not overridable by a flag;
@@ -723,6 +740,14 @@ there is nothing to block.
   names. Do not retry the same write through a different tool.
 
 ## Version history
+- 1.19.0 (2026-10-23, harness review v2 PR 1: V2-01, V2-10 in part, V2-30,
+  V2-34): `wave_status.py set` makes only the moves in a transition table
+  and exits 4 on any other, so in-progress -> done is refused. The gate's
+  review rule guards done as it guards in-review. A record that cannot be
+  read or names a key twice exits 3 instead of reading as absent. A set
+  holds a lock across its read and write and writes through os.replace.
+  The in-review write moves from step 10 to the end of step 9, for every
+  wave; a step-10 fix sets in-progress first.
 - 1.18.1 (2026-10-23, harness review v2 PR 5): the settings-template test
   asserts the `${CLAUDE_PROJECT_DIR}` exec form for every hook. Test only;
   no step changed.
