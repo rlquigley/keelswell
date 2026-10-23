@@ -70,16 +70,6 @@ jobs:
       - name: Harness invariants
         run: ./install.sh --validate-only --skip-mcp-check
 
-      # V2-18 of docs/reviews/harness-review-v2.md: the README pinned a tag
-      # that was never pushed, and npx then installs vanilla BMAD and exits 0.
-      - name: The README's install tag exists on the remote
-        run: |
-          tag=$(grep -oE 'rlquigley/keelswell@v[0-9]+\.[0-9]+\.[0-9]+' README.md | head -1 | cut -d@ -f2)
-          [ -n "$tag" ] || { echo "::error::README.md names no keelswell@vX.Y.Z"; exit 1; }
-          git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null \
-            || { echo "::error::README.md installs $tag, which is not a tag on origin"; exit 1; }
-          echo "$tag is a tag on origin"
-
       # The fork's copies of upstream agents win over upstream's, so an
       # upstream refresh that removes a skill leaves their menus pointing at
       # nothing (bmad-check-implementation-readiness, gone in 6.12.0).
@@ -142,3 +132,14 @@ jobs:
               sys.exit(1)
           print("ok" if bumped else "no skill version changed")
           PY
+
+      # V2-18 of docs/reviews/harness-review-v2.md: the README pinned a tag
+      # that was never pushed, and npx then installs vanilla BMAD and exits 0.
+      # Last, so a missing tag does not skip the checks above it.
+      - name: The README's install tag exists on the remote
+        run: |
+          tag=$(grep -oE 'rlquigley/keelswell@v[0-9]+\.[0-9]+\.[0-9]+' README.md | head -1 | cut -d@ -f2)
+          [ -n "$tag" ] || { echo "::error::README.md names no keelswell@vX.Y.Z"; exit 1; }
+          git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null \
+            || { echo "::error::README.md installs $tag, which is not a tag on origin"; exit 1; }
+          echo "$tag is a tag on origin"
