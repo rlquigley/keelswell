@@ -32,10 +32,11 @@ Six rules, each read off disk and none of them a judgement:
             nothing else. A status edited by hand skips every refusal the
             script makes, and blocked is sticky only if the session it blocks
             cannot edit, move or delete the record.
-  review    wave_status.py set --status in-review is denied for a wave whose
-            latest evaluation on disk is not PASS. There is no way into the
-            review stage except through the evaluator, so step 8 cannot be
-            walked past.
+  review    wave_status.py set to a status whose stage is review (in-review,
+            done) is denied for a wave whose latest evaluation on disk is not
+            PASS. There is no way into the review stage except through the
+            evaluator, so step 8 cannot be walked past, and done is held to
+            the same check: merge-wave's set reads the records that merged.
   in-place  The session that recorded NEEDS_WORK for a wave cannot edit that
             wave's worktree. The findings are the next session's opening
             prompt, and the session that built the wave is the one least able
@@ -124,6 +125,8 @@ SET_WORD = re.compile(r"(?<![\w-])(?:set_status|set(?![\w(-]))")
 EVALUATE_WAVE_NAMED = re.compile(r"evaluate_wave", re.I)
 # The verb as a word, or the function behind it. Not `record_to` or `recorded`.
 RECORD_WORD = re.compile(r"(?<![\w-])record(?![\w-])")
+# Every status whose stage is review: in-review and done (V2-01).
+REVIEW_STATUSES = {s for s, (stage, _) in wave_status.STAGES.items() if stage == "review"}
 
 PENDING_MARKER = "step-4.5.pending"
 # bmad-wrap's one output directory, exempt from the in-place rule.
@@ -804,7 +807,7 @@ def review_rule(root, shell):
             raise Deny("review", [
                 "wave_status.py's verb, --status and --wave must be literal values; this",
                 "  command builds one from a variable or a substitution."] + direct)
-        if verb != "set" or status != wave_status.IN_REVIEW or not wave:
+        if verb != "set" or status not in REVIEW_STATUSES or not wave:
             continue
         labels = wave_status.wave_map_labels(root)
         label = wave_status.resolve_label(labels, wave) if labels else None
@@ -815,13 +818,13 @@ def review_rule(root, shell):
             continue
         if path is None:
             raise Deny("review", [
-                f"wave {label} has no evaluation on disk, so it cannot enter review.",
+                f"wave {label} has no evaluation on disk, so it cannot be set {status}.",
                 "  Step 8 dispatches the fresh-context evaluator and its hook records",
                 "  the verdict; the review stage opens on PASS and on nothing else.",
                 "  Reviewing the wave in this context is not a substitute."])
         raise Deny("review", [
             f"wave {label}'s latest evaluation ({shown(path, root)}) is "
-            f"{verdict or 'unreadable'}, not PASS, so it cannot enter review.",
+            f"{verdict or 'unreadable'}, not PASS, so it cannot be set {status}.",
             "  NEEDS_WORK: halt; the findings open the next session (bmad-resume-wave).",
             "  UPSTREAM_CAUSE: fix the artifact the record names, not the code.",
             "  Unreadable: repair or delete the record; do not guess what it said."])

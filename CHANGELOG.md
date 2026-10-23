@@ -3,6 +3,73 @@ All notable changes to Keelswell. Format: Keep a Changelog; versioning: semver.
 
 ## [Unreleased]
 
+### Fixed
+- A wave reaches done only through the review stage (2026-10-23, PR 1 of
+  docs/reviews/harness-review-v2.md: V2-01, the wave_status half of V2-10,
+  V2-30 and V2-34; bmad-dev-wave 1.19.0, bmad-merge-wave 1.3.1).
+  `wave_status.py set` makes only the moves in its transition table: no
+  record -> draft (create-wave), draft -> ready-for-dev (step 5) ->
+  in-progress (step 6) -> in-review (end of step 9) -> done (merge-wave),
+  in-review -> in-progress (a step-10 fix), a same-status set (history
+  only), and blocked from anything but blocked. Any other move exits 4,
+  new, and writes nothing; before this, 25 of 25 pairs were accepted and
+  `set done` from in-progress walked past the evaluator. The gate's review
+  rule now denies `set --status done` as it denies in-review, unless the
+  latest evaluation is PASS; merge-wave's set reads the records that
+  merged with the wave. A record that cannot be read or names a key twice
+  exits 3 from set and route instead of reading as absent, so chmod 200 on
+  a blocked record no longer lets set write over it or route backfill it;
+  show lists it as corrupt. A set holds an flock on the wave's directory
+  across its read and write and writes through os.replace. The in-review
+  write moves from step 10 to the end of step 9 for every wave, so a wave
+  that skips the party review still meets the review rule and re-enters
+  past step 9.
+  **Rulings.** RQ, 2026-10-23, all as proposed: (a) the table above; (b)
+  the review rule guards every status whose stage is review; (c) an
+  unreadable record, an unknown status and a duplicate key are corrupt:
+  exit 3, nothing written; (d) the lock and os.replace; (e) the in-review
+  move rides here; (f) an illegal move is exit 4, not 1, so it is not
+  read as blocked.
+  **What was measured.** 10 new tests: every ordered pair of no-record and
+  the six statuses (42) against a table written out in the test, refused
+  pairs leaving the record byte-identical; done from in-progress refused;
+  an in-review wave with step-11.done re-entering at 12; chmod 200 on a
+  blocked record then set and route, exit 3, bytes unchanged; a duplicated
+  status line, exit 3; set over a missing status, exit 3; 20 parallel sets
+  keeping 21 history lines (8 of 8 runs) with no temp file left; and done
+  denied by the gate with no evaluation and on NEEDS_WORK, allowed on a
+  PASS that merged. The review's own probe (`p4_status.py`, re-run against
+  this branch): "gate on set done: exit 2", "set done: exit 4", a record
+  with two status lines exits 3. Six mutations, each killed: the table
+  check, the done clause in review_rule, the unreadable-as-absent read,
+  set's corrupt check, the duplicate-key check, the lock. Every `--status`
+  caller in the wave skills, the gate's SessionEnd and the eval fixtures
+  walks a legal move; ffbapp 6B's real history did too.
+  **Grade of the installer prediction (0.9.0, PR 5).** Held in the parts
+  gradable now. Validate exits 0 on both live instances; the hand step's
+  commits changed `.claude/settings.json` and nothing else beyond the
+  dev-wave 1.18.1 skill sync (green-ledger 4d19d8a, ffbapp 72b04fa). A
+  plain install over an rsync copy of ffbapp exited 3 and changed no file
+  (shasum of every file before and after). The fresh-install step-7 stop
+  is not gradable as of 2026-10-23: no fresh install has run a wave.
+  **Prediction.** No wave in either instance reaches done without an
+  in-review entry in its record's history, and the next wave that skips
+  step 10 reaches in-review at step 9 and merges without a hand edit to
+  its record.
+  **At risk.** After a step-10 fix sets in-progress, a resume re-enters
+  at step 9, because the step 7 to 9 markers still exist, and skips the
+  re-verify and the re-evaluation; this PR does not reset the markers.
+  PR 3 of the v2 review closes it: a diff hash on each evaluation record,
+  checked by the review rule, so a PASS from before the fix no longer
+  opens the review stage. A follow-up pass on a done wave has
+  no move back (done -> in-progress exits 4), so a fix found there needs a
+  hand edit or a new wave. A wave in flight on an instance at in-progress
+  past step 9 cannot be merged to done until step 9 runs again; none is
+  in flight today. A wave merged before the evaluator existed has no
+  evaluation, so the gate denies its done. SessionEnd can no longer block
+  a wave whose record is corrupt; route already refuses it. The lock is
+  POSIX flock: no Windows.
+
 ## [0.9.0] - 2026-10-23
 ### Added
 - `tools/run_wave.py` (2026-10-22): runs one wave of an instance headless,

@@ -470,6 +470,10 @@ class TestDispatch(Base):
         return p
 
     def fix(self, p, reason="upstream fix: docs/stories/5.4.md"):
+        # The wave is in-progress at step 8, as dev-wave leaves it.
+        for status in ("draft", "ready-for-dev", "in-progress"):
+            code, _, err = p.run("set", "--wave", "5D", "--status", status, script=STATUS)
+            self.assertEqual(code, 0, err)
         code, _, err = p.run("set", "--wave", "5D", "--status", "in-progress",
                              "--reason", reason, script=STATUS)
         self.assertEqual(code, 0, err)

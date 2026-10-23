@@ -17,7 +17,7 @@ allowed-tools:
   - Bash
   - Write
 metadata:
-  version: 1.3.0
+  version: 1.3.1
   inputs:
     - wave-id (positional, required)
     - --verbose (optional; full git output instead of one line per step)
@@ -147,7 +147,10 @@ infer its stage all over again.
 
 The set exits 1 if the wave is blocked, and that refusal stands: a blocked
 wave is not made done by cleaning up after it. Report it and stop; clearing
-the block is the founder's act, not this skill's.
+the block is the founder's act, not this skill's. It exits 4 if the wave is
+not in-review, and the wave-gate hook denies it unless the latest evaluation
+merged with the wave is PASS: done is reached only through the review stage.
+Report either refusal and stop; do not reach done another way.
 
 The archive is a step record, not a gate: epic closure reads it when present
 and proves cleanup from live pull-request and worktree state, so a missing
@@ -173,6 +176,9 @@ cleaned up; nothing to do", exit 0. A merged remote branch left undeleted is
 reported, not refused.
 
 ## Version history
+- 1.3.1 (2026-10-23, harness review v2 PR 1): step 5 names the two new
+  refusals of its done write, exit 4 for a wave not in-review and the
+  gate's PASS check. Prose only.
 - 1.3.0 (2026-10-17, ffbapp wave 6B): step 3 adopts the worktree's
   checkpoint into CHECKPOINT_DIR before removing the worktree, through
   `wave_status.py adopt`. A session rooted in the worktree writes

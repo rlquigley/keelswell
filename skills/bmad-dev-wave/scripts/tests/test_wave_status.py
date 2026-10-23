@@ -26,6 +26,8 @@ WAVE_MAP = """# Wave Map
 | 8A | serial | 8.1 | wave-8a-gamma | Another epic. |
 """
 
+LIFECYCLE = ("draft", "ready-for-dev", "in-progress", "in-review", "done")
+
 
 class Project:
     """A throwaway project tree with a wave map and a .bmad state directory."""
@@ -56,6 +58,13 @@ class Project:
 
     def show(self, wave=None):
         return self.run("show", *(["--wave", wave] if wave else []))
+
+    def walk(self, wave, status):
+        """Put the record at `status` the way the skills reach it: each legal
+        set from draft, checked."""
+        for step in LIFECYCLE[:LIFECYCLE.index(status) + 1]:
+            code, _, err = self.set(wave, step)
+            assert code == 0, err
 
     # -- fixtures ---------------------------------------------------------
 
@@ -153,7 +162,7 @@ class RoutesEachStatus(unittest.TestCase):
 
     def test_routes_ready_for_dev_to_implementation(self):
         with project() as p:
-            p.set("7A", "ready-for-dev")
+            p.walk("7A", "ready-for-dev")
             code, out, _ = p.route("7A")
             self.assertEqual(code, 0)
             self.assertEqual(out["stage"], "implement")
@@ -161,7 +170,7 @@ class RoutesEachStatus(unittest.TestCase):
 
     def test_routes_in_progress_to_first_incomplete_step(self):
         with project() as p:
-            p.set("7A", "in-progress")
+            p.walk("7A", "in-progress")
             p.mark("7A", "1", "2", "3", "4", "4.5", "5", "6", "7")
             code, out, _ = p.route("7A")
             self.assertEqual(code, 0)
@@ -170,7 +179,7 @@ class RoutesEachStatus(unittest.TestCase):
 
     def test_routes_in_review_to_review_stage(self):
         with project() as p:
-            p.set("7A", "in-review")
+            p.walk("7A", "in-review")
             p.mark("7A", "10")
             code, out, _ = p.route("7A")
             self.assertEqual(code, 0)
@@ -181,7 +190,7 @@ class RoutesEachStatus(unittest.TestCase):
         """A done wave re-enters at step 10 whatever its markers say: the
         dispatch is a new review pass, not a resumption."""
         with project() as p:
-            p.set("7A", "done")
+            p.walk("7A", "done")
             p.mark("7A", *[str(n) for n in range(1, 13)])
             code, out, err = p.route("7A")
             self.assertEqual(code, 0)
@@ -194,7 +203,7 @@ class RoutesEachStatus(unittest.TestCase):
         rests entirely on done's stage being the single step 10. Widening it
         would silently make a done wave resume mid-review."""
         with project() as p:
-            p.set("7A", "done")
+            p.walk("7A", "done")
             for marked in ([], ["10"], ["10", "11", "12"]):
                 p.mark("7A", *marked)
                 _, out, _ = p.route("7A")
@@ -217,7 +226,7 @@ class BlockedIsSticky(unittest.TestCase):
 
     def test_blocked_halts_dispatch(self):
         with project() as p:
-            p.set("7A", "in-progress")
+            p.walk("7A", "in-progress")
             p.set("7A", "blocked", reason="verify FAIL on tests/verify-fast.sh")
             code, out, err = p.route("7A")
             self.assertEqual(code, 1)
@@ -228,7 +237,7 @@ class BlockedIsSticky(unittest.TestCase):
         """The whole point. Fixing the cause changes nothing on disk that the
         gate reads, so the second dispatch refuses exactly as the first did."""
         with project() as p:
-            p.set("7A", "in-progress")
+            p.walk("7A", "in-progress")
             p.set("7A", "blocked", reason="verify FAIL on tests/verify-fast.sh")
             first, _, _ = p.route("7A")
             # The cause is fixed: the failing step now has its completion marker
@@ -273,7 +282,7 @@ class ClearingABlock(unittest.TestCase):
 
     def test_hand_edit_clears_block(self):
         with project() as p:
-            p.set("7A", "in-progress")
+            p.walk("7A", "in-progress")
             p.set("7A", "blocked", reason="verify FAIL")
             self.assertEqual(p.route("7A")[0], 1)
             # The human edits the record: status blocked -> in-progress.
@@ -402,7 +411,7 @@ class Backfill(unittest.TestCase):
 
     def test_backfill_never_overwrites_an_existing_record(self):
         with project() as p:
-            p.set("7A", "in-review")
+            p.walk("7A", "in-review")
             p.mark("7A", "1")
             _, out, _ = p.route("7A")
             self.assertEqual(out["status"], "in-review")
@@ -438,7 +447,7 @@ class RecordShape(unittest.TestCase):
         """
         with project() as p:
             (p.root / ".bmad" / "wave-7a").mkdir(parents=True)
-            _, out, _ = p.set("7A", "in-progress")
+            _, out, _ = p.set("7A", "draft")
             self.assertTrue(out["record"].endswith("wave-7a/wave.md"), out["record"])
             self.assertEqual([c.name for c in (p.root / ".bmad").iterdir()], ["wave-7a"])
 
@@ -483,7 +492,7 @@ class Show(unittest.TestCase):
 
     def test_show_lists_every_wave(self):
         with project() as p:
-            p.set("7A", "in-progress")
+            p.walk("7A", "in-progress")
             code, out, _ = p.show()
             self.assertEqual(code, 0)
             self.assertEqual([w["wave"] for w in out["waves"]], ["7A", "7B", "8A"])
@@ -529,13 +538,20 @@ class AdoptFromWorktree(unittest.TestCase):
                               "--project-root", str(wt)], capture_output=True, text=True)
         return out.returncode
 
+    def walk_in_tree(self, p, wt, status):
+        for step in LIFECYCLE[:LIFECYCLE.index(status) + 1]:
+            code = self.in_tree(p, wt, "set", "--wave", "7A", "--status", step)
+            if code:
+                return code
+        return 0
+
     def adopt(self, p, wt, wave="7A"):
         return p.run("adopt", "--wave", wave, "--from", str(wt))
 
     def test_a_checkpoint_written_in_the_worktree_survives_its_removal(self):
         with project() as p:
             wt = self.worktree(p)
-            self.assertEqual(self.in_tree(p, wt, "set", "--wave", "7A", "--status", "in-review"), 0)
+            self.assertEqual(self.walk_in_tree(p, wt, "in-review"), 0)
             src = wt / ".bmad" / "wave-7A"
             for step in ("1", "4.5", "8", "12"):
                 (src / f"step-{step}.done").write_text("")
@@ -561,7 +577,7 @@ class AdoptFromWorktree(unittest.TestCase):
     def test_adopting_twice_copies_nothing_the_second_time(self):
         with project() as p:
             wt = self.worktree(p)
-            self.in_tree(p, wt, "set", "--wave", "7A", "--status", "in-review")
+            self.walk_in_tree(p, wt, "in-review")
             self.assertEqual(self.adopt(p, wt)[0], 0)
             code, out, _ = self.adopt(p, wt)
             self.assertEqual(code, 0)
@@ -579,7 +595,7 @@ class AdoptFromWorktree(unittest.TestCase):
         # checkout's .bmad/ (ffbapp 6B: the only file there).
         with project() as p:
             wt = self.worktree(p)
-            self.in_tree(p, wt, "set", "--wave", "7A", "--status", "in-review")
+            self.walk_in_tree(p, wt, "in-review")
             (p.wave_dir("7A") / "evaluation-session").write_text("abc\n")
             self.assertEqual(self.adopt(p, wt)[0], 0)
             self.assertEqual((p.root / ".bmad" / "wave-7A" / "evaluation-session").read_text(), "abc\n")
@@ -588,7 +604,7 @@ class AdoptFromWorktree(unittest.TestCase):
         # ffbapp 5E: a hand copy left a stale wave.md in the main checkout.
         with project() as p:
             wt = self.worktree(p)
-            self.in_tree(p, wt, "set", "--wave", "7A", "--status", "in-review")
+            self.walk_in_tree(p, wt, "in-review")
             (wt / ".bmad" / "wave-7A" / "step-8.done").write_text("")
             p.write_record("7A", "---\nwave: 7A\nstatus: in-progress\n---\n")
             code, out, err = self.adopt(p, wt)
@@ -601,7 +617,7 @@ class AdoptFromWorktree(unittest.TestCase):
     def test_subdirectories_keep_their_place(self):
         with project() as p:
             wt = self.worktree(p)
-            self.in_tree(p, wt, "set", "--wave", "7A", "--status", "in-review")
+            self.walk_in_tree(p, wt, "in-review")
             (wt / ".bmad" / "wave-7A" / "archive").mkdir()
             (wt / ".bmad" / "wave-7A" / "archive" / "step-3.done").write_text("")
             self.assertEqual(self.adopt(p, wt)[0], 0)
@@ -616,6 +632,141 @@ class AdoptFromWorktree(unittest.TestCase):
             code, _, err = p.run("adopt", "--wave", "7A")
             self.assertEqual(code, 2)
             self.assertIn("--from", err)
+
+
+# Every move `set` may make, written out here rather than read from the
+# script, so a change to the script's table has to change this too.
+# None is no record.
+ALLOWED = {
+    (None, "draft"), (None, "blocked"),
+    ("draft", "draft"), ("draft", "ready-for-dev"), ("draft", "blocked"),
+    ("ready-for-dev", "ready-for-dev"), ("ready-for-dev", "in-progress"),
+    ("ready-for-dev", "blocked"),
+    ("in-progress", "in-progress"), ("in-progress", "in-review"),
+    ("in-progress", "blocked"),
+    ("in-review", "in-review"), ("in-review", "in-progress"), ("in-review", "done"),
+    ("in-review", "blocked"),
+    ("done", "done"), ("done", "blocked"),
+}
+STATUSES = LIFECYCLE + ("blocked",)
+
+
+class Transitions(unittest.TestCase):
+    """V2-01: set accepted 25 of 25 ordered pairs, so done skipped review."""
+
+    def test_every_ordered_pair(self):
+        with project() as p:
+            record = p.root / ".bmad" / "wave-7A" / "wave.md"
+            start = {}
+            for status in STATUSES:
+                if record.exists():
+                    record.unlink()
+                if status == "blocked":
+                    p.set("7A", "blocked", reason="r")
+                else:
+                    p.walk("7A", status)
+                start[status] = record.read_bytes()
+            for was in (None,) + STATUSES:
+                for to in STATUSES:
+                    with self.subTest(was=was, to=to):
+                        if was is None:
+                            if record.exists():
+                                record.unlink()
+                        else:
+                            record.write_bytes(start[was])
+                        code, out, err = p.set("7A", to)
+                        if (was, to) in ALLOWED:
+                            self.assertEqual(code, 0, err)
+                            self.assertIn(f"status: {to}\n", record.read_text())
+                            continue
+                        self.assertEqual(code, 1 if was == "blocked" else 4, err)
+                        if was is None:
+                            self.assertFalse(record.exists())
+                        else:
+                            self.assertEqual(record.read_bytes(), start[was])
+                        if code == 4:
+                            self.assertEqual(out["error"], "illegal_transition")
+
+    def test_done_from_in_progress_is_refused(self):
+        with project() as p:
+            p.walk("7A", "in-progress")
+            code, out, err = p.set("7A", "done")
+            self.assertEqual(code, 4)
+            self.assertEqual(out["allowed"], ["in-progress", "in-review", "blocked"])
+            self.assertIn("cannot move from in-progress to done", err)
+            self.assertEqual(p.route("7A")[1]["status"], "in-progress")
+
+    def test_a_wave_reviewed_without_step_10_re_enters_past_it(self):
+        """V2-30: in-review is written at the end of step 9, so a wave that
+        skips the party review still reaches the review stage and re-enters
+        at 12 once step 11 is done, instead of capping at 9."""
+        with project() as p:
+            p.walk("7A", "in-review")
+            p.mark("7A", "1", "2", "3", "4", "4.5", "5", "6", "7", "8", "9", "10", "11")
+            _, out, _ = p.route("7A")
+            self.assertEqual(out["reentry_step"], "12")
+
+
+class CorruptRecords(unittest.TestCase):
+    """V2-10: a record that could not be read read as absent, so set wrote
+    over a blocked wave and route backfilled it."""
+
+    def test_an_unreadable_blocked_record_is_not_written_over(self):
+        with project() as p:
+            p.set("7A", "blocked", reason="verify FAIL")
+            record = p.root / ".bmad" / "wave-7A" / "wave.md"
+            before = record.read_bytes()
+            record.chmod(0o200)
+            try:
+                code, out, err = p.set("7A", "in-progress")
+                route_code, _, _ = p.route("7A")
+            finally:
+                record.chmod(0o644)
+            self.assertEqual(code, 3, err)
+            self.assertEqual(out["error"], "corrupt_record")
+            self.assertIn("cannot be read", err)
+            self.assertEqual(route_code, 3)
+            self.assertEqual(record.read_bytes(), before)
+
+    def test_a_duplicated_status_line_refuses(self):
+        with project() as p:
+            p.set("7A", "blocked", reason="r")
+            text = p.record_text("7A").replace(
+                "status: blocked", "status: blocked\nstatus: in-progress", 1)
+            p.write_record("7A", text)
+            for code, out, err in (p.set("7A", "blocked"), p.route("7A")):
+                self.assertEqual(code, 3, err)
+                self.assertIn("'status' twice", err)
+            self.assertEqual(p.record_text("7A"), text)
+            self.assertEqual(p.show("7A")[1]["waves"][0]["state"], "corrupt")
+
+    def test_set_does_not_write_over_a_missing_status(self):
+        with project() as p:
+            p.set("7A", "blocked", reason="r")
+            text = "\n".join(l for l in p.record_text("7A").splitlines()
+                             if not l.startswith("status:"))
+            p.write_record("7A", text)
+            code, out, _ = p.set("7A", "in-progress")
+            self.assertEqual(code, 3)
+            self.assertEqual(out["error"], "unrecognized_status")
+            self.assertEqual(p.record_text("7A"), text)
+
+
+class ConcurrentSets(unittest.TestCase):
+    """V2-34: an unlocked read-modify-write kept 17 of 21 history lines."""
+
+    def test_twenty_parallel_sets_keep_every_line(self):
+        with project() as p:
+            p.set("7A", "draft")
+            procs = [subprocess.Popen(
+                [sys.executable, str(SCRIPT), "set", "--project-root", str(p.root),
+                 "--wave", "7A", "--status", "draft", "--reason", f"n{i}"],
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) for i in range(20)]
+            self.assertEqual({proc.wait() for proc in procs}, {0})
+            history = [l for l in p.record_text("7A").splitlines() if l.startswith("- 2")]
+            self.assertEqual(len(history), 21)
+            self.assertEqual(sorted(p.wave_dir("7A").iterdir()),
+                             [p.wave_dir("7A") / "wave.md"])
 
 
 if __name__ == "__main__":
