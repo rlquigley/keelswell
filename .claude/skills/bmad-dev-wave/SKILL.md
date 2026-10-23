@@ -19,7 +19,7 @@ allowed-tools:
   - Bash
   - Task
 metadata:
-  version: 1.18.0
+  version: 1.18.1
   output-locations:
     - ../<project>-wave-<id>/                 # sibling worktree, branch wave-<id>-<suffix>
     - .bmad/wave-<id>/checkpoint.json         # plus step-N.done markers (main repo)
@@ -723,6 +723,9 @@ there is nothing to block.
   names. Do not retry the same write through a different tool.
 
 ## Version history
+- 1.18.1 (2026-10-23, harness review v2 PR 5): the settings-template test
+  asserts the `${CLAUDE_PROJECT_DIR}` exec form for every hook. Test only;
+  no step changed.
 - 1.18.0 (2026-10-22, R5b eval trials): step 10's dispatch prompt names
   the command shapes an unattended run allows a reviewer: scripts written
   to its scratch directory and run with `python3`, one command per Bash

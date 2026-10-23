@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# Step 7 of /bmad-dev-wave runs this file from the worktree root, and
+# `evaluate_wave.py verify` stamps its exit code. It fails until a project
+# wires its own suite in: replace the two lines below with the command that
+# runs the fast tests.
+echo "tests/verify-fast.sh: wire your suite here" >&2
+exit 1
