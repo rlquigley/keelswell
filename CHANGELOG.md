@@ -1,7 +1,9 @@
 # Changelog
 All notable changes to Keelswell. Format: Keep a Changelog; versioning: semver.
 
-## [Unreleased] - 2026-09-12
+## [Unreleased]
+
+## [0.9.0] - 2026-10-23
 ### Added
 - `tools/run_wave.py` (2026-10-22): runs one wave of an instance headless,
   for the "carry wave X through step N while I am away" runs the 2026-10-20
@@ -38,6 +40,73 @@ All notable changes to Keelswell. Format: Keep a Changelog; versioning: semver.
   merged reads as `drift`. An instance on another machine, or deeper than
   `~/Projects/<a>/<b>/<c>/`, is not found; name it on the command line.
 ### Fixed
+- The installer stops overwriting an instance and stops reporting a broken
+  one as valid (2026-10-23, PR 5 of docs/reviews/harness-review-v2.md:
+  V2-16, V2-17, V2-18, V2-40, V2-41, V2-42, V2-44 and the structural half
+  of V2-39; bmad-dev-wave 1.18.1, test only).
+  `install.sh` exits 3 when the directory it would install into (the
+  `--target-project`, else the fork root) has a manifest that names
+  keelswell, and says to pass `--force-reinstall`. With that flag it still
+  writes `.claude/settings.local.json`, `CLAUDE.md`, `TODO.md` and
+  `HANDOFF.md` only when they are absent. A fresh target gets an
+  executable `tests/verify-fast.sh` stub that exits 1 with "wire your suite
+  here"; validate warns when an instance has none. A non-zero upstream
+  install now ends the run (exit 1) before phases 5 and 6 instead of
+  printing a warning. Validate reads the template in place of a missing
+  `.claude/settings.json` only at the fork root, so an instance without
+  one exits 7. It checks each harness registration by structure (the
+  template's event, a matcher covering the template's tools, the
+  template's command exactly) instead of grepping for the path, and
+  checks that `.gitleaks.toml` sets `[extend] useDefault = true`. The
+  template's last three relative hooks (wave-session-end.sh,
+  wrap-reminder.sh, em-dash-scrub.sh) now use the `${CLAUDE_PROJECT_DIR}`
+  exec form, and the template test asserts that form for every hook. The
+  README installs `@v0.9.0`, and CI fails while the README's tag is not
+  on origin.
+  **Rulings.** RQ, 2026-10-22: (a) refuse a re-install unless
+  `--force-reinstall`, and never overwrite the four files; (b) the template
+  fallback applies at the fork root only; (c) exec form for every template
+  hook, structural registration checks, instance hand step in the runbook
+  and not applied here; (d) the README points at v0.9.0, cut from main
+  after this merges, and v0.8.0 (dae5c53, no harness) is never tagged;
+  (e) the verify stub, the gitleaks check and a fatal phase 4 ride here.
+  RQ, 2026-10-23: validate asks only for the three harness wrappers'
+  registrations, not em-dash-scrub.sh or wrap-reminder.sh, and the
+  refusal covers the fork root.
+  **What was measured.** `tools/tests/test_install.py`: 10 tests running
+  the real installer on a scratch copy of the fork with a stand-in `npx`,
+  and one new template test; 16 mutations of install.sh and the template,
+  each killed. On an rsync copy of a live instance: a plain re-install
+  exits 3; `--force-reinstall` exits 0 and the four files hash the same
+  before and after. A real fresh install into a scratch directory exits
+  0, validate exits 0, and the target has the stub (exit 1) and
+  `useDefault = true`. On copies of that install, settings.json removed
+  and each of V2-39's five registration mutations exit 7. A fake `npx`
+  exiting 1 makes the install exit 1 and write no CLAUDE.md. Both live
+  instances (read only) exit 7 on one line, the bare SessionEnd
+  registration of wave-session-end.sh; the runbook's new hand step,
+  rehearsed on copies of both, brings each to exit 0.
+  **Grade of the reviewer-command-shapes prediction (bmad-dev-wave
+  1.18.0).** Not gradable yet. No pair-C eval output newer than its merge
+  (2026-10-22 14:45 -07:00) exists under `~/Projects`, `/private/tmp` or
+  `~/Workspace/personal`, `~/Library/Logs/keelswell` does not exist, and
+  neither live instance has a `step-10.done` written since. The two newer
+  entries (`tools/instance_drift.py`, `tools/run_wave.py`) carry no
+  prediction.
+  **Prediction.** After the hand step, validate exits 0 on both live
+  instances with settings.json the only file changed. The next install
+  over an existing instance exits 3 and changes no file, and the first
+  wave of the next fresh install stops at step 7 on the stub's exit 1
+  until its suite is wired in.
+  **At risk.** `--force-reinstall` still rewrites settings.json (dropping
+  instance-only hooks), `.gitignore`, the hook wrappers and every fork
+  skill directory, and phase 4's `--modules` uninstalls bmad-loop (seen on
+  the copy). Validate still does not read `disableAllHooks` in
+  settings.local.json, and `tools/instance_drift.py` still does not compare
+  hook wrappers (the other half of V2-39). The CI tag step is red until RQ
+  pushes v0.9.0. The README still calls the repository private and has no
+  bmad-loop pin. The refusal reads the manifest with a line match, not a
+  YAML parse.
 - Reviewers run their proofs in shapes an unattended run allows
   (2026-10-22, bmad-dev-wave 1.18.0). The 2026-10-20 insights report named
   reviewers losing Bash as step 10's most common friction. Every case was an

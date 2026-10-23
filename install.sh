@@ -8,10 +8,10 @@ set -o pipefail
 # -------- Flag defaults --------
 USE_DEFAULTS=0; RENAME=0; USER_NAME=""; TARGET_PROJECT=""; CUSTOM_SOURCE=""
 YES=0; DRY_RUN=0; VALIDATE_ALLOWLIST=0; VALIDATE_ONLY=0; SKIP_MCP_CHECK=0
-LOG_LEVEL="info"
+FORCE_REINSTALL=0; LOG_LEVEL="info"
 FORK_ROOT="$(cd "$(dirname "$0")" && pwd)"
 
-usage() { echo "usage: ./install.sh [--use-defaults] [--rename] [--user-name NAME] [--target-project DIR] [--custom-source URL] [--yes] [--dry-run] [--validate-allowlist] [--validate-only] [--skip-mcp-check] [--log-level LVL]"; }
+usage() { echo "usage: ./install.sh [--use-defaults] [--rename] [--user-name NAME] [--target-project DIR] [--custom-source URL] [--yes] [--dry-run] [--force-reinstall] [--validate-allowlist] [--validate-only] [--skip-mcp-check] [--log-level LVL]"; }
 
 # -------- Helper: version_at_least (sort -V -C trick, 34.3.6) --------
 version_at_least() { printf "%s\n%s\n" "$2" "$1" | sort -V -C; }
@@ -28,6 +28,7 @@ while [ $# -gt 0 ]; do
     --custom-source) CUSTOM_SOURCE="$2"; shift ;;
     --yes) YES=1 ;;
     --dry-run) DRY_RUN=1 ;;
+    --force-reinstall) FORCE_REINSTALL=1 ;;
     --validate-allowlist) VALIDATE_ALLOWLIST=1 ;;
     --validate-only) VALIDATE_ONLY=1 ;;
     --skip-mcp-check) SKIP_MCP_CHECK=1 ;;
@@ -55,6 +56,17 @@ if [ -n "$TARGET_PROJECT" ]; then
 fi
 if [ -n "$CUSTOM_SOURCE" ] && [ ! -d "$CUSTOM_SOURCE" ]; then
   git ls-remote "$CUSTOM_SOURCE" >/dev/null 2>&1 || { echo "custom source unreachable: $CUSTOM_SOURCE"; exit 5; }
+fi
+# V2-16 of docs/reviews/harness-review-v2.md: an install over an existing
+# Keelswell tree rewrote its settings, its memory files and its skill
+# directories with no prompt (RQ, 2026-10-22). The fork root counts: its own
+# manifest names keelswell once it has been set up.
+if [ "$VALIDATE_ONLY" -eq 0 ] && [ "$VALIDATE_ALLOWLIST" -eq 0 ] && [ "$FORCE_REINSTALL" -eq 0 ] \
+   && grep -qE '^[[:space:]]*-[[:space:]]+name:[[:space:]]+keelswell[[:space:]]*$' \
+        "${TARGET_PROJECT:-$FORK_ROOT}/_bmad/_config/manifest.yaml" 2>/dev/null; then
+  echo "ERROR: ${TARGET_PROJECT:-$FORK_ROOT} already has Keelswell (its _bmad/_config/manifest.yaml names keelswell)."
+  echo "  Re-run with --force-reinstall to install over it. settings.local.json, CLAUDE.md, TODO.md and HANDOFF.md are kept either way."
+  exit 3
 fi
 
 echo "Keelswell fork installer v0.4.1"
@@ -188,7 +200,7 @@ phase4_upstream() {
   if npx "bmad-method@$ver" install --directory "$dir" --custom-source "$src" --tools claude-code --modules bmm,cis,tea,bmb --yes $pinargs; then
     echo "Upstream install: ok (exit code 0)"
   else
-    echo "  WARNING: upstream install exited non-zero (non-fatal pre-publish; see Phase 7 of the quickstart)"
+    echo "  ERROR: upstream install exited non-zero; phases 5 and 6 did not run"; exit 1
   fi
 }
 
@@ -214,15 +226,35 @@ subs = {
 for k, v in subs.items(): t = t.replace(k, v)
 p = pathlib.Path(target) / ".claude"; p.mkdir(parents=True, exist_ok=True)
 (p / "settings.json").write_text(t)
-(p / "settings.local.json").write_text('{\n  "$comment": "PERSONAL OVERRIDES. Gitignored. Do not commit."\n}\n')
 print("  Resolved .claude/settings.json ... done")
+# Gitignored, so an overwrite cannot be recovered from git (V2-16).
+local = p / "settings.local.json"
+if local.exists():
+    print(f"  {local} exists; kept")
+else:
+    local.write_text('{\n  "$comment": "PERSONAL OVERRIDES. Gitignored. Do not commit."\n}\n')
 PY
-  sed "s/{user_name}/${USER_NAME:-you}/g" templates/CLAUDE.md.template > "$T/CLAUDE.md"
-  echo "  Resolved CLAUDE.md written to $T/CLAUDE.md (user name: ${USER_NAME:-you})"
-  sed "s/{init_timestamp}/$ts/g" templates/TODO.md.template    > "$T/TODO.md"
-  sed "s/{init_timestamp}/$ts/g" templates/HANDOFF.md.template > "$T/HANDOFF.md"
-  echo "  Computing {init_timestamp} ... $ts ; TODO.md and HANDOFF.md written"
+  # The project's own record once it exists: written into a fresh target only.
+  if [ -f "$T/CLAUDE.md" ]; then echo "  $T/CLAUDE.md exists; kept"
+  else
+    sed "s/{user_name}/${USER_NAME:-you}/g" templates/CLAUDE.md.template > "$T/CLAUDE.md"
+    echo "  Resolved CLAUDE.md written to $T/CLAUDE.md (user name: ${USER_NAME:-you})"
+  fi
+  for f in TODO.md HANDOFF.md; do
+    if [ -f "$T/$f" ]; then echo "  $T/$f exists; kept"
+    else
+      sed "s/{init_timestamp}/$ts/g" "templates/$f.template" > "$T/$f"
+      echo "  Computing {init_timestamp} ... $ts ; $f written"
+    fi
+  done
   cp templates/.gitignore.template "$T/.gitignore"
+  # Step 7 of /bmad-dev-wave runs tests/verify-fast.sh and nothing else
+  # (V2-40). The stub fails until the project wires its suite in.
+  if [ ! -f "$T/tests/verify-fast.sh" ]; then
+    mkdir -p "$T/tests"
+    cp templates/verify-fast.sh.template "$T/tests/verify-fast.sh" && chmod +x "$T/tests/verify-fast.sh"
+    echo "  tests/verify-fast.sh stub written to $T/tests/ (exits 1 until the suite is wired in)"
+  fi
   # The fork's own gitleaks config, retitled: the default rules plus the two
   # patterns every Keelswell tree trips (installer manifest rows, one upstream
   # doc fixture). Without it a fresh target's first commit is refused, and
@@ -338,44 +370,79 @@ harness_check() {
   return "$bad"
 }
 
+is_fork_root() { [ "$(cd "$1" 2>/dev/null && pwd -P)" = "$(cd "$FORK_ROOT" && pwd -P)" ]; }
+
 hooks_check() {
   # $1: the project root. The three hook wrappers must exist, be executable, and
   # be registered. The fork has no .claude/settings.json of its own (hooks are
-  # resolved into a target project from the template), so there the template
-  # is the registration that is checked.
-  local base="$1" bad=0 h settings="$1/.claude/settings.json"
-  [ -f "$settings" ] || settings="templates/settings.json.template"
+  # resolved into a target project from the template), so there, and only there,
+  # the template is the registration that is checked (V2-17).
+  local base="$1" bad=0 h settings="$1/.claude/settings.json" reference="templates/settings.json.template"
+  if [ ! -f "$settings" ] && is_fork_root "$base"; then settings="$reference"; fi
   echo "  Harness hooks under $base/.claude/hooks/ (registration: $settings):"
   for h in wave-gate.sh wave-session-end.sh wave-evaluator-record.sh; do
     if [ -x "$base/.claude/hooks/$h" ]; then echo "    $h present and executable ... ok"
     else echo "    $h present and executable ... FAIL ($base/.claude/hooks/$h)"; bad=1; fi
-    if grep -q "\.claude/hooks/$h" "$settings" 2>/dev/null; then echo "    $h registered ... ok"
-    else echo "    $h registered ... FAIL (not named in $settings)"; bad=1; fi
   done
-  # R3 of docs/reviews/harness-engineering-review-v1.md: the evaluator's record
-  # is hook-written, on three events. One missing and a report goes unrecorded
-  # in one permission mode, or a bad one cannot be sent back in auto mode.
-  python3 - "$settings" <<'PY' || bad=1
+  # V2-39: a path named anywhere in the file is not a registration. Every
+  # template entry for the three wrappers must be there as the template has it:
+  # the same event, a matcher covering the template's, and the same command.
+  # R3 of docs/reviews/harness-engineering-review-v1.md is three of them: the
+  # evaluator's record is hook-written, and one event missing leaves a report
+  # unrecorded in one permission mode.
+  python3 - "$reference" "$settings" <<'PY' || bad=1
 import json, sys
-try:
-    hooks = json.load(open(sys.argv[1])).get("hooks") or {}
-except (OSError, ValueError) as e:
-    print(f"    evaluator hook registered on its three events ... FAIL ({e})")
-    sys.exit(1)
-want = (("SubagentStop", "keelswell-wave-evaluator"), ("PreToolUse", "SubagentHandback"),
-        ("PostToolUse", "SubagentHandback"))
-missing = [f"{event} on {matcher}" for event, matcher in want
-           if not any(matcher in (entry.get("matcher") or "").split("|")
-                      and any("wave-evaluator-record.sh" in (h.get("command") or "")
-                              for h in entry.get("hooks") or [])
-                      for entry in hooks.get(event) or [])]
-if missing:
-    print("    evaluator hook registered on its three events ... FAIL (missing: "
-          + ", ".join(missing) + ")")
-    sys.exit(1)
-print("    evaluator hook registered on its three events ... ok")
+WRAPPERS = ("wave-gate.sh", "wave-session-end.sh", "wave-evaluator-record.sh")
+def hooks(path):
+    try:
+        return json.load(open(path)).get("hooks") or {}
+    except (OSError, ValueError) as e:
+        print(f"    hook registrations readable in {path} ... FAIL ({e})")
+        sys.exit(1)
+def tools(matcher):
+    return None if matcher in (None, "", "*") else set(matcher.split("|"))
+def covers(got, want):
+    return tools(got) is None or (tools(want) is not None and tools(want) <= tools(got))
+want, got, bad = hooks(sys.argv[1]), hooks(sys.argv[2]), 0
+for event, entries in want.items():
+    for entry in entries:
+        for hook in entry.get("hooks") or []:
+            command = hook.get("command") or ""
+            if not command.endswith(tuple("/.claude/hooks/" + w for w in WRAPPERS)):
+                continue
+            what = f"    {command.rsplit('/', 1)[1]} registered on {event} {entry.get('matcher')!r}"
+            if any(covers(e.get("matcher"), entry.get("matcher"))
+                   and any(h.get("command") == command for h in e.get("hooks") or [])
+                   for e in got.get(event) or []):
+                print(f"{what} ... ok")
+            else:
+                print(f"{what} ... FAIL (no {event} entry whose matcher covers "
+                      f"{entry.get('matcher')!r} runs {command})")
+                bad = 1
+sys.exit(bad)
 PY
   return "$bad"
+}
+
+gitleaks_check() {
+  # $1: the project root. V2-41: a config with no [extend] useDefault block
+  # loads no rules and lets a token-shaped commit through, which is what the
+  # fork's own config did from 2026-07-09 to 2026-10-05.
+  python3 - "$1/.gitleaks.toml" <<'PY'
+import sys, tomllib
+what = f"  {sys.argv[1]} extends the default rules"
+try:
+    with open(sys.argv[1], "rb") as f:
+        cfg = tomllib.load(f)
+except (OSError, tomllib.TOMLDecodeError) as e:
+    print(f"{what} ... FAIL ({e})")
+    sys.exit(1)
+if (cfg.get("extend") or {}).get("useDefault") is True:
+    print(f"{what} ... ok")
+else:
+    print(f"{what} ... FAIL (no [extend] useDefault = true; it scans with no rules)")
+    sys.exit(1)
+PY
 }
 
 permissions_check() {
@@ -384,10 +451,10 @@ permissions_check() {
   # the verdict rule and the lifecycle record where the hook does not run, so
   # an instance's settings.json must carry every one of them. An instance may
   # add rules of its own. As with the hooks, the fork has no settings.json, so
-  # there the template is read against itself, which still fails if it stops
-  # parsing or loses a list.
+  # there, and only there, the template is read against itself, which still
+  # fails if it stops parsing or loses a list.
   local settings="$1/.claude/settings.json" reference="templates/settings.json.template"
-  [ -f "$settings" ] || settings="$reference"
+  if [ ! -f "$settings" ] && is_fork_root "$1"; then settings="$reference"; fi
   echo "  Permission rules in $settings (reference: $reference):"
   python3 - "$reference" "$settings" <<'PY'
 import json, sys
@@ -476,6 +543,10 @@ phase6_validation() {
   hooks_check "$base" || harness_bad=1
   permissions_check "$base" || harness_bad=1
   routing_check "$base" || harness_bad=1
+  gitleaks_check "$base" || harness_bad=1
+  if ! is_fork_root "$base" && [ ! -f "$base/tests/verify-fast.sh" ]; then
+    echo "  WARNING: $base/tests/verify-fast.sh is missing; step 7 of /bmad-dev-wave runs it and evaluate_wave.py verify exits 3 without it"
+  fi
   if [ "$harness_bad" -ne 0 ]; then
     echo "  ERROR: harness invariant failed (named above). Nothing was repaired; restore the file and re-run --validate-only."; exit 7
   fi

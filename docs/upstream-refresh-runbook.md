@@ -125,7 +125,10 @@ resolvers.
 
 Nothing rewrites an existing instance's `.claude/settings.json`: a
 refresh never touches it and `install.sh --target-project` writes one
-only into a fresh target. So what `templates/settings.json.template`
+only into a fresh target. It refuses (exit 3) a target whose
+`_bmad/_config/manifest.yaml` names keelswell; `--force-reinstall`
+rewrites settings.json and keeps `settings.local.json`, `CLAUDE.md`,
+`TODO.md` and `HANDOFF.md`. So what `templates/settings.json.template`
 carries for the harness reaches a live instance by hand: the gate's
 registration (R1 of docs/reviews/harness-engineering-review-v1.md), the
 permission block (R2) and the evaluator hook's three registrations (R3).
@@ -230,6 +233,32 @@ What to expect afterwards:
   project file "applies to every model"
   (https://code.claude.com/docs/en/settings-reference#effortlevel); an
   instance that wants it adds that line by hand.
+
+### The SessionEnd hook in exec form (harness review v2, PR 5)
+
+Since 0.9.0 every hook in the template runs as
+`${CLAUDE_PROJECT_DIR}/.claude/hooks/<name>.sh` with `"args": []`, and
+validate reads each harness registration by structure: event, a matcher
+covering the template's, and the template's command exactly. A bare
+`.claude/hooks/wave-session-end.sh` runs in the session's current
+directory, so after a `cd` it exits 127 and a wave paused at step 4.5 is
+never marked blocked.
+
+Both live instances registered wave-session-end.sh in the bare form on
+2026-10-23, and that one line is all validate fails on there (exit 7,
+"wave-session-end.sh registered on SessionEnd '' ... FAIL"). Per instance,
+on a branch:
+
+1. In `<instance>/.claude/settings.json`, in the `SessionEnd` entry, make
+   the wave-session-end.sh hook read:
+       { "type": "command", "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/wave-session-end.sh", "args": [], "timeout": 30 }
+   Leave every other hook as it is. The template's em-dash-scrub.sh and
+   wrap-reminder.sh are not harness hooks and validate does not ask for
+   them.
+2. `./install.sh --validate-only --skip-mcp-check --target-project
+   <instance>` from the fork exits 0. Rehearsed on copies of both
+   instances on 2026-10-23: exit 7 before, exit 0 after.
+3. Commit `.claude/settings.json` by name, as in step 5 above.
 
 ## Instances: the theme removal is a hand step
 

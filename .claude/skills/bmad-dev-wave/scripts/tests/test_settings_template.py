@@ -121,7 +121,18 @@ class TestSettingsTemplate(unittest.TestCase):
                  if h["command"].endswith("wave-gate.sh")]
         self.assertEqual(len(gates), 1)
         ends = [h["command"] for entry in self.settings["hooks"]["SessionEnd"] for h in entry["hooks"]]
-        self.assertIn(".claude/hooks/wave-session-end.sh", ends)
+        self.assertIn("${CLAUDE_PROJECT_DIR}/.claude/hooks/wave-session-end.sh", ends)
+
+    def test_every_hook_runs_in_exec_form_from_the_project_dir(self):
+        # V2-44: a bare relative command runs in the session's current
+        # directory, so after a `cd` it exits 127 and the hook does nothing.
+        for event, entries in self.settings["hooks"].items():
+            for entry in entries:
+                for hook in entry["hooks"]:
+                    with self.subTest(event=event, command=hook["command"]):
+                        self.assertRegex(hook["command"],
+                                         r"^\$\{CLAUDE_PROJECT_DIR\}/\.claude/hooks/[a-z-]+\.sh$")
+                        self.assertEqual(hook.get("args"), [])
 
     def test_the_evaluator_hook_is_registered_on_its_three_events(self):
         # SubagentStop carries the report outside auto mode. In auto mode it goes
