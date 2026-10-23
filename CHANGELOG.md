@@ -56,9 +56,12 @@ All notable changes to Keelswell. Format: Keep a Changelog; versioning: semver.
   in-review entry in its record's history, and the next wave that skips
   step 10 reaches in-review at step 9 and merges without a hand edit to
   its record.
-  **At risk.** A step-10 fix on an in-review wave whose step 7 to 9
-  markers exist re-enters at step 9 after a NEEDS_WORK re-check, skipping
-  7 and 8; the markers are not reset. A follow-up pass on a done wave has
+  **At risk.** After a step-10 fix sets in-progress, a resume re-enters
+  at step 9, because the step 7 to 9 markers still exist, and skips the
+  re-verify and the re-evaluation; this PR does not reset the markers.
+  PR 3 of the v2 review closes it: a diff hash on each evaluation record,
+  checked by the review rule, so a PASS from before the fix no longer
+  opens the review stage. A follow-up pass on a done wave has
   no move back (done -> in-progress exits 4), so a fix found there needs a
   hand edit or a new wave. A wave in flight on an instance at in-progress
   past step 9 cannot be merged to done until step 9 runs again; none is
