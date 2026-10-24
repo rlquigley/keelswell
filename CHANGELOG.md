@@ -4,6 +4,111 @@ All notable changes to Keelswell. Format: Keep a Changelog; versioning: semver.
 ## [Unreleased]
 
 ### Fixed
+- No session forges, erases or re-rolls an evaluation record by the routes
+  the v2 review proved (2026-10-23, PR 2 of docs/reviews/harness-review-v2.md:
+  V2-03, V2-04, V2-20, V2-09 a and b, V2-02's cheap fix, and V2-52's M7, M8,
+  M9, M12, M13 and M15; bmad-dev-wave 1.20.0). The gate's verdict rule now
+  denies a copy, move, link, rsync, ditto or scp into `docs/wave-<id>/` of a
+  source that could carry `evaluation-*.md` (one matching it, a glob, a
+  variable, a directory, a recursive flag, any link), and one into `docs/`
+  that could land as a `wave-<id>` directory. It reads the members of a tar
+  or zip archive being extracted and denies one that would land a record;
+  an archive it cannot read (stdin, not yet on disk) is denied when it
+  unpacks under `docs/`. It denies rm, rmdir, unlink, shred, mv of a source
+  and a find that deletes, whenever what they reach holds a record on disk
+  in the main checkout or any worktree, and `git clean` and `git stash`
+  with `-u`, `-a`, `--include-untracked` or `--all` in a checkout that holds
+  one. The record rule treats any run of `.claude/hooks/wave-evaluator-record.sh`
+  as `record`: as the program, as a script handed to a shell, source, eval
+  or xargs, from interpreter code, or as text piped into a shell; reading,
+  grepping or staging it stays open. `Shell.call` skips a bare `--`, so
+  `wave_status.py --wave 7A --status in-review -- set` and
+  `evaluate_wave.py -- record` are read as the set and the record they are.
+  `.bmad/wave-<id>/evaluation-session` and `evaluation-pending` are guarded
+  as `wave.md` is (lifecycle rule). `_inside` and the in-place rule's text
+  checks compare casefolded, so `WAVE-7A-FIX/` is the worktree. The session
+  the in-place rule holds may not run `evaluate_wave.py dispatch` or
+  `verify` for that wave, directly or in a shape the gate cannot read; a
+  later session may, and the held session may still read `verdict` and
+  `opening-prompt` and dispatch other waves.
+  **Rulings.** RQ, 2026-10-23: (a) to (f) as proposed, with (a) narrowed:
+  `git clean`, and `git stash` with `-u`/`-a`/`--include-untracked`/`--all`,
+  denied only in a checkout with a record on disk; `find -delete` added.
+  (b) a run of the wrapper is `record`; (c) `--` ends options; (d) the
+  markers guarded like wave.md, `_inside` casefolded; (e) dispatch and
+  verify denied to the held session; (f) V2-09 c and d deferred.
+  **What was measured.** 25 new gate tests (99 for the gate, 320 across
+  bmad-dev-wave's scripts, both trees). Every attack shape in V2-03, V2-04,
+  V2-20, V2-09 a and b and V2-02's cheap fix is a denial subtest, and each
+  failed on 78c2520 before the change (80 failing tests and subtests,
+  recorded; the relative-link shape was added after and is allowed there
+  too): 15 copy, move and link shapes, 8 unpack shapes, 14 removals, 8
+  clean and stash shapes in the main checkout and a worktree, 11 runs of the
+  wrapper (Monitor included), 4 `--` shapes, 10 marker writes, the
+  case-variant path, 6 re-roll shapes. The
+  allowed side has its own tests: reading, grepping and staging the
+  wrapper; plain `git stash`; `rm -rf build`; `find . -name '*.pyc'
+  -delete`; `cp -r assets docs/`; extracting an archive with no record;
+  `curl ... | tar -xz` at the root; the held session reading `verdict` and
+  dispatching another wave. Two tests run the legitimate path through the
+  real wrappers: verify and dispatch gated then run, the evaluator's
+  SubagentStop through `wave-evaluator-record.sh`, `evaluation-1.md` with
+  the hook's header, `set --status in-review` allowed; and on NEEDS_WORK the
+  same session's verify, marker rm, record rm, wrapper run and `stash -u`
+  denied while a second session's dispatch is allowed. The E2b replay and
+  every existing test stay green. The review's own proofs, re-run against
+  this branch on copies: `e2e_forge.py` A and B, gate exit 2 on the wrapper
+  call and on the cp; `p10_forge_dir.py`, gate exit 2 on `mv docs/notes
+  docs/wave-5d`; `p4_inplace_worktrees.py`, exit 2 for the held session's
+  dispatch, verify, `rm -rf docs/wave-5d` and `git stash -u`;
+  `p3_in_place.py`, the case-variant and marker shapes DENIED, the
+  branch-rename and unknown-writer shapes still ALLOWED (ruling f).
+  Mutation, one at a time on a copy: 21 of this PR's clauses removed or
+  inverted, 21 killed (the `ln` clause only after a relative-link test was
+  added); the six V2-52 survivors M7, M8, M9, M12, M13, M15, each killed by
+  one new test. The review's sweep re-run on 78c2520 first: 16 of 17
+  survived, as in the review, so PR 1 killed none of them. p50 of 20
+  matched calls against 78c2520 on the same machine: a `set --status
+  in-review` 56.8 ms against 53.2 (the last CHANGELOG figure, 74, was
+  another day's machine), an `rm -rf build` 56.6 against 46.5 (one `git
+  worktree list`), a dispatch 50.7 against 46.6.
+  **Grade of PR 1's prediction (1.19.0).** Not gradable as of 2026-10-23.
+  Both instances took 1.19.0 that afternoon (green-ledger 572d317, ffbapp
+  51c5208) and no wave record has changed since: green-ledger has no
+  `.bmad/wave-*`, ffbapp's newest is 6B's from 2026-10-07. When a wave runs,
+  read each `.bmad/wave-*/wave.md` history: part 1 holds if every `-> done`
+  line follows an `-> in-review` line; part 2 holds if the first wave that
+  skips step 10 shows in-review at the end of step 9 and then done with no
+  hand edit.
+  **Prediction.** Every `docs/wave-*/evaluation-*.md` in either instance
+  carries the hook's "Written by the evaluator hook" header, and no wave's
+  pass number goes down between two dispatches.
+  **Not covered.** V2-09 c and d by ruling (f): a `git branch -m` of the
+  wave branch still switches the in-place rule off, and writers the parser
+  does not know (`npx prettier --write`, `ruff --fix`, `make`, `dd of=`,
+  `curl -o`, `find -delete` in the worktree) still pass for the held
+  session. A record that arrives through git (checkout or restore of a
+  directory, a merge, a cherry-pick, `git stash pop`) is PR 3's ledger. An
+  archive piped in or written in the same command and extracted above
+  `docs/`; a directory copied to above `docs/` (`cp -r stage/. .`); `xargs
+  rm` fed paths on stdin; a copy of the wrapper run under another name; and
+  `ditto -x`, cpio, pax and 7z extraction. `git worktree remove` of an
+  unmerged wave's worktree is V2-15, PR 4.
+  **At risk.** `git clean` and an untracked stash are denied in any
+  checkout holding a record, and after a merge the main checkout holds the
+  wave's records for good, so both are denied there from the first merged
+  wave on (the ruling's scope; plain `git stash` stays open). `rm -rf` of
+  anything holding a record is denied, a whole worktree or `rm -rf *` at the
+  root included; merge-wave removes worktrees with `git worktree remove`,
+  which the rule does not read. A copy into `docs/` whose landed name is
+  unknown (`rsync -a build/ docs/`, a glob, a variable) is denied. For the
+  held session, a command that names `evaluate_wave` and `dispatch` or
+  `verify` in text the gate cannot account for (a commit message, say) is
+  denied. resume-wave refuses a dirty worktree, and the records at a
+  NEEDS_WORK halt are untracked, so the cleanup that refusal pushes toward
+  is now denied and such a resume stops for a human; resume-wave's probe is
+  not changed here. Every rm, mv, find that deletes, clean and stash now
+  costs one `git worktree list`.
 - A wave reaches done only through the review stage (2026-10-23, PR 1 of
   docs/reviews/harness-review-v2.md: V2-01, the wave_status half of V2-10,
   V2-30 and V2-34; bmad-dev-wave 1.19.0, bmad-merge-wave 1.3.1).
