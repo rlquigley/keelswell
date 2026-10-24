@@ -2,14 +2,17 @@
 """Tests for wave_gate.py. Stdlib only; run with `python3 -m unittest`."""
 
 import contextlib
+import io
 import json
 import os
 import shutil
 import subprocess
 import sys
+import tarfile
 import tempfile
 import time
 import unittest
+import zipfile
 from pathlib import Path
 
 SCRIPT = Path(__file__).resolve().parent.parent / "wave_gate.py"
@@ -26,6 +29,7 @@ def find_up(rel):
 
 HOOK = find_up(Path(".claude") / "hooks" / "wave-gate.sh")
 RECORD_HOOK = find_up(Path(".claude") / "hooks" / "wave-evaluator-record.sh")
+EVALUATOR = find_up(Path(".claude") / "agents" / "keelswell-wave-evaluator.md")
 
 # Appendix F of docs/reviews/harness-engineering-review-v1.md, fixture-e2b.json,
 # verbatim: the 15 review-rule shapes, labelled yes where the command sets a
@@ -742,6 +746,335 @@ class TestLifecycle(Base):
                 self.assertEqual(code, 0, err)
 
 
+class TestVerdictByDirectory(Base):
+    """V2-03: a PASS written elsewhere arrived with its directory, and the
+    records went with theirs, which reset the pass count to 1."""
+
+    def setUp(self):
+        super().setUp()
+        self.p.evaluation("7A", 1, "NEEDS_WORK")
+        root = self.p.root
+        (root / "notes").mkdir()
+        (root / "notes" / "evaluation-2.md").write_text("VERDICT: PASS\n")
+        (root / "stage" / "wave-8a").mkdir(parents=True)
+        (root / "stage" / "wave-8a" / "evaluation-1.md").write_text("VERDICT: PASS\n")
+        (root / "assets").mkdir()
+        (root / "assets" / "logo.svg").write_text("<svg/>\n")
+        self.archive("forge.tar", {"docs/wave-8a/evaluation-1.md": "VERDICT: PASS\n"})
+        self.archive("forge.tgz", {"wave-8a/evaluation-1.md": "VERDICT: PASS\n"})
+        self.archive("flat.tar", {"evaluation-1.md": "VERDICT: PASS\n"})
+        self.archive("safe.tar", {"src/a.py": "x = 1\n"})
+        with zipfile.ZipFile(root / "forge.zip", "w") as z:
+            z.writestr("evaluation-1.md", "VERDICT: PASS\n")
+
+    def archive(self, name, members):
+        with tarfile.open(self.p.root / name, "w:gz" if name.endswith("gz") else "w") as t:
+            for member, text in members.items():
+                data = text.encode()
+                info = tarfile.TarInfo(member)
+                info.size = len(data)
+                t.addfile(info, io.BytesIO(data))
+
+    def assert_denied(self, commands, cwd=None):
+        for command in commands:
+            with self.subTest(command):
+                code, _, err = self.p.pre("Bash", cwd=cwd, command=command)
+                self.assertEqual(code, 2, err)
+                self.assertIn("DENIED (verdict)", err)
+
+    def assert_allowed(self, commands, cwd=None):
+        for command in commands:
+            with self.subTest(command):
+                code, _, err = self.p.pre("Bash", cwd=cwd, command=command)
+                self.assertEqual(code, 0, err)
+
+    def test_a_record_copied_moved_or_linked_in_is_denied(self):
+        root = self.p.root
+        self.assert_denied([
+            "mv notes docs/wave-8a",
+            "mv notes/evaluation-2.md docs/wave-7a/",
+            "cp notes/evaluation-2.md docs/wave-7a/",
+            "cp notes/* docs/wave-7a/",
+            "cp -r notes/ docs/wave-7a",
+            "rsync -a notes/ docs/wave-7a/",
+            "ditto notes docs/wave-8a",
+            f"ln -s {root}/notes docs/wave-8a",
+            f"ln -s {root}/notes/evaluation-2.md docs/wave-7a/",
+            # Relative to the link's own directory, so not a path the gate can stat.
+            "ln -s ../stage/wave-8a docs/wave-8a",
+            'D=docs/wave-7a; cp notes/evaluation-2.md "$D/"',
+            "cp -r stage/wave-8a docs/",
+            "mv stage/wave-8a docs/",
+            "cp -r stage/* docs/",
+            "cp -R stage/ docs",
+        ])
+
+    def test_a_record_unpacked_in_is_denied(self):
+        self.assert_denied([
+            "tar -xf forge.tar",
+            "tar xf forge.tar",
+            "tar -xzf forge.tgz -C docs",
+            "tar --extract --file=forge.tgz --directory docs",
+            "tar -xf flat.tar -C docs/wave-8a",
+            "cd docs/wave-8a && tar -xf ../../flat.tar",
+            "unzip forge.zip -d docs/wave-8a",
+            "cat forge.tar | tar -x -C docs/wave-8a",
+        ])
+
+    def test_copies_and_archives_that_cannot_carry_a_record_are_allowed(self):
+        self.assert_allowed([
+            "cp README.md docs/wave-7a/notes.md",
+            "cp notes/evaluation-2.md /tmp/elsewhere.md",
+            "cp -r assets docs/",
+            "cp README.md docs/",
+            "tar -xf safe.tar",
+            "tar -czf out.tgz docs",
+            "tar -tf forge.tar",
+            "curl -sL https://example.com/tool.tgz | tar -xz",
+        ])
+
+    def test_removing_or_moving_the_records_away_is_denied(self):
+        self.assert_denied([
+            "rm -rf docs/wave-7a",
+            "rm -r docs/wave-7a/",
+            "rm -rf docs",
+            "rm -rf docs/*",
+            "rm -rf *",
+            "rmdir docs/wave-7a",
+            "mv docs/wave-7a /tmp/wave-7a",
+            "mv docs docs.old",
+            "rm -rf DOCS/Wave-7A",
+            "find docs -delete",
+            "find . -name 'evaluation-*' -delete",
+            "find . -iname '*.md' -delete",
+            "find docs/wave-7a -type f -exec rm {} +",
+            "find . ! -name '*.py' -delete",
+        ])
+
+    def test_removals_that_reach_no_record_are_allowed(self):
+        (self.p.root / "docs" / "wave-7a" / "scratch.txt").write_text("x\n")
+        (self.p.root / "build").mkdir()
+        self.assert_allowed([
+            "rm -rf build",
+            "rm -f docs/wave-7a/scratch.txt",
+            "mv docs/wave-7a/scratch.txt /tmp/",
+            "find . -name '*.pyc' -delete",
+            "find docs -name '*.md'",
+        ])
+
+    def test_removal_is_allowed_where_there_is_no_record(self):
+        (self.p.root / "docs" / "wave-7a" / "evaluation-1.md").unlink()
+        self.assert_allowed(["rm -rf docs/wave-7a", "git clean -d -f", "git stash -u"])
+
+    def test_git_clean_and_an_untracked_stash_are_denied_with_a_record_on_disk(self):
+        wt = self.p.worktree("8A")
+        self.p.evaluation("8A", 1, "NEEDS_WORK", where=wt)
+        self.assert_denied([
+            "git clean -d -f",
+            "git clean -fdx",
+            "git stash -u",
+            "git stash push --include-untracked",
+            "git stash save -a",
+            "git stash push -ku -m wip",
+            f"git -C {wt} clean -fd",
+        ])
+        self.assert_denied(["git stash --all"], cwd=wt)
+        self.assert_allowed(["git stash", "git stash list", "git stash push -m wip",
+                             "git status --short"])
+
+    def test_removing_a_worktree_record_is_denied(self):
+        wt = self.p.worktree("8A")
+        self.p.evaluation("8A", 1, "PASS", where=wt)
+        self.assert_denied([f"rm -rf {wt}/docs/wave-8a", f"rm -rf {wt}"])
+        self.assert_denied(["rm -rf docs"], cwd=wt)
+
+
+class TestRecordWrapperRun(Base):
+    """V2-04: the record hook's wrapper, run from Bash with a crafted event,
+    wrote a PASS under the hook's own header."""
+
+    W = ".claude/hooks/wave-evaluator-record.sh"
+
+    def test_running_the_wrapper_is_denied(self):
+        w = self.W
+        for tool, command in (
+                ("Bash", f"echo E | {w}"),
+                ("Bash", f"bash {w} < ev.json"),
+                ("Bash", f"{w} <<< E"),
+                ("Bash", f"sh -c '{w} < ev.json'"),
+                ("Bash", f"W={w}; $W < ev.json"),
+                ("Bash", f"cat ev.json | env FOO=1 {self.p.root}/{w}"),
+                ("Bash", f"source {w}"),
+                ("Bash", f"cat {w} | bash"),
+                ("Bash", f"python3 -c \"import subprocess; subprocess.run(['{w}'])\""),
+                ("Bash", f'{w} "unterminated'),
+                ("Monitor", f"{w} < ev.json")):
+            with self.subTest(command):
+                code, _, err = self.p.pre(tool, command=command)
+                self.assertEqual(code, 2, err)
+                self.assertIn("DENIED (record)", err)
+
+    def test_reading_or_staging_the_wrapper_is_allowed(self):
+        w = self.W
+        for command in (f"cat {w}", f"grep -n exec {w}", f"git add {w}",
+                        "shasum .claude/hooks/wave-*.sh", f"diff {w} /tmp/{w.rsplit('/', 1)[-1]}"):
+            with self.subTest(command):
+                code, _, err = self.p.pre("Bash", command=command)
+                self.assertEqual(code, 0, err)
+
+
+class TestDashDash(Base):
+    """V2-20: argparse reads `--` as the end of options and the next word as the verb."""
+
+    def test_a_verb_after_dashdash_is_read(self):
+        for tool, command, rule in (
+                ("Bash", "python3 x/wave_status.py --wave 7A --status in-review -- set", "review"),
+                ("Monitor", "python3 x/wave_status.py --wave 7A --status in-review -- set", "review"),
+                ("Bash", "python3 x/evaluate_wave.py -- record < ev.json", "record"),
+                ("Monitor", "python3 x/evaluate_wave.py -- record", "record")):
+            with self.subTest(tool=tool, command=command):
+                code, _, err = self.p.pre(tool, command=command)
+                self.assertEqual(code, 2, err)
+                self.assertIn(f"DENIED ({rule})", err)
+
+    def test_other_verbs_after_dashdash_are_allowed(self):
+        for command in ("python3 x/wave_status.py -- show --wave 7A",
+                        "python3 x/evaluate_wave.py -- verdict --wave 7A"):
+            code, _, err = self.p.pre("Bash", command=command)
+            self.assertEqual(code, 0, err)
+
+
+class TestInPlaceSwitches(Base):
+    """V2-09 a and b: the in-place rule's own state, and a case-variant path."""
+
+    def setUp(self):
+        super().setUp()
+        self.wt = self.p.worktree("7A")
+        self.p.recorded_by("7A", "s1")
+        self.p.evaluation("7A", 1, "NEEDS_WORK")
+        (self.p.bmad("7A") / "evaluation-pending").write_text("{}\n")
+
+    def test_the_markers_are_guarded_like_the_record(self):
+        for name in ("evaluation-session", "evaluation-pending"):
+            path = str(self.p.root / ".bmad" / "wave-7A" / name)
+            for tool, extra in (("Write", {"content": "s2\n"}),
+                                ("Edit", {"old_string": "s1", "new_string": "s2"})):
+                with self.subTest(name=name, tool=tool):
+                    code, _, err = self.p.pre(tool, file_path=path, **extra)
+                    self.assertEqual(code, 2, err)
+                    self.assertIn("DENIED (lifecycle)", err)
+        for command in ("rm .bmad/wave-7A/evaluation-session",
+                        "echo s2 > .bmad/wave-7A/evaluation-session",
+                        "truncate -s 0 .bmad/wave-7a/EVALUATION-SESSION",
+                        "mv .bmad/wave-7A/evaluation-pending /tmp/p",
+                        "cp /tmp/s .bmad/wave-7A/evaluation-session",
+                        "cp /tmp/evaluation-session .bmad/wave-7A/"):
+            with self.subTest(command):
+                code, _, err = self.p.pre("Bash", session="s2", command=command)
+                self.assertEqual(code, 2, err)
+                self.assertIn("DENIED (lifecycle)", err)
+
+    def test_reading_the_markers_is_allowed(self):
+        code, _, err = self.p.pre("Bash", command="cat .bmad/wave-7A/evaluation-session")
+        self.assertEqual(code, 0, err)
+
+    def test_a_case_variant_of_the_worktree_path_is_the_worktree(self):
+        variant = str(self.wt).replace("wave-7a-fix", "WAVE-7A-FIX")
+        code, _, err = self.p.pre("Write", session="s1", file_path=f"{variant}/src/x.py", content="x")
+        self.assertEqual(code, 2, err)
+        self.assertIn("DENIED (in-place)", err)
+        for command in (f"echo x > {variant}/src.py",
+                        f"python3 -c \"open('{variant}/src.py', 'w').write('x')\""):
+            with self.subTest(command):
+                code, _, err = self.p.pre("Bash", session="s1", command=command)
+                self.assertEqual(code, 2, err)
+                self.assertIn("DENIED (in-place)", err)
+
+
+class TestInPlaceReRoll(Base):
+    """V2-02's cheap fix: the session held after NEEDS_WORK may not re-dispatch
+    or re-verify the wave until it says PASS."""
+
+    EW = "python3 .claude/skills/bmad-dev-wave/scripts/evaluate_wave.py"
+
+    def setUp(self):
+        super().setUp()
+        self.wt = self.p.worktree("7A")
+        self.p.recorded_by("7A", "s1")
+        self.p.evaluation("7A", 1, "NEEDS_WORK")
+
+    def test_the_held_session_cannot_dispatch_or_verify(self):
+        for tool, command in (
+                ("Bash", f"{self.EW} dispatch --project-root {self.wt} --wave 7A"),
+                ("Bash", f"{self.EW} verify --project-root {self.wt} --wave=7a"),
+                ("Monitor", f"{self.EW} dispatch --project-root {self.wt} --wave 7A"),
+                ("Bash", f"{self.EW} -- dispatch --wave 7A"),
+                ("Bash", "python3 -c \"import evaluate_wave; evaluate_wave.dispatch('.', '7A', 's1')\""),
+                ("Bash", f'{self.EW} dispatch --wave "7A')):
+            with self.subTest(command):
+                code, _, err = self.p.pre(tool, session="s1", command=command)
+                self.assertEqual(code, 2, err)
+                self.assertIn("DENIED (in-place)", err)
+
+    def test_reading_the_verdict_and_other_waves_stay_open(self):
+        for session, command in (
+                ("s1", f"{self.EW} verdict --project-root {self.wt} --wave 7A"),
+                ("s1", f"{self.EW} opening-prompt --wave 7A"),
+                ("s1", f"{self.EW} dispatch --project-root . --wave 8A"),
+                ("s2", f"{self.EW} dispatch --project-root {self.wt} --wave 7A"),
+                ("s2", f"{self.EW} verify --project-root {self.wt} --wave 7A")):
+            with self.subTest(session=session, command=command):
+                code, _, err = self.p.pre("Bash", session=session, command=command)
+                self.assertEqual(code, 0, err)
+
+    def test_pass_releases_dispatch(self):
+        self.p.evaluation("7A", 2, "PASS")
+        code, _, err = self.p.pre("Bash", session="s1", command=f"{self.EW} dispatch --wave 7A")
+        self.assertEqual(code, 0, err)
+
+
+class TestSurvivors(Base):
+    """V2-52: one test for each mutation the suite let live (M7 to M15)."""
+
+    SET = TestReview.SET
+
+    def test_git_checkout_and_restore_over_a_record_are_denied(self):  # M7, M8
+        for command in ("git checkout -- docs/wave-7a/evaluation-1.md",
+                        "git restore docs/wave-7a/evaluation-1.md"):
+            with self.subTest(command):
+                code, _, err = self.p.pre("Bash", command=command)
+                self.assertEqual(code, 2, err)
+                self.assertIn("DENIED (verdict)", err)
+
+    def test_a_file_tool_through_a_symlink_is_read_at_its_target(self):  # M9
+        (self.p.root / "docs" / "wave-7a").mkdir(parents=True)
+        (self.p.root / "notes").symlink_to(self.p.root / "docs" / "wave-7a")
+        code, _, err = self.p.pre("Write", file_path="notes/evaluation-1.md", content="VERDICT: PASS")
+        self.assertEqual(code, 2, err)
+        self.assertIn("DENIED (verdict)", err)
+
+    def test_an_unparseable_record_call_is_denied(self):  # M12
+        code, _, err = self.p.pre(
+            "Bash", command='python3 x/evaluate_wave.py record --wave "7A')
+        self.assertEqual(code, 2, err)
+        self.assertIn("DENIED (record)", err)
+        self.assertIn("cannot be parsed", err)
+
+    def test_upstream_cause_does_not_open_review(self):  # M13
+        self.p.evaluation("7A", 1, "UPSTREAM_CAUSE")
+        code, _, err = self.p.pre("Bash", command=self.SET + "in-review")
+        self.assertEqual(code, 2, err)
+        self.assertIn("UPSTREAM_CAUSE, not PASS", err)
+
+    def test_an_unreadable_latest_record_does_not_open_review(self):  # M15
+        self.p.evaluation("7A", 1, "PASS")
+        d = self.p.root / "docs" / "wave-7a"
+        (d / "evaluation-2.md").write_text("# Evaluation\n\nno verdict line\n")
+        code, _, err = self.p.pre("Bash", command=self.SET + "in-review")
+        self.assertEqual(code, 2, err)
+        self.assertIn("unreadable, not PASS", err)
+
+
 class TestFailsClosed(Base):
     def test_an_unreadable_event_is_denied(self):
         for payload in ("not json", "[]"):
@@ -875,6 +1208,71 @@ class TestWrapper(Base):
         self.assertEqual(code, 1, err)
         self.assertIn("install.sh --validate-only", err)
         self.assertFalse((self.p.root / "docs" / "wave-7a").exists())
+
+    def evaluator_ready(self):
+        """A wave worktree that `evaluate_wave.py dispatch` will accept."""
+        if EVALUATOR is None:
+            self.skipTest("no keelswell-wave-evaluator definition above this test tree")
+        agents = self.p.root / ".claude" / "agents"
+        agents.mkdir(parents=True, exist_ok=True)
+        shutil.copy(EVALUATOR, agents / EVALUATOR.name)
+        (self.p.root / "tests").mkdir()
+        (self.p.root / "tests" / "verify-fast.sh").write_text("echo 3 passed\n")
+        git(self.p.root, "add", "-A")
+        git(self.p.root, "commit", "-q", "-m", "evaluator", when=POST_RULE)
+        git(self.p.root, "branch", "-M", "main")
+        wt = self.p.sibling("7A")
+        (wt / "docs" / "wave-7a").mkdir(parents=True)
+        (wt / "docs" / "wave-7a" / "test-design.md").write_text("# Test design\n")
+        (wt / "src.py").write_text("x = 1\n")
+        git(wt, "add", "-A")
+        git(wt, "commit", "-q", "-m", "wave 7A", when=POST_RULE)
+        return wt
+
+    def step8(self, wt, session):
+        """verify then dispatch, each gated through the wrapper first, as step 8 runs them."""
+        ew = self.gate.parent / "evaluate_wave.py"
+        for verb in ("verify", "dispatch"):
+            command = f"python3 {ew} {verb} --project-root {wt} --wave 7A"
+            code, _, err = self.p.wrapped("Bash", self.p.root, self.p.root, session=session,
+                                          command=command)
+            if code != 0:
+                return code, err
+            p = subprocess.run([sys.executable, str(ew), verb, "--project-root", str(wt),
+                                "--wave", "7A"], capture_output=True, text=True,
+                               env=dict(os.environ, CLAUDE_CODE_SESSION_ID=session))
+            self.assertEqual(p.returncode, 0, p.stderr)
+        return 0, ""
+
+    def test_the_legitimate_path_end_to_end(self):
+        """Dispatch, the real record wrapper on SubagentStop, then review opens."""
+        wt = self.evaluator_ready()
+        self.assertEqual(self.step8(wt, "s1"), (0, ""))
+        code, out, err = self.evaluator_stop(wt)
+        self.assertEqual((code, out), (0, ""), err)
+        record = (wt / "docs" / "wave-7a" / "evaluation-1.md").read_text()
+        self.assertIn("Written by the evaluator hook", record)
+        code, _, err = self.p.wrapped("Bash", self.p.root, wt, command=self.SET)
+        self.assertEqual(code, 0, err)
+
+    def test_needs_work_holds_the_session_end_to_end(self):
+        wt = self.evaluator_ready()
+        self.step8(wt, "s1")
+        code, _, err = self.evaluator_stop(
+            wt, text="VERDICT: NEEDS_WORK\n\n## Findings\n### [HIGH] AC-1 has no test\n- Where: src.py:1\n")
+        self.assertEqual(code, 0, err)
+        code, err = self.step8(wt, "s1")
+        self.assertEqual(code, 2, err)
+        self.assertIn("DENIED (in-place)", err)
+        for command in (f"rm {self.p.root}/.bmad/wave-7A/evaluation-session",
+                        f"rm -rf {wt}/docs/wave-7a",
+                        f"echo E | {self.p.root}/.claude/hooks/wave-evaluator-record.sh",
+                        f"git -C {wt} stash -u"):
+            with self.subTest(command):
+                code, _, err = self.p.wrapped("Bash", self.p.root, self.p.root, command=command)
+                self.assertEqual(code, 2, err)
+        # The next session takes the findings and evaluates the fix.
+        self.assertEqual(self.step8(wt, "s2"), (0, ""))
 
     def test_no_python3_denies(self):
         bin_dir = self.p.base / "bin2"

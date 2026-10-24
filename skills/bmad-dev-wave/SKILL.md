@@ -19,7 +19,7 @@ allowed-tools:
   - Bash
   - Task
 metadata:
-  version: 1.19.0
+  version: 1.20.0
   output-locations:
     - ../<project>-wave-<id>/                 # sibling worktree, branch wave-<id>-<suffix>
     - .bmad/wave-<id>/checkpoint.json         # plus step-N.done markers (main repo)
@@ -422,22 +422,34 @@ What the PreToolUse hook denies, reading only what is on disk:
   `check_review_records.py --epic N` exits non-zero. /bmad-close-epic's gate,
   run by the hook at the moment the artifact would be written.
 - **verdict**: any write to `docs/wave-<id>/evaluation-<n>.md`. The evaluator
-  hook is the one writer. A verdict typed by the agent it grades is not one.
+  hook is the one writer. A verdict typed by the agent it grades is not one,
+  and neither is one copied, moved, linked or unpacked into
+  `docs/wave-<id>/` (or into `docs/` as a `wave-<id>` directory) from
+  elsewhere. The records stay where they are: a removal that reaches one (rm,
+  rmdir, a move away, a find that deletes), and `git clean` or a stash with
+  `-u`/`-a` in a checkout that holds one, is denied too, because it resets
+  the pass count and hides the findings.
 - **record**: any Bash or Monitor call of `evaluate_wave.py record`, the
-  hook's entry point, in any shape the gate can or cannot read. The hook hands
+  hook's entry point, in any shape the gate can or cannot read, and any run of
+  the hook's wrapper `.claude/hooks/wave-evaluator-record.sh`. The hook hands
   it the subagent's own report; a session calling it would hand it anything.
-- **lifecycle**: any write, move or delete of `.bmad/wave-<id>/wave.md` (or of
-  the directory holding it) that is not `wave_status.py`, and any cp, rsync
-  or install into that directory of a source that could carry the record: one
-  named `wave.md`, a glob that could match it, a variable, a directory, or
-  anything under a recursive flag. Blocked is sticky only if the session it
-  blocks cannot edit the record.
+- **lifecycle**: any write, move or delete of `.bmad/wave-<id>/wave.md`, or of
+  the evaluator's markers beside it (`evaluation-session`,
+  `evaluation-pending`), or of the directory holding them, that is not the
+  script that owns it, and any cp, rsync or install into that directory of a
+  source that could carry one: one of those names, a glob that could match
+  it, a variable, a directory, or anything under a recursive flag. Blocked is
+  sticky only if the session it blocks cannot edit the record, and the
+  in-place rule holds only if its session cannot edit `evaluation-session`.
 - **review**: `wave_status.py set --status in-review` or `--status done` for
   a wave whose latest evaluation is not PASS. There is no way into the review
   stage except through step 8's evaluator.
 - **in-place**: after this session's evaluator returns NEEDS_WORK for a wave,
-  any write into that wave's worktree by this session. The findings open the
-  next session; the evaluator hook notes which session's evaluator it recorded.
+  any write into that wave's worktree by this session, and any
+  `evaluate_wave.py dispatch` or `verify` for that wave: re-running the
+  evaluator on its own fix until it says PASS is the judgement this rule
+  keeps from it. The findings open the next session; the evaluator hook notes
+  which session's evaluator it recorded.
   One exemption, to the file tools only: `_bmad-output/session-wrap/` in the
   worktree, so /bmad-wrap can still write its triage report.
 
@@ -740,6 +752,14 @@ there is nothing to block.
   names. Do not retry the same write through a different tool.
 
 ## Version history
+- 1.20.0 (2026-10-23, harness review v2 PR 2: V2-03, V2-04, V2-20, V2-09 a
+  and b, V2-02's cheap fix): the gate's verdict rule denies a record copied,
+  moved, linked or unpacked into a wave's directory, and a removal, `git
+  clean` or untracked stash that reaches one on disk. Running the record
+  hook's wrapper is `record`. A `--` before the verb no longer hides it. The
+  evaluator's markers are guarded like `wave.md`, worktree paths compare
+  casefolded, and the session held by the in-place rule may not run
+  `dispatch` or `verify` for the wave. Gate only; no step changed.
 - 1.19.0 (2026-10-23, harness review v2 PR 1: V2-01, V2-10 in part, V2-30,
   V2-34): `wave_status.py set` makes only the moves in a transition table
   and exits 4 on any other, so in-progress -> done is refused. The gate's
