@@ -15,7 +15,7 @@ when_to_use: |
   or when /bmad-wrap surfaced an in-progress wave at session end and the next
   session needs to pick it up.
 metadata:
-  version: 1.4.0
+  version: 1.5.0
   when-not-to-use:
     - Wave has not yet been started (use /bmad-dev-wave from step 1)
     - Wave is already complete and merged (no recovery needed)
@@ -110,7 +110,11 @@ record named, and they still refuse the states below. Five probes run in
 order: wave-map, worktree, branch, commits, checkpoint.
 - Wave-map: the ID resolves to a row in waves.md; refuse otherwise.
 - Worktree: exists at the sibling path? on the expected branch? clean or
-  dirty? Refuse to resume a dirty worktree.
+  dirty? Refuse to resume a dirty worktree. Untracked files under the wave's
+  own `docs/wave-<id>/` (evaluation records, verify output, the wave diff)
+  are the halt's evidence, not dirt: a NEEDS_WORK halt leaves them, the next
+  session reads them, and the wave gate denies sweeping them away. Anything
+  else uncommitted is dirty.
 - Branch: wave-<id>-* exists locally? tip SHA captured.
 - Commits: which stories have per-story commits already (foundation commit
   plus per-story pattern for parallel waves; per-story only for serial).
@@ -147,6 +151,9 @@ a `done` wave's follow-up review pass back into a resumption.
   delete the record. Do not resume against a guess at what it said.
 
 ## Version history
+- 1.5.0 (2026-10-24, harness review v2 PR 2): untracked files under the
+  wave's own `docs/wave-<id>/` do not make its worktree dirty, so a resume
+  after NEEDS_WORK no longer pushes toward a cleanup the wave gate denies.
 - 1.4.0 (2026-10-01, R4 of docs/reviews/harness-engineering-review-v1.md):
   frontmatter only. `tools:` is a subagent field and did nothing in a skill;
   it is now `allowed-tools: Read Glob Grep Bash Skill(bmad-dev-wave *)`, which

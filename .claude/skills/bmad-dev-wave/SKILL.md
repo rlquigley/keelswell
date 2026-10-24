@@ -425,10 +425,12 @@ What the PreToolUse hook denies, reading only what is on disk:
   hook is the one writer. A verdict typed by the agent it grades is not one,
   and neither is one copied, moved, linked or unpacked into
   `docs/wave-<id>/` (or into `docs/` as a `wave-<id>` directory) from
-  elsewhere. The records stay where they are: a removal that reaches one (rm,
-  rmdir, a move away, a find that deletes), and `git clean` or a stash with
-  `-u`/`-a` in a checkout that holds one, is denied too, because it resets
-  the pass count and hides the findings.
+  elsewhere; a copy into `docs/` is read by looking inside its source. A
+  record main does not hold yet stays where it is: a removal that reaches one
+  (rm, rmdir, a move away, a find that deletes), and `git clean` or a stash
+  with `-u`/`-a` that would sweep one, is denied, because it resets the pass
+  count and hides the findings. Once the wave has merged its records are on
+  main, and the same cleanup goes through.
 - **record**: any Bash or Monitor call of `evaluate_wave.py record`, the
   hook's entry point, in any shape the gate can or cannot read, and any run of
   the hook's wrapper `.claude/hooks/wave-evaluator-record.sh`. The hook hands
@@ -446,7 +448,7 @@ What the PreToolUse hook denies, reading only what is on disk:
   stage except through step 8's evaluator.
 - **in-place**: after this session's evaluator returns NEEDS_WORK for a wave,
   any write into that wave's worktree by this session, and any
-  `evaluate_wave.py dispatch` or `verify` for that wave: re-running the
+  `evaluate_wave.py dispatch` or `verify` run for that wave: re-running the
   evaluator on its own fix until it says PASS is the judgement this rule
   keeps from it. The findings open the next session; the evaluator hook notes
   which session's evaluator it recorded.
@@ -759,7 +761,8 @@ there is nothing to block.
   hook's wrapper is `record`. A `--` before the verb no longer hides it. The
   evaluator's markers are guarded like `wave.md`, worktree paths compare
   casefolded, and the session held by the in-place rule may not run
-  `dispatch` or `verify` for the wave. Gate only; no step changed.
+  `dispatch` or `verify` for the wave. Cleanup is blocked only where it
+  would take a record main does not hold yet. Gate only; no step changed.
 - 1.19.0 (2026-10-23, harness review v2 PR 1: V2-01, V2-10 in part, V2-30,
   V2-34): `wave_status.py set` makes only the moves in a transition table
   and exits 4 on any other, so in-progress -> done is refused. The gate's

@@ -25,9 +25,10 @@ Six rules, each read off disk and none of them a judgement:
             hook and by nothing else. A verdict typed by the agent whose
             work it grades is not a verdict, and neither is one copied, moved,
             linked or unpacked into the wave's directory from elsewhere. The
-            records on disk stay there: a removal that reaches one, and git
-            clean or an untracked stash in a checkout holding one, would reset
-            the pass count and hide the findings (V2-03).
+            records stay there until main holds them: a removal that reaches
+            one, or git clean or an untracked stash that would sweep one,
+            would reset the pass count and hide the findings (V2-03). Once a
+            wave has merged, cleanup is ordinary again.
   record    `evaluate_wave.py record` is the evaluator hook's entry point and
             is denied to Bash and Monitor, and so is running the hook's own
             wrapper, .claude/hooks/wave-evaluator-record.sh. The hook hands it
@@ -584,7 +585,9 @@ class Shell:
         names one of `names` (each may be a glob), or one it cannot rule out carrying one: a glob that
         could match it, a variable, a directory, any source under a recursive
         flag, or a link? With `parent_re`, a copy into the directory above counts
-        when a source could land there under a name `dir_re` matches."""
+        when a source could carry a record there: a directory on disk that
+        holds one, or a source the gate cannot look inside (a variable, a path
+        not there yet, a link). A glob is expanded as the shell would."""
         for sc in self.cmds:
             if sc.name not in copiers:
                 continue
@@ -595,10 +598,17 @@ class Shell:
             targets = _paths(_expand(operands[-1], self.env), sc.cwd)
             if parent_re is not None and any(parent_re.search(p) for p in targets):
                 for t in operands[:-1]:
-                    landed = _base(t)
-                    if "$" in t or not landed or any(ch in landed for ch in "*?[") \
-                            or dir_re.search(targets[0] + "/" + landed):
-                        return True
+                    if "$" in t:
+                        return True  # what it names cannot be looked at
+                    if sc.name == "ln":
+                        # A link stays live: what it points at can fill later.
+                        landed = _base(t)
+                        if not landed or dir_re.search(targets[0] + "/" + landed):
+                            return True
+                        continue
+                    for q in _paths(t, sc.cwd):
+                        if not os.path.exists(q) or (os.path.isdir(q) and _holds_record(q)):
+                            return True
             if not any(dir_re.search(p) for p in targets):
                 continue
             if sc.name == "ln" or any(
@@ -687,27 +697,33 @@ class Shell:
             return []
         return [p for t in tokens for p in _paths(_expand(t, self.env), sc.cwd)]
 
+    def fed(self, sc):
+        """Text `sc` hands to something that runs it, which the parse does not
+        read as a command: interpreter code, the operands and stdin of a shell,
+        eval, source or xargs, and whatever it prints into a pipe ending in one."""
+        given = [_expand(w, self.env) for w in sc.argv]
+        given += [sc.stdin] if sc.stdin is not None else []
+        texts = list(self.code(sc))
+        if sc.name in EXECUTORS:
+            texts += given[1:]
+        nxt = sc.piped_to
+        while nxt is not None:
+            if nxt.name in EXECUTORS or PYTHON.match(nxt.name):
+                texts += given
+                break
+            nxt = nxt.piped_to
+        return texts
+
     def runs(self, file_re):
-        """Does the command run a file `file_re` matches: as the program, as a
-        script handed to a shell, eval, source or xargs, from an interpreter's
-        code, or as text fed into one? Unparseable, naming it is enough."""
+        """Does the command run a file `file_re` matches: as the program, or in
+        text fed to something that runs it? Unparseable, naming it is enough."""
         if self.error is not None:
             return bool(file_re.search(self.raw))
         for sc in self.cmds:
-            words = [_expand(w, self.env) for w in sc.argv]
-            fed = words + ([sc.stdin] if sc.stdin is not None else [])
-            if words and file_re.search(words[0]):
+            if sc.argv and file_re.search(_expand(sc.argv[0], self.env)):
                 return True
-            if sc.name in EXECUTORS and any(file_re.search(w) for w in fed[1:]):
+            if any(file_re.search(t) for t in self.fed(sc)):
                 return True
-            if any(file_re.search(t) for t in self.code(sc)):
-                return True
-            nxt = sc.piped_to
-            while nxt is not None:
-                if (nxt.name in EXECUTORS or PYTHON.match(nxt.name)) and \
-                        any(file_re.search(w) for w in fed):
-                    return True
-                nxt = nxt.piped_to
         return any(file_re.search(t) for t in self.stray)
 
     def writes(self, file_re, named_re, removed_re=None):
@@ -909,9 +925,21 @@ def session_file(root, label):
     return wave_status.wave_dir(root, label) / SESSION_FILE
 
 
+def _holds_record(directory, limit=20000):
+    """Does a directory on disk hold an evaluation-<n>.md anywhere under it?
+    Past `limit` entries the gate stops looking and answers yes."""
+    seen = 0
+    for _, dirs, files in os.walk(directory):
+        seen += len(dirs) + len(files)
+        if seen > limit or any(evaluate_wave.EVALUATION_FILE.match(f) for f in files):
+            return True
+    return False
+
+
 def evaluation_records(root):
-    """Every docs/wave-<id>/evaluation-<n>.md on disk, in the main checkout and
-    in each worktree, where step 8's hook writes them."""
+    """(path, path inside its checkout) of every docs/wave-<id>/evaluation-<n>.md
+    on disk, in the main checkout and in each worktree, where step 8's hook
+    writes them."""
     out = run_git(root, "worktree", "list", "--porcelain") or ""
     checkouts = {str(root)} | {os.path.realpath(line[len("worktree "):])
                                for line in out.splitlines() if line.startswith("worktree ")}
@@ -920,23 +948,50 @@ def evaluation_records(root):
         docs = Path(c) / "docs"
         for d in (sorted(docs.iterdir()) if docs.is_dir() else []):
             if d.is_dir() and d.name.lower().startswith("wave-"):
-                found += [os.path.realpath(f) for f in sorted(d.iterdir())
+                found += [(os.path.realpath(f), f"docs/{d.name}/{f.name}")
+                          for f in sorted(d.iterdir())
                           if evaluate_wave.EVALUATION_FILE.match(f.name)]
     return found
 
 
+def on_main(root, records):
+    """The records whose path and bytes main already holds. Once a wave has
+    merged, git can bring its records back and nothing is lost with a copy."""
+    if not records:
+        return set()
+    ref = next((r for r in ("main", "origin/main")
+                if run_git(root, "rev-parse", "--verify", "-q", r + "^{commit}")), None)
+    if ref is None:
+        return set()
+    tree = {}
+    for line in (run_git(root, "ls-tree", "-r", ref, "--", "docs") or "").splitlines():
+        meta, _, path = line.partition("\t")
+        tree[path.casefold()] = meta.split()[-1]
+    blobs = (run_git(root, "hash-object", "--", *[p for p, _ in records]) or "").split()
+    return {p for (p, rel), blob in zip(records, blobs) if tree.get(rel.casefold()) == blob}
+
+
 def removed_records(root, shell):
-    """The records on disk a command deletes or moves away, and those in a
-    checkout where it runs git clean or a stash that takes untracked files."""
+    """The records not yet on main that a command deletes or moves away, or
+    that git clean or a stash taking untracked files would sweep."""
     paths = [p for sc in shell.cmds for p in shell.removed(sc)]
+    swept = []
     for sc in shell.cmds:
         git = shell.git(sc)
         if git and (git[0] == "clean" or (git[0] == "stash" and _stashes_untracked(sc.argv))):
             top = run_git(git[1], "rev-parse", "--show-toplevel")
-            paths.append(os.path.realpath(top.strip()) if top else git[1])
-    if not paths:
+            swept.append(os.path.realpath(top.strip()) if top else git[1])
+    if not paths and not swept:
         return []
-    return [r for r in evaluation_records(root) if any(_inside(r, p) for p in paths)]
+    records = evaluation_records(root)
+    reached = [r for r in records if any(_inside(r[0], p) for p in paths)]
+    for top in swept:
+        out = run_git(top, "ls-files", "--others", "-z", "--", "docs") or ""
+        untracked = {os.path.realpath(os.path.join(top, n)).casefold()
+                     for n in out.split("\0") if n}
+        reached += [r for r in records if r[0].casefold() in untracked and r not in reached]
+    merged = on_main(root, reached)
+    return [p for p, _ in reached if p not in merged]
 
 
 def unpacks_record(shell):
@@ -995,12 +1050,11 @@ def verdict_rule(root, target, shell):
     gone = removed_records(root, shell)
     if gone:
         raise Deny("verdict", [
-            f"This command would delete or move away {len(gone)} evaluation record(s) on disk,",
-            f"  {shown(Path(gone[0]), root)} first. git clean, and a stash that takes",
-            "  untracked files, count wherever a record sits in that checkout.",
+            f"This command would delete, move away or sweep {len(gone)} evaluation record(s)",
+            f"  that main does not hold yet, {shown(Path(gone[0]), root)} first.",
             "  The records are the wave's history: the next pass is numbered from them",
             "  and the next session's opening prompt reads them. Leave them in place;",
-            "  a human removes one outside this session if it must go."])
+            "  once the wave has merged, they are on main and may go."])
 
 
 def lifecycle_rule(target, shell):
@@ -1109,20 +1163,30 @@ def record_rule(shell):
 
 
 def rerolls(shell, label):
-    """Does the command run evaluate_wave.py dispatch or verify for wave `label`,
-    or reach one through a shape the gate cannot read?"""
+    """Does the command run evaluate_wave.py dispatch or verify for wave `label`?
+    Read as a call where it can be; otherwise any text that reaches something
+    that runs it, or a program held in a variable. Text only printed or kept,
+    a commit message say, is not a run."""
     if not shell.names(EVALUATE_WAVE_NAMED):
         return False
     if shell.error is not None:
         return bool(REROLL_WORD.search(shell.raw))
-    if any(REROLL_WORD.search(t) for t in shell.unaccounted("evaluate_wave")):
-        return True
+
+    def names_one(t):
+        return EVALUATE_WAVE_NAMED.search(t) and REROLL_WORD.search(t)
+
     for sc in shell.cmds:
         call = shell.call(sc, "evaluate_wave")
-        if call is not None and call[0] in REROLL_VERBS:
+        if call is not None:
             wave = call[1].get("--wave")
-            if not wave or wave.lower() == label.lower():
+            if call[0] in REROLL_VERBS and (not wave or wave.lower() == label.lower()):
                 return True
+            continue
+        texts = shell.fed(sc)
+        if "$" in "".join(sc.argv[:2]):
+            texts.append(" ".join(_expand(w, shell.env) for w in sc.argv))
+        if any(names_one(t) for t in texts):
+            return True
     return False
 
 

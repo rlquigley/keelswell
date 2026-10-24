@@ -82,6 +82,7 @@ class Project:
         (self.root / "_bmad-output" / "planning-artifacts").mkdir(parents=True)
         (self.root / "_bmad-output" / "planning-artifacts" / "waves.md").write_text(WAVE_MAP)
         git(self.root, "init", "-q")
+        git(self.root, "symbolic-ref", "HEAD", "refs/heads/main")
         git(self.root, "config", "user.email", "t@example.com")
         git(self.root, "config", "user.name", "t")
         git(self.root, "add", "-A")
@@ -760,6 +761,8 @@ class TestVerdictByDirectory(Base):
         (root / "stage" / "wave-8a" / "evaluation-1.md").write_text("VERDICT: PASS\n")
         (root / "assets").mkdir()
         (root / "assets" / "logo.svg").write_text("<svg/>\n")
+        (root / "README.md").write_text("# proj\n")
+        (root / "stage" / "wave-9z").mkdir()
         self.archive("forge.tar", {"docs/wave-8a/evaluation-1.md": "VERDICT: PASS\n"})
         self.archive("forge.tgz", {"wave-8a/evaluation-1.md": "VERDICT: PASS\n"})
         self.archive("flat.tar", {"evaluation-1.md": "VERDICT: PASS\n"})
@@ -802,11 +805,16 @@ class TestVerdictByDirectory(Base):
             f"ln -s {root}/notes/evaluation-2.md docs/wave-7a/",
             # Relative to the link's own directory, so not a path the gate can stat.
             "ln -s ../stage/wave-8a docs/wave-8a",
+            f"ln -s {root}/stage/wave-8a docs/",
+            # Empty today; a link stays live, so it can fill later.
+            f"ln -s {root}/stage/wave-9z docs/",
             'D=docs/wave-7a; cp notes/evaluation-2.md "$D/"',
             "cp -r stage/wave-8a docs/",
             "mv stage/wave-8a docs/",
             "cp -r stage/* docs/",
             "cp -R stage/ docs",
+            "rsync -a stage/ docs/",
+            "cp -r missing/ docs/",
         ])
 
     def test_a_record_unpacked_in_is_denied(self):
@@ -826,6 +834,9 @@ class TestVerdictByDirectory(Base):
             "cp README.md docs/wave-7a/notes.md",
             "cp notes/evaluation-2.md /tmp/elsewhere.md",
             "cp -r assets docs/",
+            "rsync -a assets/ docs/",
+            "cp -r assets/* docs/",
+            "cp -R assets/ docs",
             "cp README.md docs/",
             "tar -xf safe.tar",
             "tar -czf out.tgz docs",
@@ -881,6 +892,43 @@ class TestVerdictByDirectory(Base):
         self.assert_denied(["git stash --all"], cwd=wt)
         self.assert_allowed(["git stash", "git stash list", "git stash push -m wip",
                              "git status --short"])
+
+    def merge_records(self):
+        """The wave's records committed on main, as they are once its PR merges."""
+        git(self.p.root, "add", "docs")
+        git(self.p.root, "commit", "-q", "-m", "merge wave 7A", when=POST_RULE)
+
+    def test_cleanup_is_allowed_once_the_records_are_on_main(self):
+        self.merge_records()
+        (self.p.root / "build").mkdir()
+        self.assert_allowed([
+            "git clean -d -f", "git clean -fdx", "git stash -u", "git stash push --all",
+            "rm -rf docs/wave-7a", "rm -rf docs", "find docs -delete",
+            "mv docs/wave-7a /tmp/wave-7a"])
+
+    def test_a_record_not_on_main_still_stops_the_cleanup(self):
+        self.merge_records()
+        (self.p.root / "docs" / "wave-7a" / "evaluation-2.md").write_text("VERDICT: PASS\n")
+        self.assert_denied(["git clean -d -f", "git stash -u", "rm -rf docs/wave-7a"])
+        # The same path with other bytes is not the record main holds.
+        (self.p.root / "docs" / "wave-7a" / "evaluation-2.md").unlink()
+        (self.p.root / "docs" / "wave-7a" / "evaluation-1.md").write_text("VERDICT: PASS\n")
+        self.assert_denied(["rm -rf docs/wave-7a"])
+
+    def test_an_old_worktree_whose_records_are_on_main_can_go(self):
+        self.merge_records()
+        wt = self.p.worktree("7A")
+        self.assert_allowed([f"rm -rf {wt}", f"git -C {wt} clean -fd"])
+
+    def test_clean_reads_what_git_would_sweep(self):
+        # Committed on the wave branch, not merged: clean and stash -u leave
+        # tracked files alone, so they are not stopped; an rm still is.
+        wt = self.p.worktree("8A")
+        self.p.evaluation("8A", 1, "NEEDS_WORK", where=wt)
+        git(wt, "add", "docs")
+        git(wt, "commit", "-q", "-m", "wave 8A record", when=POST_RULE)
+        self.assert_allowed([f"git -C {wt} clean -fd", f"git -C {wt} stash -u"])
+        self.assert_denied([f"rm -rf {wt}/docs/wave-8a"])
 
     def test_removing_a_worktree_record_is_denied(self):
         wt = self.p.worktree("8A")
@@ -1010,7 +1058,10 @@ class TestInPlaceReRoll(Base):
                 ("Monitor", f"{self.EW} dispatch --project-root {self.wt} --wave 7A"),
                 ("Bash", f"{self.EW} -- dispatch --wave 7A"),
                 ("Bash", "python3 -c \"import evaluate_wave; evaluate_wave.dispatch('.', '7A', 's1')\""),
-                ("Bash", f'{self.EW} dispatch --wave "7A')):
+                ("Bash", f'{self.EW} dispatch --wave "7A'),
+                ("Bash", f"echo '{self.EW} dispatch --wave 7A' | sh"),
+                ("Bash", f"bash <<'EOF'\n{self.EW} verify --wave 7A\nEOF"),
+                ("Bash", f"W={self.EW.split()[1]}; python3 $W dispatch --wave 7A")):
             with self.subTest(command):
                 code, _, err = self.p.pre(tool, session="s1", command=command)
                 self.assertEqual(code, 2, err)
@@ -1018,6 +1069,8 @@ class TestInPlaceReRoll(Base):
 
     def test_reading_the_verdict_and_other_waves_stay_open(self):
         for session, command in (
+                ("s1", 'git commit -m "evaluate_wave.py dispatch is the next session\'s"'),
+                ("s1", 'echo "next: evaluate_wave.py verify --wave 7A"'),
                 ("s1", f"{self.EW} verdict --project-root {self.wt} --wave 7A"),
                 ("s1", f"{self.EW} opening-prompt --wave 7A"),
                 ("s1", f"{self.EW} dispatch --project-root . --wave 8A"),
