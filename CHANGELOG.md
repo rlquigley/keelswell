@@ -4,6 +4,116 @@ All notable changes to Keelswell. Format: Keep a Changelog; versioning: semver.
 ## [Unreleased]
 
 ### Fixed
+- Every wave script gives one answer to where a wave's state lives
+  (2026-10-25, PR 4 of docs/reviews/harness-review-v2.md: V2-07, V2-08,
+  V2-31, V2-15; bmad-dev-wave 1.21.0, bmad-merge-wave 1.4.0).
+  `wave_status.locate(start, label)` returns the main checkout (through
+  git's common directory), the wave's worktree, the checkout whose
+  `.bmad/wave-<id>/` is the wave's, and whether two copies disagree.
+  `wave_status.py`, `wave_gate.py` and `evaluate_wave.py` all call it. The
+  worktree is the one checkout whose branch is the waves.md Branch suffix,
+  whole, after any `<prefix>/` and before an optional hash of six or more
+  hex digits; the gate's old test, the wave label as a path prefix, took the
+  first lookalike, and on ffbapp 6B that was the stale
+  `claude/wave-6b-h1-eval-55aa75`. The wave's directory is the worktree's
+  copy when it has one, else the main checkout's; a wave with neither starts
+  in the checkout the call came from. route and set exit 3 when two
+  checkouts are on the branch, or when the main checkout's copy holds a file
+  the worktree's lacks or holds with other bytes, naming both paths and the
+  files; dispatch, verdict and opening-prompt exit 3 on two checkouts too.
+  SessionEnd and the in-place rule read every checkout's `.bmad/`, and
+  SessionEnd blocks the record beside the pending marker it finds. verdict
+  and opening-prompt read the evaluations from the wave's worktree first, so
+  a session rooted in main sees its NEEDS_WORK. dispatch leaves its markers
+  with the wave's state, and the record hook finds them in any checkout.
+  route no longer infers done from merged docs while the wave's worktree
+  exists or a branch of it carries commits main does not. `adopt` refuses,
+  exit 1, when the cwd or `CLAUDE_PROJECT_DIR` is inside the worktree it
+  copies from, and merge-wave's preflight check 7 refuses the same session
+  up front, because removing that worktree removes the gate's hook. The
+  worktree list is read from `.git/worktrees/` instead of `git worktree
+  list`, which kept the gate's cost flat.
+  **Rulings.** RQ, 2026-10-25, all as proposed: (a) one resolver in
+  wave_status.py, with state following the worktree and the suffix match
+  accepting a harness hash; (b) route and set exit 3 on a split; (c)
+  SessionEnd scans every checkout; (d) no done inference while the worktree
+  or a branch exists; (e) merge-wave refuses from inside the worktree; (f)
+  V2-32's status and resume probes are not in this PR; (g) merge-wave uses
+  the same suffix rule. Two readings made while building, accepted by RQ
+  the same day: a
+  wave with no copy anywhere starts in the calling checkout, not always in
+  the worktree, because the evals (and dev-wave step 2's sibling layout)
+  run from main beside a worktree and read main's state; and (d)'s "branch"
+  is a branch with commits main does not have, because ffbapp keeps merged
+  wave branches (`claude/wave-4a-event-registry-825278`) and the literal
+  rule would have routed 4A and 6A back to draft.
+  **What was measured.** 25 new tests (349 for bmad-dev-wave, both trees;
+  close-epic 12, tools 27 and `install.sh --validate-only` green). Against
+  9aceb71's scripts 20 of the 24 behavior tests fail, each for its finding
+  (the 25th holds the new worktree reader to git):
+  V2-07 a (blocked in main, route from the worktree exits 0 and writes
+  there), b (a pending marker in the worktree is never blocked), c
+  (opening-prompt from main says nothing is owed); V2-08 (an edit into the
+  real worktree and an in-review on a lookalike's PASS are allowed); V2-31
+  (merged docs route a worktree's in-review wave done); the split, the
+  ambiguity and adopt-from-inside refusals; and the dispatch markers left in
+  main. The four that pass there are guards that must not change: a record
+  with no worktree stays in main, a merged branch left behind still lets
+  done be inferred, a suffix is matched whole, and a pending question in a
+  split is still blocked beside its marker. Existing fixtures that made
+  worktrees on branches off the map's suffix (`claude/wave-7a-fix-abc123`,
+  `claude/wave-7a-x`) now use the suffix. Mutation, one at a time on rsync
+  copies: 31 clauses removed or widened, 30 killed. The survivor, the first
+  of several candidates taken as the worktree, is equivalent: every reader
+  checks the count first. The sweep found five survivors on its first run;
+  each got a test, and one of them showed evaluate_wave read past an
+  ambiguous worktree, which now refuses. Gate p50 of 20 calls against
+  9aceb71 on the same machine and project: `set --status in-review` 88.4
+  against 88.5 ms, `ls` 78.2 against 79.2, `rm -rf build` 88.0 against
+  79.5 (it no longer spawns `git worktree list`). A first build that ran
+  `git worktree list` on every call was 10 to 15 ms slower, over the
+  review's 10 ms budget. On an rsync copy of ffbapp (links rewritten into
+  the copy; the real checkout's worktree list and 5E file hashes were the
+  same before and after): 9aceb71's route of 5E from main wrote done into
+  main; this branch's route from main and from the worktree, and its set
+  done, exit 3 naming `evaluation-session` as the one file main's copy
+  holds that the worktree's lacks; after moving that file into the
+  worktree's copy and removing main's, route from main reads in-review,
+  re-enter at 12, and writes nothing in main; adopt from inside the
+  worktree, by cwd and by `CLAUDE_PROJECT_DIR`, exits 1; from main it
+  copies 15 files with no conflict; after the worktree's removal the gate
+  allows `set --status done` and the set writes in-review -> done. On the
+  same copy, locate finds no worktree for 6B, where 9aceb71's gate took
+  `wave-6b-h1-eval-55aa75`.
+  **Grade of PR 2's prediction (1.20.0).** Not gradable as of 2026-10-25.
+  #57 merged today and both instances took it (green-ledger 67c1cae, ffbapp
+  1e3103b); no `docs/wave-*/evaluation-*.md` has been written since in any
+  checkout of either, and no wave record has changed since 2026-10-23. When
+  a wave runs: every record written after the sync carries the hook's
+  header, and each wave's pass numbers only go up.
+  **Prediction.** The next wave either instance runs keeps its
+  `.bmad/wave-<id>/` in one checkout from step 1 until merge-wave's adopt,
+  route never exits 3 on it, and merge-wave's adopt exits 0 with no
+  conflicts. Gradable from the wave's record history and merge-wave's
+  output.
+  **Not covered.** V2-32 by ruling (f): status-wave's and resume-wave's
+  probes still miss `claude/wave-...` branches, and resume-wave passes
+  flags dev-wave does not take. The gate itself does not refuse a `git
+  worktree remove` of the session's own project directory; that rests on
+  merge-wave's preflight and adopt. Step markers are written by the agent
+  from prose, so a session that writes one somewhere else makes a split,
+  which route then refuses rather than reads.
+  **At risk.** ffbapp 5E's real state is the split above: route or set on
+  5E exits 3 until a human moves `.bmad/wave-5E/evaluation-session` into
+  the worktree's copy and removes main's. /bmad-merge-wave 5E works without
+  that, from main: adopt copies cleanly (the common files are identical)
+  and the done set runs after the worktree is gone. A desktop session
+  rooted in a worktree for a wave whose state is in main cannot write
+  markers there if the app refuses the main checkout; it would split the
+  state and route would say so. `checkouts()` reads git's
+  `.git/worktrees/<id>/gitdir` and `HEAD` files itself; a test holds it to
+  `git worktree list`, and a bare repository or a `.git` file falls back to
+  the command.
 - No session forges, erases or re-rolls an evaluation record by the routes
   the v2 review proved (2026-10-24, PR 2 of docs/reviews/harness-review-v2.md:
   V2-03, V2-04, V2-20, V2-09 a and b, V2-02's cheap fix, and V2-52's M7, M8,

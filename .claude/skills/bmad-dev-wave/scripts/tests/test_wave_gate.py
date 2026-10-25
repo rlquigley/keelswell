@@ -59,6 +59,7 @@ WAVE_MAP = """# Wave Map
 | 7A | serial | 7.1 | wave-7a-alpha | First. |
 | 8A | serial | 8.1 | wave-8a-gamma | Another epic. |
 """
+SUFFIX = {"7A": "wave-7a-alpha", "8A": "wave-8a-gamma"}
 
 # After Phase 1's rule date, so a wave with no record is a refusal.
 POST_RULE = "2026-09-12T12:00:00Z"
@@ -104,10 +105,13 @@ class Project:
 
     def worktree(self, wave):
         """A checkout on a real-shaped wave branch, inside the project tree."""
-        wt = self.root / ".claude" / "worktrees" / f"wave-{wave.lower()}-fix"
+        return self.linked(f"claude/{SUFFIX[wave]}-abc123", f"wave-{wave.lower()}-fix")
+
+    def linked(self, branch, name):
+        """A worktree under .claude/worktrees/ on any branch."""
+        wt = self.root / ".claude" / "worktrees" / name
         wt.parent.mkdir(parents=True, exist_ok=True)
-        git(self.root, "worktree", "add", "-q", "-b",
-            f"claude/wave-{wave.lower()}-fix-abc123", str(wt))
+        git(self.root, "worktree", "add", "-q", "-b", branch, str(wt))
         return wt.resolve()
 
     def sibling(self, wave):
@@ -495,6 +499,83 @@ class TestSessionEnd(Base):
         code, _, err = self.p.end(root=wt)
         self.assertEqual(code, 0, err)
         self.assertIn("status: blocked", self.p.record("7A").read_text())
+
+
+class TestOneStateRoot(Base):
+    """V2-07 b and V2-08 of the harness review v2: the gate finds a wave's
+    state and its worktree the way wave_status.py does."""
+
+    SET = "python3 x/scripts/wave_status.py set --project-root . --wave 7A --status in-review"
+
+    def test_a_pending_question_in_the_worktree_blocks_at_session_end(self):  # V2-07 b
+        wt = self.p.worktree("7A")
+        self.p.bmad("8A")  # main has a .bmad/ of its own, as ffbapp's does
+        d = wt / ".bmad" / "wave-7A"
+        d.mkdir(parents=True)
+        (d / "step-4.5.pending").write_text("Q: which auth provider?\n")
+        for root in (self.p.root, wt):
+            code, out, err = self.p.end(root=root)
+            self.assertEqual(code, 0, err)
+            self.assertIn("wave 7A", out)
+        self.assertIn("status: blocked", (d / "wave.md").read_text())
+        self.assertFalse(self.p.record("7A").exists())
+
+    def test_a_pending_question_is_blocked_where_it_is_even_in_a_split(self):
+        # Two copies that disagree make route and set refuse; the block the
+        # session owes still lands, beside the marker.
+        wt = self.p.worktree("7A")
+        (wt / ".bmad" / "wave-7A").mkdir(parents=True)
+        (wt / ".bmad" / "wave-7A" / "step-1.done").write_text("")
+        (self.p.bmad("7A") / "step-4.5.pending").write_text("Q?\n")
+        code, _, err = self.p.end()
+        self.assertEqual(code, 0, err)
+        self.assertIn("status: blocked", self.p.record("7A").read_text())
+
+    def test_a_lookalike_worktree_listed_first_does_not_stand_in(self):  # V2-08
+        stale = self.p.linked("claude/wave-7a-h1-eval-55aa75", "a-stale")
+        wt = self.p.worktree("7A")
+        self.p.evaluation("7A", 1, "PASS", where=stale)
+        self.p.recorded_by("7A", "s1")
+        self.p.evaluation("7A", 1, "NEEDS_WORK", where=wt)
+        code, _, err = self.p.pre("Write", session="s1", file_path=str(wt / "src" / "x.py"))
+        self.assertEqual(code, 2, err)
+        self.assertIn("DENIED (in-place)", err)
+        code, _, err = self.p.pre("Bash", command=self.SET)
+        self.assertEqual(code, 2, err)
+        self.assertIn("NEEDS_WORK, not PASS", err)
+        code, _, err = self.p.pre("Write", session="s1", file_path=str(stale / "x.py"))
+        self.assertEqual(code, 0, err)
+
+    def test_two_worktrees_on_the_wave_branch_hold_review_and_guard_both(self):
+        one = self.p.linked("wave-7a-alpha", "one")
+        two = self.p.linked("claude/wave-7a-alpha-def456", "two")
+        for wt in (one, two):
+            self.p.evaluation("7A", 1, "PASS", where=wt)
+        code, _, err = self.p.pre("Bash", command=self.SET)
+        self.assertEqual(code, 2, err)
+        self.assertIn("DENIED (review)", err)
+        self.assertIn(str(one), err)
+        self.assertIn(str(two), err)
+        self.p.recorded_by("7A", "s1")
+        self.p.evaluation("7A", 2, "NEEDS_WORK", where=two)  # one, listed first, is PASS
+        for wt in (one, two):
+            code, _, err = self.p.pre("Write", session="s1", file_path=str(wt / "x.py"))
+            self.assertEqual(code, 2, f"{wt}: {err}")
+            self.assertIn("DENIED (in-place)", err)
+
+    def test_a_session_file_in_the_worktree_holds_the_session(self):
+        # A session rooted in the worktree keeps its state there, the
+        # evaluator hook's session file with it.
+        wt = self.p.worktree("7A")
+        d = wt / ".bmad" / "wave-7A"
+        d.mkdir(parents=True)
+        (d / "evaluation-session").write_text("s1\n")
+        self.p.evaluation("7A", 1, "NEEDS_WORK", where=wt)
+        for cwd in (self.p.root, wt):
+            code, _, err = self.p.pre("Write", session="s1", cwd=cwd,
+                                      file_path=str(wt / "src" / "x.py"))
+            self.assertEqual(code, 2, err)
+            self.assertIn("DENIED (in-place)", err)
 
 
 class TestE2bReplay(Base):

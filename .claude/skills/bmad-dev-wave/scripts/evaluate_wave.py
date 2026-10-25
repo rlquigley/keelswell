@@ -35,8 +35,11 @@ What the building agent no longer decides:
   evaluate_wave.py verdict        --project-root P --wave 5D
   evaluate_wave.py opening-prompt --project-root P --wave 5D
 
-P is the checkout the wave is built in. `.bmad/` is read from the main
-checkout, which git names from any worktree of it.
+P is the checkout the wave is built in. The wave's `.bmad/` directory and
+its worktree come from wave_status.locate, from either checkout, and
+`verdict` and `opening-prompt` read the evaluations from that worktree while
+it has them (V2-07 of the harness review v2). With two checkouts on the
+wave's branch, dispatch, verdict and opening-prompt refuse, exit 3.
 
 Exit codes:
   0  safe / proceed / PASS
@@ -46,7 +49,8 @@ Exit codes:
   2  structural: no wave map, or the wave is not in it
   3  refuse: the evaluator definition is missing, declares a tool that can
      write, run or delegate, or lacks `effort: high`; the verify output is
-     missing, unstamped or stale; or nothing is recorded for the dispatch
+     missing, unstamped or stale; nothing is recorded for the dispatch; or
+     two checkouts are on the wave's branch
   4  UPSTREAM_CAUSE -- the third-pass rule fired; fix the named artifact, not
      the code
 
@@ -231,19 +235,14 @@ def _git(root, *args):
     return out if code == 0 else None
 
 
-def state_root(start):
-    """The checkout holding `.bmad/`, found from the one the wave is built in.
-
-    dev-wave keeps `.bmad/` in the main checkout and builds in a worktree.
-    git's common directory names the main checkout from any worktree of it.
-    """
-    out = _git(start, "rev-parse", "--path-format=absolute", "--git-common-dir")
-    common = Path(out.strip()) if out and out.strip() else None
-    main = common.parent if common is not None and common.name == ".git" else None
-    for d in ([main] if main else []) + [start, *start.parents]:
-        if (d / ".bmad").is_dir():
-            return d
-    return main or start
+def records_home(start, label, where):
+    """The checkout whose `docs/wave-<id>/` holds the wave's evaluations: its
+    worktree while it has them, since step 8's hook writes them there; else
+    the checkout given, then the main checkout, where they sit once merged."""
+    for base in dict.fromkeys(c for c in (where.worktree, start, where.root) if c):
+        if prior_evaluations(base, label):
+            return base
+    return start
 
 
 def merge_base(project_root):
@@ -594,6 +593,9 @@ def dispatch(project_root, label_wanted, session_id):
     if code != 0:
         check["wave"] = label
         return code, check, lines
+    where = wave_status.locate(project_root, label)
+    if len(where.candidates) > 1:
+        return wave_status.where_refusal(where, label)
 
     d = docs_dir(project_root, label)
     verify_path, diff_path = d / "verify-output.txt", d / "wave-diff.patch"
@@ -637,7 +639,7 @@ def dispatch(project_root, label_wanted, session_id):
 
     priors = prior_evaluations(project_root, label)
     pass_number = len(priors) + 1
-    state = state_root(project_root)
+    state = where.base
     rule_pass = pass_number - rule_base(state, label, priors)
     result = {
         "wave": label,
@@ -711,12 +713,13 @@ def dispatch(project_root, label_wanted, session_id):
 
 # --------------------------------------------------------------- the record
 
-def pending(state, session_id):
-    """Every (marker path, marker) this session has left by dispatching."""
+def pending(root, session_id):
+    """Every (marker path, marker) this session has left by dispatching, in
+    any checkout: dispatch leaves it with the wave's state."""
     found = []
-    bmad = state / ".bmad"
-    if session_id and bmad.is_dir():
-        for d in sorted(bmad.iterdir()):
+    for checkout, _ in wave_status.checkouts(root) if session_id else []:
+        bmad = checkout / ".bmad"
+        for d in (sorted(bmad.iterdir()) if bmad.is_dir() else []):
             marker = read_marker(d / PENDING_FILE)
             if marker and marker.get("session_id") == session_id:
                 found.append((d / PENDING_FILE, marker))
@@ -752,7 +755,7 @@ def record(event):
 
     session_id = event.get("session_id") or ""
     start = Path(event.get("cwd") or os.environ.get("CLAUDE_PROJECT_DIR") or os.getcwd())
-    found = pending(state_root(start), session_id)
+    found = pending(wave_status.state_root(start), session_id)
     if len(found) != 1:
         why = ("no dispatch is pending for this session" if not found else
                "this session has dispatches pending for waves "
@@ -821,7 +824,10 @@ def verdict(project_root, label_wanted):
     if label is None:
         return 2, {"wave": label_wanted}, [f"No verdict: {why}."]
 
-    marker = read_marker(wave_status.wave_dir(state_root(project_root), label) / PENDING_FILE)
+    where = wave_status.locate(project_root, label)
+    if len(where.candidates) > 1:
+        return wave_status.where_refusal(where, label)
+    marker = read_marker(wave_status.wave_dir(where.base, label) / PENDING_FILE)
     if marker is not None:
         return 3, {"wave": label, "pending_pass": marker["pass_number"],
                    "refused": marker.get("refused")}, [
@@ -835,13 +841,14 @@ def verdict(project_root, label_wanted):
             "  dispatch the evaluator again.",
         ]
 
-    priors = prior_evaluations(project_root, label)
+    home = records_home(project_root, label, where)
+    priors = prior_evaluations(home, label)
     if not priors:
         return 3, {"wave": label}, [
             f"Wave {label} has no evaluation on disk. Run `dispatch`, then dispatch",
             "  the evaluator; its hook writes the record."]
     latest = priors[-1]
-    rel = str(latest.relative_to(project_root))
+    rel = str(latest.relative_to(home))
     pass_number = len(priors)
     found = read_verdict(latest.read_text(encoding="utf-8", errors="ignore"))
     if found is None:
@@ -893,7 +900,11 @@ def opening_prompt(project_root, label_wanted):
     if label is None:
         return 2, {"wave": label_wanted}, [f"No opening prompt: {why}."]
 
-    priors = prior_evaluations(project_root, label)
+    where = wave_status.locate(project_root, label)
+    if len(where.candidates) > 1:
+        return wave_status.where_refusal(where, label)
+    home = records_home(project_root, label, where)
+    priors = prior_evaluations(home, label)
     if not priors:
         return 0, {"wave": label, "open": False}, [
             f"Wave {label} has no evaluation on disk. Nothing is owed; open "
@@ -902,7 +913,7 @@ def opening_prompt(project_root, label_wanted):
     latest = priors[-1]
     body = latest.read_text(encoding="utf-8", errors="ignore")
     found = read_verdict(body)
-    rel = str(latest.relative_to(project_root))
+    rel = str(latest.relative_to(home))
     pass_number = len(priors)
 
     if found == PASS:
@@ -915,7 +926,7 @@ def opening_prompt(project_root, label_wanted):
             f"{rel} carries no readable VERDICT line. Repair or delete it; do "
             "not guess what it said."]
 
-    next_rule_pass = pass_number + 1 - rule_base(state_root(project_root), label, priors)
+    next_rule_pass = pass_number + 1 - rule_base(where.base, label, priors)
     prompt = (
         f"You are resuming wave {label}. You did not build it and the session "
         f"that did is gone.\n\n"

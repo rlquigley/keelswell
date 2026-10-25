@@ -17,7 +17,7 @@ allowed-tools:
   - Bash
   - Write
 metadata:
-  version: 1.3.1
+  version: 1.4.0
   inputs:
     - wave-id (positional, required)
     - --verbose (optional; full git output instead of one line per step)
@@ -48,8 +48,12 @@ takes its repo via `git -C <abs-path>`):
 
 Parse `git -C MAIN_REPO worktree list --porcelain` into (path, branch) pairs,
 stripping the `refs/heads/` prefix. BRANCH_NAME is the branch whose name is
-BRANCH_SUFFIX or ends in `/BRANCH_SUFFIX`; WORKTREE_PATH is that record's path
-if one exists. If no worktree carries the branch, search local branches the
+BRANCH_SUFFIX or ends in `/BRANCH_SUFFIX`, either one optionally followed by
+`-<hash>`, six or more hex digits, which the Claude Code harness appends
+(`claude/wave-4a-event-registry-825278` for suffix `wave-4a-event-registry`).
+Anything else after the suffix is another branch. WORKTREE_PATH is that
+record's path if one exists. `wave_status.py` matches the same way, so this
+skill, dev-wave and the wave gate agree on which worktree is the wave's. If no worktree carries the branch, search local branches the
 same way with `git -C MAIN_REPO branch --format='%(refname:short)'`.
 
 Discovery rather than convention, because two layouts are both in use and
@@ -70,7 +74,7 @@ directory name also closes the mismatch the 2026-08-24 cleanup sweep found,
 where a worktree directory named for one wave was checked out on an unrelated
 branch.
 
-## Step 1: Preflight (six checks, refuse-and-exit-1 on failure)
+## Step 1: Preflight (seven checks, refuse-and-exit-1 on failure)
 1. Wave exists in waves.md.
 2. Worktree state: if present, it is a git worktree on BRANCH_NAME with a
    clean tree (`git -C <worktree> status --porcelain` empty). Dirty or
@@ -97,6 +101,13 @@ branch.
 6. Checkpoint: warn (not block) if checkpoint.json is missing or the last
    marker is not step-12.done, reading CHECKPOINT_DIR and, while the
    worktree exists, <WORKTREE_PATH>/.bmad/wave-<WAVE_ID>/.
+7. Not inside the worktree: refuse when this session's cwd (`pwd -P`) or
+   `$CLAUDE_PROJECT_DIR` is WORKTREE_PATH or inside it, and name MAIN_REPO
+   as the place to start a new session. The wave gate's hook is registered
+   under the session's project directory; step 3 would remove it, and every
+   later call in the session would run ungated (ffbapp 6B, 2026-10-07: a
+   session removed its own worktree, then set done and added a worktree with
+   no gate). Step 3's `adopt` refuses the same case, exit 1, as a backstop.
 
 ## Step 2: Pull main
 `git -C MAIN_REPO pull --ff-only origin main`. Verify local main is the merge
@@ -111,8 +122,8 @@ cannot take the wave's record with it:
 
 It copies every file under <WORKTREE_PATH>/.bmad/wave-<WAVE_ID>/ that
 CHECKPOINT_DIR lacks and overwrites nothing. Exit 0: adopted, or nothing to
-adopt. Exit 1: a file differs between the two copies; it names them and
-copies nothing. Stop there: which copy is right is the founder's call, and
+adopt. Exit 1: a file differs between the two copies, or this session runs
+inside WORKTREE_PATH; it names them and copies nothing. Stop there: which copy is right is the founder's call, and
 the wave gate denies this session a hand edit of `wave.md` in either place.
 Do not copy the checkpoint by hand: `wave.md` is written by `wave_status.py`
 and nothing else.
@@ -169,6 +180,7 @@ state is one that is not `MERGED`.
 | Branch ahead of merge | commits past the merge SHA | cherry-pick the named SHAs to a new branch |
 | Wrong branch | worktree not on the resolved BRANCH_NAME | check out the wave branch or remove the worktree manually |
 | Ambiguous branch | more than one branch matches BRANCH_SUFFIX | refuse and name them; disambiguate before re-invoking |
+| Inside the worktree | cwd or CLAUDE_PROJECT_DIR is WORKTREE_PATH or below it | start a session in MAIN_REPO and re-invoke there |
 | Resolution failed | local branch absent while origin carries an unmerged one | refuse and name BRANCH_SUFFIX; fetch, or correct the waves.md suffix |
 | Wave blocked | the status record reads blocked | refuse to mark it done; a human clears the block by editing or deleting `.bmad/wave-<id>/wave.md` |
 Idempotent no-op: worktree gone, branch gone locally and on origin -> "already
@@ -176,6 +188,12 @@ cleaned up; nothing to do", exit 0. A merged remote branch left undeleted is
 reported, not refused.
 
 ## Version history
+- 1.4.0 (2026-10-25, harness review v2 PR 4: V2-15, V2-08): preflight check
+  7 refuses a session running inside the worktree it would remove, since the
+  removal takes the wave gate's hook with it; `wave_status.py adopt` refuses
+  the same case. BRANCH_SUFFIX matches with the hash the harness appends,
+  which every `claude/wave-...-<hash>` branch carries and the exact match
+  missed (ffbapp 3C, 4A, 5B, 6A).
 - 1.3.1 (2026-10-23, harness review v2 PR 1): step 5 names the two new
   refusals of its done write, exit 4 for a wave not in-review and the
   gate's PASS check. Prose only.

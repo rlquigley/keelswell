@@ -73,14 +73,32 @@ Exit codes (route, set and adopt):
   0  proceed; route prints the stage and re-entry step; adopt copied, or
      found nothing to copy
   1  blocked -- route refused to dispatch, or set refused to overwrite;
-     adopt found a file that differs between the two copies
+     adopt found a file that differs between the two copies, or runs inside
+     the worktree it copies from
   2  structural: no wave map, or the wave is not in it
   3  corrupt: the record exists and cannot be read, names a key twice, or
-     its status is missing or unrecognized; nothing is written
+     its status is missing or unrecognized; or the wave's state cannot be
+     placed (two copies disagree, two worktrees match); nothing is written
   4  set only: TRANSITIONS does not allow this move; nothing is written
 
+WHERE IT LIVES. `locate` answers it once for every script (V2-07 and V2-08
+of the harness review v2). The project root is the main checkout, which git's
+common directory names from any worktree. The wave's worktree is the one
+checkout whose branch is the waves.md "Branch suffix", whole, after any
+`<prefix>/` and before any hash a harness adds (claude/wave-5e-qb-archetypes,
+claude/wave-4a-event-registry-825278). The wave's directory is the
+worktree's `.bmad/wave-<ID>/` when it has one, else the main checkout's, so a
+session rooted in either checkout reads and writes the same record. A wave
+with neither starts its directory in the checkout the call came from, where
+that session writes its markers. `route` and `set` refuse, exit 3,
+when two worktrees match, or when both checkouts hold a copy and the main
+checkout's has a file the worktree's lacks or holds with other bytes: which
+copy is right is a human's call.
+
 `adopt` is bmad-merge-wave's, run before it removes a worktree: a session
-rooted in the wave's worktree writes this directory there (2026-10-17).
+rooted in the wave's worktree writes this directory there (2026-10-17). It
+refuses when the session runs inside that worktree (V2-15): removing it
+removes the wave gate's hook for the rest of the session.
 
 `show` is read-only: it never writes, never backfills, and exits 0 whenever it
 could read the wave map, so a dashboard can render a corrupt or blocked wave
@@ -91,8 +109,10 @@ written to be acted on. Stdlib only.
 """
 
 import argparse
+import collections
 import contextlib
 import fcntl
+import functools
 import json
 import os
 import re
@@ -437,6 +457,182 @@ def _git_ok(project_root, *args):
     return out.returncode == 0
 
 
+# --------------------------------------------------- where the state lives
+
+Where = collections.namedtuple("Where", "root worktree base candidates split")
+
+
+@functools.lru_cache(maxsize=None)
+def state_root(start):
+    """The project's main checkout, from any checkout or directory in it.
+
+    git's common directory names it from any worktree. Outside git, the
+    nearest directory up from `start` that holds `.bmad/`, else `start`.
+    """
+    start = Path(os.path.realpath(start))
+    out = _git(start, "rev-parse", "--path-format=absolute", "--git-common-dir")
+    common = Path(out.strip()) if out and out.strip() else None
+    if common is not None and common.name == ".git":
+        return Path(os.path.realpath(common.parent))
+    for d in (start, *start.parents):
+        if (d / ".bmad").is_dir():
+            return d
+    return start
+
+
+def _head_branch(head):
+    try:
+        text = head.read_text(encoding="utf-8").strip()
+    except OSError:
+        return None
+    return text[len("ref: refs/heads/"):] if text.startswith("ref: refs/heads/") else None
+
+
+@functools.lru_cache(maxsize=None)
+def checkouts(root):
+    """(path, branch or None) of every checkout on disk, main first.
+
+    Read from git's own files under `.git/worktrees/` when the main checkout
+    has a `.git` directory: the wave gate asks on every tool call, and a
+    `git worktree list` costs it about 10 ms. `git worktree list` otherwise.
+    """
+    git_dir = Path(root) / ".git"
+    if git_dir.is_dir():
+        found = [(Path(root), _head_branch(git_dir / "HEAD"))]
+        admin = git_dir / "worktrees"
+        for d in (sorted(admin.iterdir()) if admin.is_dir() else []):
+            try:
+                link = Path((d / "gitdir").read_text(encoding="utf-8").strip())
+            except OSError:
+                continue
+            path = Path(os.path.realpath(d / link)).parent  # relative paths are the admin dir's
+            found.append((path, _head_branch(d / "HEAD")))
+        return [f for f in found if f[0].is_dir()]
+    out = _git(root, "worktree", "list", "--porcelain")
+    found = []
+    for line in (out or "").splitlines():
+        if line.startswith("worktree "):
+            found.append([Path(os.path.realpath(line[len("worktree "):])), None])
+        elif line.startswith("branch ") and found:
+            found[-1][1] = line[len("branch "):].removeprefix("refs/heads/")
+    return [tuple(f) for f in found if f[0].is_dir()] or [(Path(root), None)]
+
+
+def branch_suffix(project_root, label):
+    """The wave's "Branch suffix" cell in waves.md, or None."""
+    path = project_root / WAVE_MAP
+    if not path.is_file():
+        return None
+    wave_col = suffix_col = None
+    for line in path.read_text(encoding="utf-8", errors="ignore").splitlines():
+        line = line.strip()
+        if not line.startswith("|"):
+            wave_col = suffix_col = None
+            continue
+        cells = [c.strip().strip("`") for c in line.strip("|").split("|")]
+        if wave_col is None:
+            lowered = [c.lower() for c in cells]
+            if "wave" in lowered and "branch suffix" in lowered:
+                wave_col, suffix_col = lowered.index("wave"), lowered.index("branch suffix")
+            continue
+        if max(wave_col, suffix_col) < len(cells) and cells[wave_col].lower() == label.lower():
+            return cells[suffix_col] or None
+    return None
+
+
+def wave_branch(branch, label, suffix):
+    """Whether `branch` is this wave's. With a suffix, the suffix whole, after
+    any `<prefix>/` and before any hash of six or more hex digits a harness
+    adds, as bmad-merge-wave matches it. With none, the wave label as a path
+    segment prefix, the gate's old test, which a stale lookalike also passes."""
+    if not branch:
+        return False
+    if suffix:
+        pattern = rf"(?:^|/){re.escape(suffix.lower())}(?:-[0-9a-f]{{6,}})?$"
+    else:
+        pattern = rf"(?:^|/)wave-{re.escape(label.lower())}(?:-|$)"
+    return re.search(pattern, branch.lower()) is not None
+
+
+def _not_held(copy, other):
+    """Files under `copy` that `other` lacks or holds with other bytes."""
+    out = []
+    for f in sorted(p for p in copy.rglob("*") if p.is_file() and p.suffix != ".tmp"):
+        twin = other / f.relative_to(copy)
+        if not twin.is_file() or twin.read_bytes() != f.read_bytes():
+            out.append(str(f.relative_to(copy)))
+    return out
+
+
+def locate(start, label):
+    """Where wave `label`'s state lives, from any checkout of the project.
+
+    root: the main checkout. candidates: every checkout on the wave's branch.
+    worktree: the one candidate, or None for none or several. base: the
+    checkout whose `.bmad/wave-<ID>/` is the wave's: the worktree's copy, else
+    the main checkout's, else, for a wave with neither, the checkout the call
+    came from, where that session's markers go. split: the files that make
+    the main checkout's copy disagree with the worktree's, when both exist.
+    `label` is the map's spelling.
+    """
+    root = state_root(start)
+    suffix = branch_suffix(root, label)
+    candidates = [path for path, branch in checkouts(root) if wave_branch(branch, label, suffix)]
+    worktree = candidates[0] if len(candidates) == 1 else None
+    base, split = root, []
+    if worktree is not None and worktree != root:
+        own, main_copy = wave_dir(worktree, label), wave_dir(root, label)
+        if own.is_dir() or (not main_copy.is_dir() and _within(start, worktree)):
+            base = worktree
+        if own.is_dir() and main_copy.is_dir():
+            split = _not_held(main_copy, own)
+    return Where(root, worktree, base, candidates, split)
+
+
+def where_refusal(where, label):
+    """(code 3, result, lines) when the wave's state cannot be placed, else None."""
+    if len(where.candidates) > 1:
+        return 3, {"wave": label, "error": "ambiguous_worktree",
+                   "worktrees": [str(c) for c in where.candidates]}, [
+            f"REFUSE: {len(where.candidates)} checkouts are on wave {label}'s branch:",
+        ] + [f"  {c}" for c in where.candidates] + [
+            "  Nothing was read or written. Which one holds the wave is not guessed:",
+            "  remove the stale worktree, or correct the wave's Branch suffix in",
+            f"  {WAVE_MAP}.",
+        ]
+    if where.split:
+        main_copy, own = wave_dir(where.root, label), wave_dir(where.worktree, label)
+        return 3, {"wave": label, "error": "split_state", "main": str(main_copy),
+                   "worktree": str(own), "files": where.split}, [
+            f"REFUSE: wave {label}'s state is in two places that disagree:",
+            f"  {main_copy}",
+            f"  {own}",
+            "  The main checkout's copy has files the worktree's lacks or holds",
+            "  with other bytes:",
+        ] + [f"    {f}" for f in where.split] + [
+            "  Nothing was read or written. The worktree's copy is the wave's",
+            "  while the worktree exists. Decide which copy is right, move what",
+            "  the main checkout's holds that the worktree's should keep, and",
+            "  remove the main checkout's copy by hand.",
+        ]
+    return None
+
+
+def in_flight(project_root, label, where):
+    """Why the wave is still being built, or None: its worktree exists, or a
+    branch of it carries commits main does not. A merged branch left behind
+    (ffbapp keeps several) is not a wave in flight."""
+    if where.candidates:
+        return f"its worktree {where.candidates[0]} exists"
+    suffix = branch_suffix(where.root, label)
+    for branch in (_git(project_root, "branch", "--format=%(refname:short)") or "").split():
+        if wave_branch(branch, label, suffix) and not any(
+                _git_ok(project_root, "merge-base", "--is-ancestor", branch, ref)
+                for ref in ("main", "origin/main")):
+            return f"branch {branch} has commits main does not"
+    return None
+
+
 def docs_landed(project_root, label):
     """Whether `docs/wave-<id>/` has merged into this project's main line.
 
@@ -483,7 +679,7 @@ def has_branch_or_worktree(project_root, label):
     return False
 
 
-def infer_status(project_root, label):
+def infer_status(project_root, label, where):
     """The one-time backfill for a wave with no record. Returns (status, why).
 
     This is the evidence bmad-resume-wave's probes already used, run once and
@@ -491,14 +687,24 @@ def infer_status(project_root, label):
     the earliest incomplete step: re-running an idempotent preflight and
     worktree check costs a few minutes, whereas guessing a wave forward past
     steps that never ran skips its test design and its ATDD scaffolding.
+    Merged docs are not done while the wave is still in flight (V2-31):
+    ffbapp 5E merged with its worktree, and its in-review record, still there.
     """
     d = wave_dir(project_root, label)
     if (d / "archive").is_dir() and any((d / "archive").glob("cleanup.done")):
         return DONE, "merge-wave archive carries cleanup.done"
 
-    if docs_landed(project_root, label):
+    landed = docs_landed(project_root, label)
+    live = in_flight(project_root, label, where) if landed else None
+    if landed and live is None:
         return DONE, f"docs/wave-{label.lower()}/ has merged into main"
+    status, why = _infer_from_markers(project_root, label)
+    if live:
+        why += f"; docs/wave-{label.lower()}/ has merged, but {live}, so it is not done"
+    return status, why
 
+
+def _infer_from_markers(project_root, label):
     done = completed_steps(project_root, label)
     if done:
         highest = max(done, key=lambda s: float(s))
@@ -559,16 +765,22 @@ def _structural(project_root, label):
 
 
 def route(project_root, label):
-    code, result, lines, resolved = _structural(project_root, label)
+    root = state_root(project_root)
+    code, result, lines, resolved = _structural(root, label)
     if resolved is None:
         return code, result, lines
     label = resolved
+    where = locate(project_root, label)
+    refusal = where_refusal(where, label)
+    if refusal:
+        return refusal
+    project_root = where.base
 
     backfilled = None
     with locked(project_root, label):
         record = read_record(project_root, label)
         if record is None:
-            status, why = infer_status(project_root, label)
+            status, why = infer_status(project_root, label, where)
             write_record(project_root, label, status, note=f"backfilled: {why}")
             backfilled = why
             record = read_record(project_root, label)
@@ -627,8 +839,11 @@ def route(project_root, label):
     return 0, result, lines
 
 
-def set_status(project_root, label, status, reason=None):
-    code, result, lines, resolved = _structural(project_root, label)
+def set_status(project_root, label, status, reason=None, base=None):
+    """`base` names the checkout whose `.bmad/` to write and skips `locate`:
+    the SessionEnd hook blocks the record beside the marker it found."""
+    root = state_root(project_root)
+    code, result, lines, resolved = _structural(root, label)
     if resolved is None:
         return code, result, lines
     label = resolved
@@ -640,8 +855,14 @@ def set_status(project_root, label, status, reason=None):
             f"  Valid statuses: {', '.join(STATUSES)}.",
         ]
 
-    with locked(project_root, label):
-        return _set_locked(project_root, label, status, reason)
+    if base is None:
+        where = locate(project_root, label)
+        refusal = where_refusal(where, label)
+        if refusal:
+            return refusal
+        base = where.base
+    with locked(base, label):
+        return _set_locked(base, label, status, reason)
 
 
 def _set_locked(project_root, label, status, reason):
@@ -714,13 +935,26 @@ def adopt(project_root, label, source_root):
     conflict refuses before anything is copied, naming the files. Which copy
     is right is a human's call, as clearing a block is.
     """
-    code, result, lines, resolved = _structural(project_root, label)
+    root = state_root(project_root)
+    code, result, lines, resolved = _structural(root, label)
     if resolved is None:
         return code, result, lines
     label = resolved
 
+    inside = [w for w in (_cwd(), os.environ.get("CLAUDE_PROJECT_DIR")) if w and _within(w, source_root)]
+    if inside:
+        return 1, {"wave": label, "error": "inside_worktree", "from": str(source_root),
+                   "inside": inside}, [
+            f"REFUSE: this session runs inside {source_root}:",
+        ] + [f"  {w}" for w in inside] + [
+            "  Nothing was copied. Removing that worktree next would remove the",
+            "  wave gate's hook with it, and every later call in this session would",
+            "  run ungated. Start a session in the main checkout,",
+            f"  {root}, and run /bmad-merge-wave {label} there.",
+        ]
+
     src = wave_dir(Path(source_root), label)
-    dst = wave_dir(project_root, label)
+    dst = wave_dir(root, label)
     if src.resolve() == dst.resolve():
         src_files = []
     else:
@@ -761,8 +995,21 @@ def adopt(project_root, label, source_root):
                        f"({len(identical)} already identical)."]
 
 
+def _cwd():
+    try:
+        return os.getcwd()
+    except OSError:
+        return None
+
+
+def _within(path, directory):
+    path, directory = os.path.realpath(path), os.path.realpath(directory)
+    return path == directory or path.startswith(directory.rstrip(os.sep) + os.sep)
+
+
 def show(project_root, label=None):
     """Read-only. Never writes, never backfills, never refuses a readable map."""
+    start, project_root = project_root, state_root(project_root)
     labels = wave_map_labels(project_root)
     if labels is None:
         return 2, {"error": "no_wave_map", "expected": str(WAVE_MAP)}, [
@@ -778,7 +1025,13 @@ def show(project_root, label=None):
 
     waves = []
     for one in labels:
-        record = read_record(project_root, one)
+        where = locate(start, one)
+        refusal = where_refusal(where, one)
+        if refusal:
+            waves.append({"wave": one, "status": None, "state": refusal[1]["error"],
+                          "reentry_step": None})
+            continue
+        record = read_record(where.base, one)
         if record is None:
             waves.append({"wave": one, "status": None, "state": "unmigrated",
                           "reentry_step": None})
@@ -792,7 +1045,7 @@ def show(project_root, label=None):
             "wave": one,
             "status": status,
             "state": "ok",
-            "reentry_step": reentry_step(project_root, one, status),
+            "reentry_step": reentry_step(where.base, one, status),
             "reason": record.get("reason"),
             "updated": record.get("updated"),
         })

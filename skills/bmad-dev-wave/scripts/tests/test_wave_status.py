@@ -9,6 +9,7 @@ test_hand_edit_clears_block (removing the status by hand lets it proceed).
 
 import contextlib
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -25,6 +26,8 @@ WAVE_MAP = """# Wave Map
 | 7B | parallel | 7.2, 7.3 | wave-7b-beta | Second. |
 | 8A | serial | 8.1 | wave-8a-gamma | Another epic. |
 """
+
+SUFFIX = {"7A": "wave-7a-alpha", "7B": "wave-7b-beta", "8A": "wave-8a-gamma"}
 
 LIFECYCLE = ("draft", "ready-for-dev", "in-progress", "in-review", "done")
 
@@ -529,7 +532,8 @@ class AdoptFromWorktree(unittest.TestCase):
         with exclude.open("a") as f:
             f.write(".bmad/\n")
         wt = p.root / ".claude" / "worktrees" / f"wave-{wave.lower()}-x"
-        p.git("worktree", "add", "-q", "-b", f"claude/wave-{wave.lower()}-x", str(wt))
+        # The map's suffix with the hash a harness-created branch carries.
+        p.git("worktree", "add", "-q", "-b", f"claude/{SUFFIX[wave]}-abc123", str(wt))
         return wt
 
     def in_tree(self, p, wt, *args):
@@ -767,6 +771,251 @@ class ConcurrentSets(unittest.TestCase):
             self.assertEqual(len(history), 21)
             self.assertEqual(sorted(p.wave_dir("7A").iterdir()),
                              [p.wave_dir("7A") / "wave.md"])
+
+
+class OneStateRoot(unittest.TestCase):
+    """V2-07, V2-08 and V2-31 of the harness review v2: route and set answer
+    "where is this wave's state" the same way from either checkout. The
+    wave's own worktree holds it when it has a copy or main has none; two
+    copies that disagree are refused."""
+
+    def setUp(self):
+        stack = contextlib.ExitStack()
+        self.addCleanup(stack.close)
+        self.p = Project(stack)
+        self.p.init_git()
+        exclude = self.p.root / ".git" / "info" / "exclude"
+        exclude.parent.mkdir(exist_ok=True)
+        with exclude.open("a") as f:
+            f.write(".bmad/\n")
+
+    def worktree(self, branch="claude/wave-7a-alpha-abc123", name=None):
+        wt = self.p.root / ".claude" / "worktrees" / (name or branch.split("/")[-1])
+        self.p.git("worktree", "add", "-q", "-b", branch, str(wt))
+        return wt.resolve()
+
+    def run_in(self, root, *args, cwd=None, env=None):
+        out = subprocess.run([sys.executable, str(SCRIPT), *args, "--project-root", str(root)],
+                             capture_output=True, text=True, cwd=cwd, env=env)
+        return out.returncode, (json.loads(out.stdout) if out.stdout.strip() else {}), out.stderr
+
+    def main_dir(self):
+        return self.p.root.resolve() / ".bmad" / "wave-7A"
+
+    def walk_in(self, root, status):
+        for step in LIFECYCLE[:LIFECYCLE.index(status) + 1]:
+            code, _, err = self.run_in(root, "set", "--wave", "7A", "--status", step)
+            self.assertEqual(code, 0, err)
+
+    def merge_docs_from(self, wt, branch="claude/wave-7a-alpha-abc123"):
+        """The wave's docs committed on its branch and merged, worktree kept:
+        ffbapp 5E's shape, merged on GitHub and not yet swept."""
+        (wt / "docs" / "wave-7a").mkdir(parents=True)
+        (wt / "docs" / "wave-7a" / "test-design.md").write_text("design\n")
+        subprocess.run(["git", "-C", str(wt), "add", "docs"], check=True, capture_output=True)
+        subprocess.run(["git", "-C", str(wt), "commit", "-q", "-m", "wave 7A docs"],
+                       check=True, capture_output=True)
+        self.p.git("merge", "-q", "--no-ff", "-m", "Merge wave 7A", branch)
+
+    def test_a_block_in_main_holds_a_session_rooted_in_the_worktree(self):  # V2-07 a
+        self.assertEqual(self.p.set("7A", "draft")[0], 0)
+        self.assertEqual(self.p.set("7A", "blocked", reason="open question")[0], 0)
+        wt = self.worktree()
+        code, _, err = self.run_in(wt, "route", "--wave", "7A")
+        self.assertEqual(code, 1, err)
+        self.assertIn("blocked", err)
+        code, _, _ = self.run_in(wt, "set", "--wave", "7A", "--status", "ready-for-dev")
+        self.assertEqual(code, 1)
+        self.assertFalse((wt / ".bmad").exists())
+
+    def test_either_checkout_reads_and_writes_one_record(self):
+        wt = self.worktree()
+        code, out, err = self.run_in(wt, "route", "--wave", "7A")
+        self.assertEqual(code, 0, err)
+        record = wt / ".bmad" / "wave-7A" / "wave.md"
+        self.assertEqual(Path(out["record"]).resolve(), record)
+        code, _, err = self.p.set("7A", "ready-for-dev")
+        self.assertEqual(code, 0, err)
+        self.assertIn("draft -> ready-for-dev", record.read_text())
+        self.assertFalse(self.main_dir().exists())
+        self.assertEqual(Path(self.p.route("7A")[1]["record"]).resolve(), record)
+
+    def test_a_new_record_starts_in_the_checkout_the_call_came_from(self):
+        # A main-rooted session beside a sibling worktree (dev-wave step 2's
+        # layout, and the evals') keeps its state in main, markers included.
+        wt = self.worktree()
+        code, out, err = self.p.route("7A")
+        self.assertEqual(code, 0, err)
+        self.assertEqual(Path(out["record"]).resolve(), self.main_dir() / "wave.md")
+        code, out, err = self.run_in(wt, "route", "--wave", "7A")
+        self.assertEqual(code, 0, err)
+        self.assertEqual(Path(out["record"]).resolve(), self.main_dir() / "wave.md")
+        self.assertFalse((wt / ".bmad").exists())
+
+    def test_with_no_worktree_the_record_is_the_main_checkouts(self):
+        code, out, err = self.p.route("7A")
+        self.assertEqual(code, 0, err)
+        self.assertEqual(Path(out["record"]).resolve(), self.main_dir() / "wave.md")
+
+    def test_a_main_record_stays_where_it_is_when_the_worktree_is_made(self):
+        self.assertEqual(self.p.route("7A")[0], 0)
+        wt = self.worktree()
+        code, _, err = self.run_in(wt, "set", "--wave", "7A", "--status", "ready-for-dev")
+        self.assertEqual(code, 0, err)
+        self.assertIn("status: ready-for-dev", self.p.record_text("7A"))
+        self.assertFalse((wt / ".bmad").exists())
+
+    def test_two_copies_that_disagree_are_refused_naming_both(self):  # ruling (b)
+        wt = self.worktree()
+        self.assertEqual(self.run_in(wt, "route", "--wave", "7A")[0], 0)
+        record = (wt / ".bmad" / "wave-7A" / "wave.md").read_bytes()
+        self.main_dir().mkdir(parents=True)
+        (self.main_dir() / "evaluation-session").write_text("s1\n")
+        for root in (self.p.root, wt):
+            for args in (("route", "--wave", "7A"),
+                         ("set", "--wave", "7A", "--status", "ready-for-dev")):
+                code, out, err = self.run_in(root, *args)
+                self.assertEqual(code, 3, f"{root} {args}: {err}")
+                self.assertEqual(out["error"], "split_state")
+                self.assertIn(str(self.main_dir()), err)
+                self.assertIn(str(wt / ".bmad" / "wave-7A"), err)
+                self.assertIn("evaluation-session", err)
+        self.assertFalse((self.main_dir() / "wave.md").exists())
+        self.assertEqual((wt / ".bmad" / "wave-7A" / "wave.md").read_bytes(), record)
+
+    def test_a_record_in_main_that_differs_from_the_worktrees_is_a_split(self):
+        wt = self.worktree()
+        self.assertEqual(self.run_in(wt, "route", "--wave", "7A")[0], 0)
+        self.main_dir().mkdir(parents=True)
+        (self.main_dir() / "wave.md").write_text(
+            (wt / ".bmad" / "wave-7A" / "wave.md").read_text().replace("draft", "in-progress"))
+        code, out, err = self.p.route("7A")
+        self.assertEqual(code, 3, err)
+        self.assertEqual(out["files"], ["wave.md"])
+
+    def test_a_copy_in_main_that_the_worktree_already_holds_is_not_a_split(self):
+        wt = self.worktree()
+        self.assertEqual(self.run_in(wt, "route", "--wave", "7A")[0], 0)
+        (wt / ".bmad" / "wave-7A" / "step-1.done").write_text("")
+        self.main_dir().mkdir(parents=True)
+        (self.main_dir() / "step-1.done").write_text("")
+        code, out, err = self.p.route("7A")
+        self.assertEqual(code, 0, err)
+        self.assertEqual(Path(out["record"]).resolve(), wt / ".bmad" / "wave-7A" / "wave.md")
+        self.assertEqual(out["reentry_step"], "2")
+
+    def test_merged_docs_do_not_make_a_wave_with_a_worktree_record_done(self):  # V2-31
+        wt = self.worktree()
+        self.walk_in(wt, "in-review")
+        self.merge_docs_from(wt)
+        code, out, err = self.p.route("7A")
+        self.assertEqual(code, 0, err)
+        self.assertEqual(out["status"], "in-review")
+        self.assertNotIn("backfilled", out)
+        self.assertFalse(self.main_dir().exists())
+
+    def test_merged_docs_are_not_done_while_the_worktree_exists(self):  # ruling (d)
+        wt = self.worktree()
+        self.merge_docs_from(wt)
+        code, out, err = self.p.route("7A")
+        self.assertEqual(code, 0, err)
+        self.assertEqual(out["status"], "draft")
+        self.assertIn("worktree", out["backfilled"])
+
+    def test_merged_docs_are_not_done_while_an_unmerged_wave_branch_exists(self):
+        self.p.land_docs_on_main("7A")
+        self.p.git("branch", "claude/wave-7a-alpha-abc123", "main")
+        self.p.git("checkout", "-q", "claude/wave-7a-alpha-abc123")
+        (self.p.root / "fix.txt").write_text("unmerged\n")
+        self.p.git("add", "fix.txt")
+        self.p.git("commit", "-q", "-m", "unmerged work")
+        self.p.git("checkout", "-q", "main")
+        code, out, err = self.p.route("7A")
+        self.assertEqual(code, 0, err)
+        self.assertEqual(out["status"], "draft")
+
+    def test_a_merged_branch_left_behind_does_not_hold_back_done(self):
+        # ffbapp keeps merged branches (claude/wave-4a-event-registry-825278):
+        # they are not a wave in flight.
+        self.p.git("checkout", "-q", "-b", "claude/wave-7a-alpha-abc123")
+        self.p.write_wave_docs("7A")
+        self.p.git("add", "-A")
+        self.p.git("commit", "-q", "-m", "wave 7A docs")
+        self.p.git("checkout", "-q", "main")
+        self.p.git("merge", "-q", "--no-ff", "-m", "Merge", "claude/wave-7a-alpha-abc123")
+        code, out, err = self.p.route("7A")
+        self.assertEqual(code, 0, err)
+        self.assertEqual(out["status"], "done")
+
+    def test_a_lookalike_worktree_is_not_the_wave(self):  # V2-08
+        # ffbapp: 6B's suffix is wave-6b-h1-harness, and the stale
+        # claude/wave-6b-h1-eval-55aa75 matched the old segment test.
+        stale = self.worktree("claude/wave-7a-h1-eval-55aa75", name="a-stale")
+        wt = self.worktree()
+        self.assertEqual(self.run_in(wt, "route", "--wave", "7A")[0], 0)
+        record = wt / ".bmad" / "wave-7A" / "wave.md"
+        for root in (self.p.root, stale, wt):
+            code, out, err = self.run_in(root, "route", "--wave", "7A")
+            self.assertEqual(code, 0, err)
+            self.assertEqual(Path(out["record"]).resolve(), record)
+        self.assertFalse((stale / ".bmad").exists())
+
+    def test_two_worktrees_on_the_suffix_are_refused_by_name(self):  # ruling (a)
+        one = self.worktree("wave-7a-alpha", name="one")
+        two = self.worktree("claude/wave-7a-alpha-def456", name="two")
+        code, out, err = self.p.route("7A")
+        self.assertEqual(code, 3, err)
+        self.assertEqual(out["error"], "ambiguous_worktree")
+        self.assertIn(str(one), err)
+        self.assertIn(str(two), err)
+        self.assertFalse(self.main_dir().exists())
+
+    def test_a_suffix_is_matched_whole(self):
+        # wave-7a-alpha must not take wave-7a-alphabet or a non-hash tail.
+        self.worktree("claude/wave-7a-alphabet", name="one")
+        self.worktree("claude/wave-7a-alpha-fix", name="two")
+        code, out, err = self.p.route("7A")
+        self.assertEqual(code, 0, err)
+        self.assertEqual(Path(out["record"]).resolve(), self.main_dir() / "wave.md")
+
+    def test_the_checkout_list_read_from_git_files_matches_git(self):
+        # checkouts() reads .git/worktrees/ itself, for the gate's speed.
+        sys.path.insert(0, str(SCRIPT.parent))
+        import wave_status
+        self.worktree()
+        self.worktree("claude/wave-7b-beta-abc123")
+        root = self.p.root.resolve()
+        self.p.git("worktree", "add", "-q", "--detach", str(root / ".claude" / "worktrees" / "det"))
+        gone = self.worktree("wave-8a-gamma", name="gone")
+        subprocess.run(["rm", "-rf", str(gone)], check=True)
+        out = subprocess.run(["git", "-C", str(root), "worktree", "list", "--porcelain"],
+                             capture_output=True, text=True, check=True).stdout
+        listed, path = [], None
+        for line in out.splitlines():
+            if line.startswith("worktree "):
+                path = Path(line[len("worktree "):]).resolve()
+                listed.append([path, None])
+            elif line.startswith("branch "):
+                listed[-1][1] = line[len("branch refs/heads/"):]
+        expected = sorted((p, b) for p, b in listed if p.is_dir())
+        self.assertEqual(len(expected), 4)
+        self.assertEqual(sorted(wave_status.checkouts(root)), expected)
+
+    def test_adopt_refuses_from_inside_the_worktree_it_precedes(self):  # V2-15
+        wt = self.worktree()
+        self.assertEqual(self.run_in(wt, "route", "--wave", "7A")[0], 0)
+        env = {k: v for k, v in os.environ.items() if k != "CLAUDE_PROJECT_DIR"}
+        args = ("adopt", "--wave", "7A", "--from", str(wt))
+        for cwd, extra in ((wt, {}),
+                           (self.p.root, {"CLAUDE_PROJECT_DIR": str(wt)})):
+            code, out, err = self.run_in(self.p.root, *args, cwd=cwd, env=dict(env, **extra))
+            self.assertEqual(code, 1, err)
+            self.assertEqual(out["error"], "inside_worktree")
+            self.assertIn(str(self.p.root.resolve()), err)
+            self.assertFalse(self.main_dir().exists())
+        code, out, err = self.run_in(self.p.root, *args, cwd=self.p.root, env=env)
+        self.assertEqual(code, 0, err)
+        self.assertIn("wave.md", out["adopted"])
 
 
 if __name__ == "__main__":
