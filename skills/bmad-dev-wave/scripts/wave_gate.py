@@ -63,11 +63,15 @@ Code lets a PreToolUse call through on any exit but 2, so an error in here, an
 event it cannot read, and a run past DEADLINE all exit 2 with the reason: a
 gate that cannot decide denies.
 
-Where it looks. The project root is the checkout holding .bmad/, found from
-the session's cwd through git's common directory, so a session rooted in a
-worktree reads the same .bmad/ as one rooted in the main checkout. A wave's
-evaluation records are read from its own worktree when it has them, since
-that is where step 8's hook writes them.
+Where it looks. wave_status.locate answers for every rule, as it does for
+wave_status.py and evaluate_wave.py: the project root is the main checkout,
+found from the session's cwd through git's common directory; a wave's
+worktree is the one checkout on its waves.md branch suffix, never the first
+lookalike (V2-08); its evaluation records are read from that worktree when
+it has them, since that is where step 8's hook writes them. When two
+checkouts are on the branch, the review rule refuses and the in-place rule
+guards both. SessionEnd and the in-place rule read every checkout's .bmad/,
+since a session rooted in the worktree keeps its state there (V2-07).
 
 How it reads Bash, and Monitor, which runs commands under the Bash rules: as
 the shell would, not as a substring. Here-document bodies are split off,
@@ -850,68 +854,44 @@ def run_git(start, *args):
     return p.stdout if p.returncode == 0 else None
 
 
-def main_checkout(start):
-    """The main working tree of the repository `start` is in, or None."""
-    out = run_git(start, "rev-parse", "--path-format=absolute", "--git-common-dir")
-    if not out:
-        return None
-    common = Path(out.strip())
-    return common.parent if common.name == ".git" else None
-
-
 def project_root(candidates):
-    """The checkout holding .bmad/, found from where the session is.
-
-    dev-wave keeps .bmad/ in the main checkout and builds in a worktree, so
-    the hook's own location and the session's cwd are both the wrong answer
-    half the time. git's common directory names the main checkout from any
-    worktree of it.
-    """
-    starts = [Path(c) for c in candidates if c and Path(c).is_dir()]
-    for s in starts:
-        main = main_checkout(s)
-        for d in ([main] if main else []) + [s, *s.parents]:
-            if (d / ".bmad").is_dir():
-                return Path(os.path.realpath(d))
-    for s in starts:
-        return Path(os.path.realpath(main_checkout(s) or s))
+    """The main checkout, found from where the session is: the first of the
+    candidates still on disk (a removed worktree is not), through git."""
+    for c in candidates:
+        if c and Path(c).is_dir():
+            return wave_status.state_root(Path(c))
     return Path(os.path.realpath(os.getcwd()))
 
 
-def wave_worktree(root, label):
-    """The checkout whose branch is this wave's, from `git worktree list`.
-
-    Real branch names carry tool prefixes and hashes
-    (claude/wave-5d-categories-exposure-ddd660), so the match is the wave
-    label as a path segment prefix, case-insensitively. The main checkout is
-    an entry too, so a wave built on the main checkout resolves to the root.
-    """
-    out = run_git(root, "worktree", "list", "--porcelain")
-    if out is None:
-        return None
-    needle = re.compile(rf"(?:^|/)wave-{re.escape(label.lower())}(?:-|$)")
-    path = None
-    for line in out.splitlines():
-        if line.startswith("worktree "):
-            path = line[len("worktree "):]
-        elif line.startswith("branch ") and path and needle.search(line[len("branch "):].lower()):
-            return Path(os.path.realpath(path))
-    return None
-
-
-def latest_verdict(root, label):
+def latest_verdict(root, label, where):
     """(verdict, path) of the newest evaluation record, or (None, None).
 
-    Step 8's hook records in the wave's worktree, so that is read first; the root is
-    where the records sit once the wave has merged.
+    Step 8's hook records in the wave's worktree, so that is read first; the
+    root is where the records sit once the wave has merged. With two
+    checkouts on the wave's branch, a NEEDS_WORK in either holds.
     """
-    wt = wave_worktree(root, label)
-    for base in ([wt] if wt and wt != root else []) + [root]:
+    found = []
+    for base in [c for c in where.candidates if c != root] + [root]:
         priors = evaluate_wave.prior_evaluations(base, label)
         if priors:
             latest = priors[-1]
-            return evaluate_wave.read_verdict(latest.read_text(encoding="utf-8", errors="ignore")), latest
-    return None, None
+            found.append((evaluate_wave.read_verdict(
+                latest.read_text(encoding="utf-8", errors="ignore")), latest))
+            if len(where.candidates) < 2:
+                break
+    return next((f for f in found if f[0] == evaluate_wave.NEEDS_WORK),
+                found[0] if found else (None, None))
+
+
+def wave_dirs(root, name):
+    """(checkout, .bmad/wave-<id>/ directory) for every wave directory holding
+    `name`, in every checkout: a session rooted in a wave's worktree keeps the
+    wave's state there."""
+    for checkout, _ in wave_status.checkouts(root):
+        bmad = checkout / ".bmad"
+        for d in (sorted(bmad.iterdir()) if bmad.is_dir() else []):
+            if d.is_dir() and d.name.lower().startswith("wave-") and (d / name).is_file():
+                yield checkout, d
 
 
 def shown(path, root):
@@ -940,9 +920,7 @@ def evaluation_records(root):
     """(path, path inside its checkout) of every docs/wave-<id>/evaluation-<n>.md
     on disk, in the main checkout and in each worktree, where step 8's hook
     writes them."""
-    out = run_git(root, "worktree", "list", "--porcelain") or ""
-    checkouts = {str(root)} | {os.path.realpath(line[len("worktree "):])
-                               for line in out.splitlines() if line.startswith("worktree ")}
+    checkouts = {str(root)} | {str(c) for c, _ in wave_status.checkouts(root)}
     found = []
     for c in sorted(checkouts):
         docs = Path(c) / "docs"
@@ -1107,7 +1085,15 @@ def review_rule(root, shell):
         label = wave_status.resolve_label(labels, wave) if labels else None
         if label is None:
             continue  # wave_status.py refuses this itself, exit 2
-        verdict, path = latest_verdict(root, label)
+        where = wave_status.locate(root, label)
+        if len(where.candidates) > 1:
+            raise Deny("review", [
+                f"{len(where.candidates)} checkouts are on wave {label}'s branch, so which",
+                "  one's evaluation opens the review stage is not guessed:"]
+                + [f"    {c}" for c in where.candidates] + [
+                "  Remove the stale worktree, or correct the wave's Branch suffix in",
+                "  waves.md."])
+        verdict, path = latest_verdict(root, label, where)
         if verdict == evaluate_wave.PASS:
             continue
         if path is None:
@@ -1191,41 +1177,39 @@ def rerolls(shell, label):
 
 
 def in_place_rule(root, tool, target, shell, session_id):
-    bmad = root / ".bmad"
-    if not session_id or not bmad.is_dir():
+    if not session_id:
         return
-    for d in sorted(bmad.iterdir()):
-        if not d.is_dir() or not d.name.lower().startswith("wave-"):
-            continue
-        sf = d / SESSION_FILE
-        if not sf.is_file() or sf.read_text(encoding="utf-8").strip() != session_id:
-            continue
+    seen = set()
+    for _, d in wave_dirs(root, SESSION_FILE):
         label = d.name[len("wave-"):]
-        verdict, path = latest_verdict(root, label)
+        if label.lower() in seen or \
+                (d / SESSION_FILE).read_text(encoding="utf-8").strip() != session_id:
+            continue
+        seen.add(label.lower())
+        where = wave_status.locate(root, label)
+        verdict, path = latest_verdict(root, label, where)
         if verdict != evaluate_wave.NEEDS_WORK:
             continue
-        wt = wave_worktree(root, label)
-        if wt is None:
-            continue
-        why = [
-            f"this session recorded NEEDS_WORK for wave {label} ({shown(path, root)}) and may not",
-            "  edit that wave's worktree afterwards. The context that built the wave",
-            "  is the context least able to judge whether a fix answered a finding.",
-            f"  Halt. The findings open the next session: /bmad-resume-wave {label}."]
-        # A wrap file is not wave work. ffbapp 5E: a session rooted in the
-        # worktree, refused the main checkout by the desktop app's isolation,
-        # had nowhere else to put its triage file. File tools only, so the
-        # exemption carries no command that also writes somewhere else.
-        if target is not None and _inside(target, str(wt / WRAP_DIR)):
-            continue
-        if target is not None and _inside(target, str(wt)):
-            raise Deny("in-place", [f"{tool} to {target}:"] + why)
-        if shell is not None and shell.writes_into(str(wt)):
-            raise Deny("in-place", ["this command writes into the wave's worktree:"] + why)
-        if shell is not None and rerolls(shell, label):
-            raise Deny("in-place", [
-                "this command runs evaluate_wave.py dispatch or verify for the wave, which",
-                "  would put this session's own fix in front of a new evaluator:"] + why)
+        for wt in where.candidates:
+            why = [
+                f"this session recorded NEEDS_WORK for wave {label} ({shown(path, root)}) and may not",
+                "  edit that wave's worktree afterwards. The context that built the wave",
+                "  is the context least able to judge whether a fix answered a finding.",
+                f"  Halt. The findings open the next session: /bmad-resume-wave {label}."]
+            # A wrap file is not wave work. ffbapp 5E: a session rooted in the
+            # worktree, refused the main checkout by the desktop app's isolation,
+            # had nowhere else to put its triage file. File tools only, so the
+            # exemption carries no command that also writes somewhere else.
+            if target is not None and _inside(target, str(wt / WRAP_DIR)):
+                continue
+            if target is not None and _inside(target, str(wt)):
+                raise Deny("in-place", [f"{tool} to {target}:"] + why)
+            if shell is not None and shell.writes_into(str(wt)):
+                raise Deny("in-place", ["this command writes into the wave's worktree:"] + why)
+            if shell is not None and rerolls(shell, label):
+                raise Deny("in-place", [
+                    "this command runs evaluate_wave.py dispatch or verify for the wave, which",
+                    "  would put this session's own fix in front of a new evaluator:"] + why)
 
 
 # ------------------------------------------------------------------- events
@@ -1266,18 +1250,13 @@ def session_end(root, event):
     """
     if event.get("reason") == "resume":
         return 0
-    bmad = root / ".bmad"
-    if not bmad.is_dir():
-        return 0
     session_id = event.get("session_id", "?")
     labels = wave_status.wave_map_labels(root) or []
-    for d in sorted(bmad.iterdir()):
-        if not d.is_dir() or not (d / PENDING_MARKER).is_file():
-            continue
+    for checkout, d in list(wave_dirs(root, PENDING_MARKER)):
         wanted = d.name[len("wave-"):]
         label = wave_status.resolve_label(labels, wanted) or wanted
         code, result, lines = wave_status.set_status(
-            root, label, wave_status.BLOCKED,
+            root, label, wave_status.BLOCKED, base=checkout,
             reason=f"session {session_id} ended with step 4.5's open question unanswered "
                    f"({d.name}/{PENDING_MARKER} present)")
         print(f"wave-gate session-end: wave {label}: exit {code}")

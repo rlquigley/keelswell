@@ -885,5 +885,73 @@ class TestOpeningPrompt(Base):
         self.assertIn("do not guess", err)
 
 
+class TestOneStateRoot(Base):
+    """V2-07 c of the harness review v2: the findings in a wave's worktree
+    reach a session rooted in main, and dispatch keeps its markers with the
+    rest of the wave's state."""
+
+    def worktree(self, p, branch="claude/wave-5d-delta-abc123"):
+        wt = p.root / ".claude" / "worktrees" / "wave-5d"
+        git(p.root, "worktree", "add", "-q", "-b", branch, str(wt))
+        return wt
+
+    def run_in(self, root, *args, session="s1"):
+        env = dict(os.environ, CLAUDE_CODE_SESSION_ID=session)
+        r = subprocess.run([sys.executable, str(SCRIPT), *args, "--project-root", str(root)],
+                           capture_output=True, text=True, env=env)
+        return r.returncode, (json.loads(r.stdout) if r.stdout.strip() else {}), r.stderr
+
+    def test_main_reads_the_worktrees_needs_work(self):  # V2-07 c
+        p = self.project()
+        wt = self.worktree(p)
+        d = wt / "docs" / "wave-5d"
+        d.mkdir(parents=True)
+        (d / "evaluation-1.md").write_text(NEEDS_WORK_REPORT)
+        code, out, err = p.run("opening-prompt", "--wave", "5D")
+        self.assertEqual(code, 1, err)
+        self.assertIn("AC-3 has no assertion", out["prompt"])
+        self.assertEqual(out["latest"], "docs/wave-5d/evaluation-1.md")
+        code, out, err = p.run("verdict", "--wave", "5D")
+        self.assertEqual(code, 1, err)
+        self.assertEqual(out["verdict"], "NEEDS_WORK")
+
+    def test_two_worktrees_on_the_branch_are_refused(self):
+        p = self.project()
+        self.worktree(p)
+        other = p.root / ".claude" / "worktrees" / "other"
+        git(p.root, "worktree", "add", "-q", "-b", "wave-5d-delta", str(other))
+        (other / "docs" / "wave-5d").mkdir(parents=True)
+        (other / "docs" / "wave-5d" / "evaluation-1.md").write_text(NEEDS_WORK_REPORT)
+        for verb in ("opening-prompt", "verdict", "dispatch"):
+            code, out, err = p.run(verb, "--wave", "5D")
+            self.assertEqual(code, 3, f"{verb}: {err}")
+            self.assertEqual(out["error"], "ambiguous_worktree", verb)
+
+    def test_a_dispatch_in_the_worktree_keeps_its_markers_there(self):
+        p = self.project()
+        wt = self.worktree(p)
+        (wt / "tests").mkdir()
+        (wt / "tests" / "verify-fast.sh").write_text("echo 12 passed\n")
+        (wt / "docs" / "wave-5d").mkdir(parents=True)
+        (wt / "docs" / "wave-5d" / "test-design.md").write_text("# Test design\n")
+        git(wt, "add", "-A")
+        git(wt, "commit", "-q", "-m", "tests")
+        for verb in ("verify", "dispatch"):
+            code, _, err = self.run_in(wt, verb, "--wave", "5D")
+            self.assertEqual(code, 0, err)
+        state = wt / ".bmad" / "wave-5D"
+        self.assertTrue((state / "evaluation-pending").is_file())
+        self.assertFalse((p.root / ".bmad").exists())
+        code, out, err = p.run("verdict", "--wave", "5D")  # from main: still pending
+        self.assertEqual(code, 3, err)
+        self.assertEqual(out["pending_pass"], 1)
+        code, _, err = p.stop(PASS_REPORT)  # the event's cwd is the main checkout
+        self.assertEqual(code, 0, err)
+        self.assertTrue((wt / "docs" / "wave-5d" / "evaluation-1.md").is_file())
+        self.assertEqual((state / "evaluation-session").read_text(), "s1\n")
+        self.assertFalse((state / "evaluation-pending").exists())
+        self.assertFalse((p.root / ".bmad").exists())
+
+
 if __name__ == "__main__":
     unittest.main()

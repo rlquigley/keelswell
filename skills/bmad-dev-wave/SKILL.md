@@ -19,13 +19,15 @@ allowed-tools:
   - Bash
   - Task
 metadata:
-  version: 1.20.0
+  version: 1.21.0
   output-locations:
     - ../<project>-wave-<id>/                 # sibling worktree, branch wave-<id>-<suffix>
-    - .bmad/wave-<id>/checkpoint.json         # plus step-N.done markers (main repo)
-    - .bmad/wave-<id>/wave.md                 # lifecycle status record (main repo)
-      # both: the worktree's own .bmad/ when the session is rooted there;
-      # bmad-merge-wave adopts it into the main repo before removal
+    - .bmad/wave-<id>/checkpoint.json         # plus step-N.done markers
+    - .bmad/wave-<id>/wave.md                 # lifecycle status record
+      # both: in the directory of the record path route prints, the wave
+      # worktree's own .bmad/ when it has one, else the main repo's (a new
+      # wave starts where the session is rooted); bmad-merge-wave adopts a
+      # worktree's into the main repo before removal
     - <worktree>/docs/wave-<id>/test-design.md
     - <worktree>/docs/wave-<id>/verify-output.txt   # stamped by evaluate_wave.py verify, step 7
     - <worktree>/docs/wave-<id>/wave-diff.patch     # written by evaluate_wave.py dispatch, step 8
@@ -61,8 +63,11 @@ merge. It never merges.
 - GitHub remote: from `git remote get-url origin`.
 
 ## The Twelve-Step Workflow
-Each step writes a checkpoint marker under .bmad/wave-<id>/; any step can be
-re-entered by /bmad-resume-wave.
+Each step writes a checkpoint marker in the wave's state directory, the one
+holding the `record` path step 1's `route` prints: `.bmad/wave-<id>/` in the
+wave's worktree when it has one, else the main checkout's; a wave with
+neither starts in the checkout the session is rooted in. Never both. Any step can be re-entered by
+/bmad-resume-wave.
 1.  Preflight: the status gate below decides whether this wave may be
     dispatched at all and at which step to re-enter; then clean tree, wave
     exists in waves.md, gh authenticated, and no earlier epic is
@@ -179,7 +184,9 @@ wave and the remedy. There is no flag and no override.
   1  the wave is blocked
   2  structural: no wave map, or the wave is not in it
   3  the record exists and cannot be read, names a key twice, or has a
-     missing or unrecognized status
+     missing or unrecognized status; or the wave's state cannot be placed:
+     two checkouts are on its branch, or the main checkout's copy of its
+     directory disagrees with the worktree's
 
 The six statuses and the step each re-enters at:
 
@@ -456,8 +463,10 @@ What the PreToolUse hook denies, reading only what is on disk:
   worktree, so /bmad-wrap can still write its triage report.
 
 Paths match without regard to case, as the filesystem and the record reader
-do. The hook finds `.bmad/` in the main checkout and a wave's evaluation
-records in its worktree, whichever of the two the session is rooted in.
+do. The hook finds the wave's state, its worktree and its evaluation records
+the way `wave_status.py` does, whichever checkout the session is rooted in.
+The worktree is the one on the waves.md branch suffix, never a lookalike;
+with two on it, the review rule refuses and the in-place rule guards both.
 
 A denial arrives as the hook's stderr, naming the rule and the remedy. Do not
 route around it. Bash is parsed the way the shell reads it, not searched as
@@ -754,6 +763,15 @@ there is nothing to block.
   names. Do not retry the same write through a different tool.
 
 ## Version history
+- 1.21.0 (2026-10-25, harness review v2 PR 4: V2-07, V2-08, V2-31): one
+  answer to where a wave's state lives, `wave_status.locate`, read by every
+  script. A session rooted in the worktree and one rooted in main read and
+  write the same record, markers beside it; route and set exit 3 when two
+  copies disagree or two worktrees match. The worktree is matched on the
+  waves.md suffix, whole, with an optional harness hash. SessionEnd blocks a
+  pending question in any checkout. route no longer infers done while the
+  wave's worktree or an unmerged branch of it exists. Step 1's marker
+  location is the record's directory; no step changed otherwise.
 - 1.20.0 (2026-10-23, harness review v2 PR 2: V2-03, V2-04, V2-20, V2-09 a
   and b, V2-02's cheap fix): the gate's verdict rule denies a record copied,
   moved, linked or unpacked into a wave's directory, and a removal, `git
