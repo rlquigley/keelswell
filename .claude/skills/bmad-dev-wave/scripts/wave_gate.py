@@ -23,15 +23,23 @@ Six rules, each read off disk and none of them a judgement:
             rather than by the closing agent at a step it may skip.
   verdict   docs/wave-<id>/evaluation-<n>.md is written by the evaluator
             hook and by nothing else. A verdict typed by the agent whose
-            work it grades is not a verdict.
+            work it grades is not a verdict, and neither is one copied, moved,
+            linked or unpacked into the wave's directory from elsewhere. The
+            records stay there until main holds them: a removal that reaches
+            one, or git clean or an untracked stash that would sweep one,
+            would reset the pass count and hide the findings (V2-03). Once a
+            wave has merged, cleanup is ordinary again.
   record    `evaluate_wave.py record` is the evaluator hook's entry point and
-            is denied to Bash and Monitor. The hook hands it the subagent's
-            own report; a session that could call it would be handing it
-            whatever text it liked (R3 of the review).
+            is denied to Bash and Monitor, and so is running the hook's own
+            wrapper, .claude/hooks/wave-evaluator-record.sh. The hook hands it
+            the subagent's own report; a session that could call it would be
+            handing it whatever text it liked (R3 of the review, V2-04).
   lifecycle .bmad/wave-<id>/wave.md is written by wave_status.py and by
             nothing else. A status edited by hand skips every refusal the
             script makes, and blocked is sticky only if the session it blocks
-            cannot edit, move or delete the record.
+            cannot edit, move or delete the record. The evaluator's two
+            markers beside it, evaluation-session and evaluation-pending, are
+            guarded the same way: the first is the in-place rule's only state.
   review    wave_status.py set to a status whose stage is review (in-review,
             done) is denied for a wave whose latest evaluation on disk is not
             PASS. There is no way into the review stage except through the
@@ -42,8 +50,10 @@ Six rules, each read off disk and none of them a judgement:
             prompt, and the session that built the wave is the one least able
             to judge whether a fix answered them. The evaluator hook notes
             the session whose evaluator it recorded, and that session is
-            held to it until a later session's evaluator is recorded. One
-            path is exempt, to the file tools only:
+            held to it until a later session's evaluator is recorded, and
+            may not run evaluate_wave.py dispatch or verify for the wave
+            either: re-rolling the evaluator until it says PASS is a judgement
+            of its own fix (V2-02). One path is exempt, to the file tools only:
             _bmad-output/session-wrap/ in that worktree, where /bmad-wrap
             writes its triage file. A wrap is not wave work, and a session
             rooted in the worktree may have nowhere else to write.
@@ -85,6 +95,8 @@ import shlex
 import signal
 import subprocess
 import sys
+import tarfile
+import zipfile
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -110,8 +122,19 @@ GIT_TIMEOUT = 10
 CLOSURE_PATH = re.compile(r"_bmad-output/epic-closure/epic-(\d+)(?=/|$|\s|['\"])", re.I)
 EVALUATION_FILE = re.compile(r"(?:^|/)docs/wave-[^/]+/evaluation-\d+\.md$", re.I)
 EVALUATION_NAMED = re.compile(r"docs/wave-[^/\s'\"]+/evaluation-\d+\.md", re.I)
-LIFECYCLE_FILE = re.compile(r"(?:^|/)\.bmad/wave-[^/]+/wave\.md$", re.I)
-LIFECYCLE_NAMED = re.compile(r"\.bmad/wave-[^/\s'\"]+/wave\.md", re.I)
+# Where a record arrives: a wave's directory, or docs/ above it.
+EVALUATION_DIR = re.compile(r"(?:^|/)docs/wave-[^/]+$", re.I)
+DOCS_DIR = re.compile(r"(?:^|/)docs$", re.I)
+UNDER_DOCS = re.compile(r"(?:^|/)docs(?:/|$)", re.I)
+# Everything that puts a source at a target path. A link counts: through it,
+# the reader finds whatever it points at.
+VERDICT_COPIERS = {"cp", "rsync", "install", "mv", "ln", "ditto", "scp"}
+# The record and the evaluator's markers beside it.
+LIFECYCLE_NAMES = ("wave.md", "evaluation-session", "evaluation-pending")
+LIFECYCLE_FILE = re.compile(
+    r"(?:^|/)\.bmad/wave-[^/]+/(?:wave\.md|evaluation-session|evaluation-pending)$", re.I)
+LIFECYCLE_NAMED = re.compile(
+    r"\.bmad/wave-[^/\s'\"]+/(?:wave\.md|evaluation-session|evaluation-pending)", re.I)
 # .bmad/ itself, or one wave's directory: removing either removes the record.
 LIFECYCLE_DIR = re.compile(r"(?:^|/)\.bmad(?:/wave-[^/]+)?$", re.I)
 # Copiers whose last operand is where the copy lands: a directory there
@@ -125,6 +148,11 @@ SET_WORD = re.compile(r"(?<![\w-])(?:set_status|set(?![\w(-]))")
 EVALUATE_WAVE_NAMED = re.compile(r"evaluate_wave", re.I)
 # The verb as a word, or the function behind it. Not `record_to` or `recorded`.
 RECORD_WORD = re.compile(r"(?<![\w-])record(?![\w-])")
+# The record hook's wrapper, which runs `record` with whatever is on its stdin.
+RECORD_WRAPPER = re.compile(r"wave-evaluator-record\.sh", re.I)
+# The verbs that put a wave in front of the evaluator again.
+REROLL_VERBS = ("dispatch", "verify")
+REROLL_WORD = re.compile(r"(?<![\w-])(?:dispatch|verify)(?![\w-])")
 # Every status whose stage is review: in-review and done (V2-01).
 REVIEW_STATUSES = {s for s, (stage, _) in wave_status.STAGES.items() if stage == "review"}
 
@@ -175,6 +203,8 @@ REMOVERS = {"rm", "rmdir", "unlink", "shred", "mv"}
 GIT_WRITES = {"add", "am", "apply", "checkout", "cherry-pick", "clean", "commit", "merge",
               "mv", "pull", "rebase", "reset", "restore", "revert", "rm", "stash", "switch"}
 GIT_PATH_WRITES = {"checkout", "restore", "rm", "mv"}
+# What a find's -name could be pointed at to take a record with it.
+FIND_TARGETS = ("evaluation-1.md", "wave-1a", "docs")
 NESTING = 4
 
 
@@ -273,7 +303,40 @@ def _paths(token, cwd):
 
 
 def _inside(path, directory):
+    # Casefolded, as APFS compares names: WAVE-7A-FIX/ is the worktree (V2-09).
+    path, directory = path.casefold(), directory.casefold()
     return path == directory or path.startswith(directory.rstrip(os.sep) + os.sep)
+
+
+def _find_removes(args):
+    """Does a find command line delete, and could what it matches be a record?"""
+    deletes = "-delete" in args or any(
+        a in ("-exec", "-execdir", "-ok", "-okdir") and j + 1 < len(args)
+        and _base(args[j + 1]) in REMOVERS for j, a in enumerate(args))
+    if not deletes:
+        return False
+    if any(a in ("!", "-not", "-path", "-ipath", "-wholename", "-regex", "-iregex") for a in args):
+        return True  # a negation or a path pattern: not read, so assumed to match
+    patterns = [args[j + 1].lower() for j, a in enumerate(args[:-1]) if a in ("-name", "-iname")]
+    return not patterns or any(fnmatch.fnmatchcase(n, p) for p in patterns for n in FIND_TARGETS)
+
+
+def _stashes_untracked(argv):
+    return any(a in ("--include-untracked", "--all")
+               or (a.startswith("-") and not a.startswith("--") and set(a[1:]) & set("ua"))
+               for a in argv[1:])
+
+
+def _members(archive):
+    """The member names of a tar or zip archive on disk, or None if it cannot be read."""
+    try:
+        if zipfile.is_zipfile(archive):
+            with zipfile.ZipFile(archive) as z:
+                return z.namelist()
+        with tarfile.open(archive) as t:
+            return t.getnames()
+    except (OSError, EOFError, tarfile.TarError, zipfile.BadZipFile):
+        return None
 
 
 def _substitutions(word):
@@ -517,28 +580,151 @@ class Shell:
                 return a, d, [x for x in argv[j + 1:] if not x.startswith("-")]
         return None
 
-    def copies_into(self, dir_re, name):
+    def copies_into(self, dir_re, names, copiers=LIFECYCLE_COPIERS, parent_re=None):
         """Does the command copy into a directory `dir_re` matches a source that
-        names `name`, or one it cannot rule out carrying it: a glob that could
-        match it, a variable, a directory, or any source under a recursive flag?"""
+        names one of `names` (each may be a glob), or one it cannot rule out carrying one: a glob that
+        could match it, a variable, a directory, any source under a recursive
+        flag, or a link? With `parent_re`, a copy into the directory above counts
+        when a source could carry a record there: a directory on disk that
+        holds one, or a source the gate cannot look inside (a variable, a path
+        not there yet, a link). A glob is expanded as the shell would."""
         for sc in self.cmds:
-            if sc.name not in LIFECYCLE_COPIERS:
+            if sc.name not in copiers:
                 continue
             args = sc.argv[1:]
             operands = [a for a in args if not a.startswith("-")]
-            if not operands or not any(
-                    dir_re.search(p) for p in _paths(_expand(operands[-1], self.env), sc.cwd)):
+            if not operands:
                 continue
-            if any(a in ("--recursive", "--archive")
-                   or (a.startswith("-") and not a.startswith("--") and set(a[1:]) & set("rRa"))
-                   for a in args):
+            targets = _paths(_expand(operands[-1], self.env), sc.cwd)
+            if parent_re is not None and any(parent_re.search(p) for p in targets):
+                for t in operands[:-1]:
+                    if "$" in t:
+                        return True  # what it names cannot be looked at
+                    if sc.name == "ln":
+                        # A link stays live: what it points at can fill later.
+                        landed = _base(t)
+                        if not landed or dir_re.search(targets[0] + "/" + landed):
+                            return True
+                        continue
+                    for q in _paths(t, sc.cwd):
+                        if not os.path.exists(q) or (os.path.isdir(q) and _holds_record(q)):
+                            return True
+            if not any(dir_re.search(p) for p in targets):
+                continue
+            if sc.name == "ln" or any(
+                    a in ("--recursive", "--archive")
+                    or (a.startswith("-") and not a.startswith("--") and set(a[1:]) & set("rRa"))
+                    for a in args):
                 return True
             for t in operands[:-1]:
-                if "$" in t or fnmatch.fnmatchcase(name, _base(t)):
+                if "$" in t or any(fnmatch.fnmatchcase(n, _base(t))
+                                   or fnmatch.fnmatchcase(_base(t), n) for n in names):
                     return True
                 if any(os.path.isdir(p) for p in _paths(t, sc.cwd)):
                     return True
         return False
+
+    def unpacks(self, sc):
+        """(archive, directory) when `sc` extracts a tar or zip archive: the
+        archive's path, or None when it is stdin or cannot be named, and the
+        directory its members land under."""
+        args = sc.argv[1:]
+        archive = directory = None
+        if sc.name in ("tar", "bsdtar", "gtar"):
+            if args and not args[0].startswith("-"):
+                args = ["-" + args[0]] + args[1:]  # the old form: tar xzf a.tgz
+            extract, j = False, 0
+            while j < len(args):
+                a = args[j]
+                if a in ("--extract", "--get"):
+                    extract = True
+                elif a.startswith("--file="):
+                    archive = a.split("=", 1)[1]
+                elif a.startswith("--directory="):
+                    directory = a.split("=", 1)[1]
+                elif a in ("--file", "--directory", "-C") and j + 1 < len(args):
+                    if a == "--file":
+                        archive = args[j + 1]
+                    else:
+                        directory = args[j + 1]
+                    j += 1
+                elif a.startswith("-") and not a.startswith("--"):
+                    extract |= "x" in a
+                    if "f" in a:
+                        rest = a[a.index("f") + 1:]
+                        if not rest and j + 1 < len(args):
+                            rest = args[j + 1]
+                            j += 1
+                        archive = rest
+                j += 1
+            if not extract:
+                return None
+        elif sc.name == "unzip":
+            j = 0
+            while j < len(args):
+                if args[j] == "-d" and j + 1 < len(args):
+                    directory = args[j + 1]
+                    j += 2
+                    continue
+                if not args[j].startswith("-") and archive is None:
+                    archive = args[j]
+                j += 1
+        else:
+            return None
+        archive = None if archive in (None, "-") else _paths(_expand(archive, self.env), sc.cwd)[0]
+        where = _paths(_expand(directory, self.env), sc.cwd)[0] if directory else sc.cwd
+        return archive, where
+
+    def removed(self, sc):
+        """Paths `sc` deletes or moves away, directories included: rm and its
+        kin, mv's sources, and the starting points of a find that deletes."""
+        args = sc.argv[1:]
+        operands = [a for a in args if not a.startswith("-")]
+        if sc.name == "find":
+            if not _find_removes(args):
+                return []
+            tokens = []
+            for a in args:
+                if a.startswith("-") or a in ("(", "!"):
+                    break
+                tokens.append(a)
+            tokens = tokens or ["."]
+        elif sc.name == "mv":
+            tokens = operands[:-1]
+        elif sc.name in REMOVERS:
+            tokens = operands
+        else:
+            return []
+        return [p for t in tokens for p in _paths(_expand(t, self.env), sc.cwd)]
+
+    def fed(self, sc):
+        """Text `sc` hands to something that runs it, which the parse does not
+        read as a command: interpreter code, the operands and stdin of a shell,
+        eval, source or xargs, and whatever it prints into a pipe ending in one."""
+        given = [_expand(w, self.env) for w in sc.argv]
+        given += [sc.stdin] if sc.stdin is not None else []
+        texts = list(self.code(sc))
+        if sc.name in EXECUTORS:
+            texts += given[1:]
+        nxt = sc.piped_to
+        while nxt is not None:
+            if nxt.name in EXECUTORS or PYTHON.match(nxt.name):
+                texts += given
+                break
+            nxt = nxt.piped_to
+        return texts
+
+    def runs(self, file_re):
+        """Does the command run a file `file_re` matches: as the program, or in
+        text fed to something that runs it? Unparseable, naming it is enough."""
+        if self.error is not None:
+            return bool(file_re.search(self.raw))
+        for sc in self.cmds:
+            if sc.argv and file_re.search(_expand(sc.argv[0], self.env)):
+                return True
+            if any(file_re.search(t) for t in self.fed(sc)):
+                return True
+        return any(file_re.search(t) for t in self.stray)
 
     def writes(self, file_re, named_re, removed_re=None):
         """Does the command write a path `file_re` matches, or name one
@@ -557,7 +743,7 @@ class Shell:
 
     def writes_into(self, directory):
         if self.error is not None:
-            return directory in self.raw
+            return directory.casefold() in self.raw.casefold()
         for sc in self.cmds:
             if any(_inside(p, directory) for p in self.write_paths(sc)):
                 return True
@@ -567,7 +753,8 @@ class Shell:
             if sc.name == "patch" and _inside(sc.cwd, directory):
                 return True
             texts = self.code(sc)
-            if texts and (_inside(sc.cwd, directory) or any(directory in t for t in texts)):
+            if texts and (_inside(sc.cwd, directory)
+                          or any(directory.casefold() in t.casefold() for t in texts)):
                 return True
         return False
 
@@ -591,7 +778,8 @@ class Shell:
         `python3 path/<stem>.py ...`, `path/<stem>.py ...` or `python3 -m <stem>`.
         Options read the way argparse reads these scripts' own: `--name value`
         or `--name=value`, the last one winning; the verb is the first bare
-        word."""
+        word, and a bare `--` is skipped, since argparse takes the word after
+        it as the verb (V2-20)."""
         argv, target = sc.argv, stem + ".py"
         if not argv:
             return None
@@ -625,6 +813,8 @@ class Shell:
                     value = rest[j + 1]
                     j += 1
                 opts[key] = value
+            elif a == "--":
+                pass
             elif verb is None:
                 verb = a
             j += 1
@@ -735,6 +925,92 @@ def session_file(root, label):
     return wave_status.wave_dir(root, label) / SESSION_FILE
 
 
+def _holds_record(directory, limit=20000):
+    """Does a directory on disk hold an evaluation-<n>.md anywhere under it?
+    Past `limit` entries the gate stops looking and answers yes."""
+    seen = 0
+    for _, dirs, files in os.walk(directory):
+        seen += len(dirs) + len(files)
+        if seen > limit or any(evaluate_wave.EVALUATION_FILE.match(f) for f in files):
+            return True
+    return False
+
+
+def evaluation_records(root):
+    """(path, path inside its checkout) of every docs/wave-<id>/evaluation-<n>.md
+    on disk, in the main checkout and in each worktree, where step 8's hook
+    writes them."""
+    out = run_git(root, "worktree", "list", "--porcelain") or ""
+    checkouts = {str(root)} | {os.path.realpath(line[len("worktree "):])
+                               for line in out.splitlines() if line.startswith("worktree ")}
+    found = []
+    for c in sorted(checkouts):
+        docs = Path(c) / "docs"
+        for d in (sorted(docs.iterdir()) if docs.is_dir() else []):
+            if d.is_dir() and d.name.lower().startswith("wave-"):
+                found += [(os.path.realpath(f), f"docs/{d.name}/{f.name}")
+                          for f in sorted(d.iterdir())
+                          if evaluate_wave.EVALUATION_FILE.match(f.name)]
+    return found
+
+
+def on_main(root, records):
+    """The records whose path and bytes main already holds. Once a wave has
+    merged, git can bring its records back and nothing is lost with a copy."""
+    if not records:
+        return set()
+    ref = next((r for r in ("main", "origin/main")
+                if run_git(root, "rev-parse", "--verify", "-q", r + "^{commit}")), None)
+    if ref is None:
+        return set()
+    tree = {}
+    for line in (run_git(root, "ls-tree", "-r", ref, "--", "docs") or "").splitlines():
+        meta, _, path = line.partition("\t")
+        tree[path.casefold()] = meta.split()[-1]
+    blobs = (run_git(root, "hash-object", "--", *[p for p, _ in records]) or "").split()
+    return {p for (p, rel), blob in zip(records, blobs) if tree.get(rel.casefold()) == blob}
+
+
+def removed_records(root, shell):
+    """The records not yet on main that a command deletes or moves away, or
+    that git clean or a stash taking untracked files would sweep."""
+    paths = [p for sc in shell.cmds for p in shell.removed(sc)]
+    swept = []
+    for sc in shell.cmds:
+        git = shell.git(sc)
+        if git and (git[0] == "clean" or (git[0] == "stash" and _stashes_untracked(sc.argv))):
+            top = run_git(git[1], "rev-parse", "--show-toplevel")
+            swept.append(os.path.realpath(top.strip()) if top else git[1])
+    if not paths and not swept:
+        return []
+    records = evaluation_records(root)
+    reached = [r for r in records if any(_inside(r[0], p) for p in paths)]
+    for top in swept:
+        out = run_git(top, "ls-files", "--others", "-z", "--", "docs") or ""
+        untracked = {os.path.realpath(os.path.join(top, n)).casefold()
+                     for n in out.split("\0") if n}
+        reached += [r for r in records if r[0].casefold() in untracked and r not in reached]
+    merged = on_main(root, reached)
+    return [p for p, _ in reached if p not in merged]
+
+
+def unpacks_record(shell):
+    """Does the command unpack an archive that holds a record into place, or one
+    it cannot read into docs/?"""
+    for sc in shell.cmds:
+        unpack = shell.unpacks(sc)
+        if unpack is None:
+            continue
+        archive, where = unpack
+        members = _members(archive) if archive else None
+        if members is None:
+            if UNDER_DOCS.search(where):
+                return True
+        elif any(EVALUATION_FILE.search(os.path.normpath(os.path.join(where, m))) for m in members):
+            return True
+    return False
+
+
 # -------------------------------------------------------------------- rules
 
 def closure_rule(root, text):
@@ -754,29 +1030,47 @@ def closure_rule(root, text):
                 + ["  The gate has no flag and no override; the remedy is in its output."])
 
 
-def verdict_rule(target, shell):
+def verdict_rule(root, target, shell):
     why = ["  Only the evaluator hook writes those, from the subagent's own report.",
            "  A verdict written by the agent whose work it grades is not one."]
     if target is not None and EVALUATION_FILE.search(target):
         raise Deny("verdict", [f"{target} is an evaluation record."] + why)
-    if shell is not None and shell.writes(EVALUATION_FILE, EVALUATION_NAMED):
+    if shell is None:
+        return
+    if shell.writes(EVALUATION_FILE, EVALUATION_NAMED):
         raise Deny("verdict", [
             "This command writes into a docs/wave-<id>/evaluation-<n>.md record, or names",
             "  one where the gate cannot tell whether it is written."] + why)
+    if shell.copies_into(EVALUATION_DIR, ("evaluation-*.md",), VERDICT_COPIERS, DOCS_DIR) \
+            or unpacks_record(shell):
+        raise Deny("verdict", [
+            "This command copies, moves, links or unpacks into a docs/wave-<id>/ directory",
+            "  something that could carry an evaluation record: one named evaluation-<n>.md,",
+            "  a glob, a variable, a directory, or an archive holding one."] + why)
+    gone = removed_records(root, shell)
+    if gone:
+        raise Deny("verdict", [
+            f"This command would delete, move away or sweep {len(gone)} evaluation record(s)",
+            f"  that main does not hold yet, {shown(Path(gone[0]), root)} first.",
+            "  The records are the wave's history: the next pass is numbered from them",
+            "  and the next session's opening prompt reads them. Leave them in place;",
+            "  once the wave has merged, they are on main and may go."])
 
 
 def lifecycle_rule(target, shell):
-    why = ["  Only wave_status.py writes it: change a status with `wave_status.py set`.",
+    why = ["  Only wave_status.py writes wave.md: change a status with `wave_status.py set`.",
+           "  Only evaluate_wave.py writes the evaluator's markers beside it.",
            "  A blocked wave is cleared by a human, editing or deleting the record",
            "  outside this session; the session it blocks may not."]
     if target is not None and LIFECYCLE_FILE.search(target):
-        raise Deny("lifecycle", [f"{target} is a wave's lifecycle record."] + why)
+        raise Deny("lifecycle", [f"{target} is a wave's lifecycle record or marker."] + why)
     if shell is not None and (shell.writes(LIFECYCLE_FILE, LIFECYCLE_NAMED, LIFECYCLE_DIR)
-                              or shell.copies_into(LIFECYCLE_DIR, "wave.md")):
+                              or shell.copies_into(LIFECYCLE_DIR, LIFECYCLE_NAMES)):
         raise Deny("lifecycle", [
-            "This command writes, moves or deletes a .bmad/wave-<id>/wave.md record, names",
-            "  one where the gate cannot tell whether it is written, or copies into its",
-            "  directory a source that could carry one (wave.md, a glob, a directory)."] + why)
+            "This command writes, moves or deletes a .bmad/wave-<id>/ record or marker",
+            "  (wave.md, evaluation-session, evaluation-pending), names one where the gate",
+            "  cannot tell whether it is written, or copies into its directory a source",
+            "  that could carry one (one of those names, a glob, a directory)."] + why)
 
 
 def review_rule(root, shell):
@@ -831,7 +1125,7 @@ def review_rule(root, shell):
 
 
 def record_rule(shell):
-    if shell is None or not shell.names(EVALUATE_WAVE_NAMED):
+    if shell is None:
         return
     why = ["  `record` is the evaluator hook's entry point. The hook hands it the",
            "  subagent's own report and writes docs/wave-<id>/evaluation-<n>.md; no",
@@ -839,6 +1133,12 @@ def record_rule(shell):
            "  what the hook wrote:",
            "    python3 <skill-root>/scripts/evaluate_wave.py verdict \\",
            "        --project-root <root> --wave <id>"]
+    if shell.names(RECORD_WRAPPER) and shell.runs(RECORD_WRAPPER):
+        raise Deny("record", [
+            "this command runs .claude/hooks/wave-evaluator-record.sh, the hook's wrapper",
+            "  around `evaluate_wave.py record`, with whatever it is fed."] + why)
+    if not shell.names(EVALUATE_WAVE_NAMED):
+        return
     if shell.error is not None:
         if RECORD_WORD.search(shell.raw):
             raise Deny("record", [
@@ -860,6 +1160,34 @@ def record_rule(shell):
                 "  from a variable or a substitution."] + why)
         if call[0] == "record":
             raise Deny("record", ["this command calls evaluate_wave.py record."] + why)
+
+
+def rerolls(shell, label):
+    """Does the command run evaluate_wave.py dispatch or verify for wave `label`?
+    Read as a call where it can be; otherwise any text that reaches something
+    that runs it, or a program held in a variable. Text only printed or kept,
+    a commit message say, is not a run."""
+    if not shell.names(EVALUATE_WAVE_NAMED):
+        return False
+    if shell.error is not None:
+        return bool(REROLL_WORD.search(shell.raw))
+
+    def names_one(t):
+        return EVALUATE_WAVE_NAMED.search(t) and REROLL_WORD.search(t)
+
+    for sc in shell.cmds:
+        call = shell.call(sc, "evaluate_wave")
+        if call is not None:
+            wave = call[1].get("--wave")
+            if call[0] in REROLL_VERBS and (not wave or wave.lower() == label.lower()):
+                return True
+            continue
+        texts = shell.fed(sc)
+        if "$" in "".join(sc.argv[:2]):
+            texts.append(" ".join(_expand(w, shell.env) for w in sc.argv))
+        if any(names_one(t) for t in texts):
+            return True
+    return False
 
 
 def in_place_rule(root, tool, target, shell, session_id):
@@ -888,12 +1216,16 @@ def in_place_rule(root, tool, target, shell, session_id):
         # worktree, refused the main checkout by the desktop app's isolation,
         # had nowhere else to put its triage file. File tools only, so the
         # exemption carries no command that also writes somewhere else.
-        if target is not None and _inside(target.lower(), str(wt / WRAP_DIR).lower()):
+        if target is not None and _inside(target, str(wt / WRAP_DIR)):
             continue
         if target is not None and _inside(target, str(wt)):
             raise Deny("in-place", [f"{tool} to {target}:"] + why)
         if shell is not None and shell.writes_into(str(wt)):
             raise Deny("in-place", ["this command writes into the wave's worktree:"] + why)
+        if shell is not None and rerolls(shell, label):
+            raise Deny("in-place", [
+                "this command runs evaluate_wave.py dispatch or verify for the wave, which",
+                "  would put this session's own fix in front of a new evaluator:"] + why)
 
 
 # ------------------------------------------------------------------- events
@@ -915,7 +1247,7 @@ def pre_tool_use(root, cwd, event):
         return 0
     try:
         closure_rule(root, text)
-        verdict_rule(target, shell)
+        verdict_rule(root, target, shell)
         lifecycle_rule(target, shell)
         review_rule(root, shell)
         record_rule(shell)
