@@ -39,7 +39,8 @@ All notable changes to Keelswell. Format: Keep a Changelog; versioning: semver.
   SessionEnd scans every checkout; (d) no done inference while the worktree
   or a branch exists; (e) merge-wave refuses from inside the worktree; (f)
   V2-32's status and resume probes are not in this PR; (g) merge-wave uses
-  the same suffix rule. Two readings made while building, for review: a
+  the same suffix rule. Two readings made while building, accepted by RQ
+  the same day: a
   wave with no copy anywhere starts in the calling checkout, not always in
   the worktree, because the evals (and dev-wave step 2's sibling layout)
   run from main beside a worktree and read main's state; and (d)'s "branch"
