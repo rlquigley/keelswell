@@ -138,6 +138,18 @@ class TestInstall(unittest.TestCase):
         self.assertNotIn("registration: templates/settings.json.template", out)
         self.assertIn(f"Permission rules in {target}/.claude/settings.json", out)
 
+    def test_a_local_allow_that_covers_a_merge_warns_and_passes(self):  # V2-14
+        target = self.copy()
+        (target / ".claude" / "settings.local.json").write_text(json.dumps(
+            {"permissions": {"allow": ["Bash(gh api *)", "Bash(gh pr:*)", "Bash(gh pr view *)"]}}))
+        code, out = self.validate(target)
+        self.assertEqual(code, 0, out)
+        self.assertIn("WARN: settings.local.json allows Bash(gh api *), which covers a merge", out)
+        self.assertIn("WARN: settings.local.json allows Bash(gh pr:*)", out)
+        self.assertNotIn("allows Bash(gh pr view *)", out)
+        code, out = self.validate(self.installed)
+        self.assertNotIn("WARN", out)
+
     def test_each_registration_mutation_fails(self):
         def comment_kept(s):
             entry = s["hooks"]["PreToolUse"].pop(0)

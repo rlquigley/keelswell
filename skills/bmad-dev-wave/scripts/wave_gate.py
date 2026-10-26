@@ -15,7 +15,7 @@ the plan asked for, plus the SessionEnd half Phase 2's step 4.5 needed.
       Blocks every wave paused at step 4.5 with its question unanswered.
       Exit 0: SessionEnd cannot block, so this one only records.
 
-Six rules, each read off disk and none of them a judgement:
+Seven rules, each read off disk and none of them a judgement:
 
   closure   Nothing touches _bmad-output/epic-closure/epic-<N>/ unless
             check_review_records.py --epic N exits 0. Phase 1's gate, run by
@@ -60,6 +60,14 @@ Six rules, each read off disk and none of them a judgement:
             _bmad-output/session-wrap/ in that worktree, where /bmad-wrap
             writes its triage file. A wrap is not wave work, and a session
             rooted in the worktree may have nowhere else to write.
+  merge     No session merges (V2-14). `gh pr merge`, `gh api` with a method
+            other than GET to a /merge or /merges path or a merge mutation,
+            and a `git push` that lands on main or master (a bare push or
+            HEAD from a checkout on it, --all, --mirror) are denied, and so
+            is text that names a merge with gh or push where the parse cannot
+            read it. The settings template's `Bash(gh pr merge *)` is a text
+            rule, which `bash -c` and `gh api` walk past. Local `git merge`
+            and `git pull` stay open: merge-wave syncs main with them.
 
 It fails closed (R1 of docs/reviews/harness-engineering-review-v1.md). Claude
 Code lets a PreToolUse call through on any exit but 2, so an error in here, an
@@ -164,6 +172,20 @@ REROLL_VERBS = ("dispatch", "verify")
 REROLL_WORD = re.compile(r"(?<![\w-])(?:dispatch|verify)(?![\w-])")
 # Every status whose stage is review: in-review and done (V2-01).
 REVIEW_STATUSES = {s for s, (stage, _) in wave_status.STAGES.items() if stage == "review"}
+
+# Where a push lands is a merge: the branch every wave's pull request targets.
+DEFAULT_BRANCHES = {"main", "master"}
+# The REST merges: PUT pulls/<n>/merge, POST repos/<o>/<r>/merges.
+MERGE_ENDPOINT = re.compile(r"/merges?/?$", re.I)
+MERGE_MUTATION = re.compile(r"mergePullRequest|enablePullRequestAutoMerge", re.I)
+# gh api's options that take a value, and those that make a body (and so POST).
+GH_API_VALUE_OPTS = {"-X", "--method", "-f", "--raw-field", "-F", "--field", "-H", "--header",
+                     "--input", "-q", "--jq", "-t", "--template", "--cache", "--hostname",
+                     "-p", "--preview"}
+GH_API_BODY_OPTS = ("-f", "--raw-field", "-F", "--field", "--input")
+# Text the parse cannot read as a command that still names a merge.
+MERGE_WORD = re.compile(r"merge", re.I)
+MERGE_TOOL = re.compile(r"(?<![\w-])(?:gh|push)(?![\w-])")
 
 PENDING_MARKER = wave_status.PENDING
 # bmad-wrap's one output directory, exempt from the in-place rule.
@@ -397,6 +419,7 @@ class Simple:
         self.stdin = None     # here-document or here-string text
         self.piped_to = None  # the command its stdout feeds
         self.nested = set()   # indexes of words parsed as commands of their own
+        self.backtick = False  # cut off by an unquoted `: its words may go on in one
         self.argv = []
 
     @property
@@ -466,6 +489,7 @@ class Shell:
                     cur.redirects.append((op, target))
                 continue
             if op is not None:
+                cur.backtick = op == "`"
                 close(cur, op in ("|", "|&"))
                 cur = Simple(cwd)
             elif w.isdigit() and nxt in REDIRECTS:
@@ -1174,6 +1198,125 @@ def record_rule(shell):
             raise Deny("record", ["this command calls evaluate_wave.py record."] + why)
 
 
+def _names_merge(text):
+    return bool(MERGE_WORD.search(text) and MERGE_TOOL.search(text))
+
+
+def _gh_words(args):
+    """gh's two command words and what follows: `gh pr -R o/r merge 1` is pr, merge."""
+    words, j = [], 0
+    while j < len(args) and len(words) < 2:
+        a = args[j]
+        j += 2 if a in ("-R", "--repo") else 1
+        if not a.startswith("-"):
+            words.append(a)
+    return words, args[j:]
+
+
+def _gh_api_merges(args, env):
+    """Does `gh api <args>` merge, or send a body the gate cannot read to where one could?
+    gh's method is GET unless -X says otherwise or a field or --input makes a body,
+    which makes it POST."""
+    method, endpoint, fields, unread, j = None, None, [], False, 0
+    while j < len(args):
+        a = args[j]
+        if a.startswith("--"):
+            key, eq, value = a.partition("=")
+        elif a.startswith("-") and len(a) > 2:
+            key, eq, value = a[:2], "=", a[2:]  # -XPUT, -fquery=...
+        else:
+            key, eq, value = a, "", ""
+        if key in GH_API_VALUE_OPTS:
+            if not eq:
+                value = args[j + 1] if j + 1 < len(args) else ""
+                j += 1
+            value = _expand(value, env)
+            if key in ("-X", "--method"):
+                method = value
+            if key in GH_API_BODY_OPTS:
+                fields.append(value)
+                unread |= key == "--input" or "=@" in value or "$" in value or "`" in value
+        elif not a.startswith("-") and endpoint is None:
+            endpoint = _expand(a, env)
+        j += 1
+    endpoint = (endpoint or "").split("?", 1)[0]
+    if endpoint.lower() == "graphql":
+        return unread or any(MERGE_MUTATION.search(f) for f in fields)
+    if (method or ("POST" if fields else "GET")).upper() == "GET":
+        return False
+    return "$" in endpoint or "`" in endpoint or bool(MERGE_ENDPOINT.search(endpoint))
+
+
+def _pushes_to_default(shell, sc, git):
+    """Does `git push` land on main or master? A push with no refspec, or of HEAD,
+    lands on the branch the directory has checked out."""
+    if sc.backtick or any(a in ("--all", "--mirror") for a in sc.argv):
+        return True
+    for spec in [_expand(o, shell.env) for o in git[2][1:]] or ["HEAD"]:
+        if "$" in spec or "`" in spec:
+            return True
+        src, colon, dst = spec.lstrip("+").partition(":")
+        dst = dst if colon else src
+        if dst in ("HEAD", "@"):
+            dst = (run_git(git[1], "symbolic-ref", "--short", "-q", "HEAD") or "").strip()
+        if dst.removeprefix("refs/heads/") in DEFAULT_BRANCHES:
+            return True
+    return False
+
+
+def merges(shell, sc):
+    """What `sc` does that merges, said for the denial, or None."""
+    if sc.name == "gh":
+        words, rest = _gh_words(sc.argv[1:])
+        if words == ["pr", "merge"]:
+            return "runs gh pr merge"
+        if words == ["alias", "set"] and any(MERGE_WORD.search(a) for a in rest):
+            return "makes a gh alias for a merge"
+        if words[:1] == ["api"] and _gh_api_merges(sc.argv[2:], shell.env):
+            return ("calls a GitHub merge through gh api (a non-GET to a /merge or /merges "
+                    "path, a merge mutation, or a body or endpoint it cannot read)")
+    git = shell.git(sc)
+    if git and git[0] == "push" and _pushes_to_default(shell, sc, git):
+        return f"pushes to {' or '.join(sorted(DEFAULT_BRANCHES))}, or pushes every ref"
+    # Text this parse does not read as commands: interpreter code, what a shell or
+    # xargs is handed besides `-c`, its stdin, a here-document on a group, `( bash )
+    # <<EOF`, and what is piped into one.
+    texts = list(shell.code(sc))
+    if not sc.argv and sc.stdin is not None:
+        texts.append(sc.stdin)
+    if sc.name in EXECUTORS:
+        start = len(sc.words) - len(sc.argv)
+        texts += [_expand(w, shell.env) for i, w in enumerate(sc.words)
+                  if i > start and i not in sc.nested]
+        texts += [sc.stdin] if sc.stdin is not None else []
+    nxt = sc.piped_to
+    while nxt is not None:
+        if nxt.name in EXECUTORS or PYTHON.match(nxt.name):
+            texts += [_expand(w, shell.env) for w in sc.argv]
+            break
+        nxt = nxt.piped_to
+    if _names_merge(" ".join(texts)):
+        return "hands a merge to something that runs it, in text the gate cannot read"
+    return None
+
+
+def merge_rule(shell):
+    if shell is None:
+        return
+    why = ["  A human merges, outside Claude Code: the GitHub UI or their own terminal,",
+           "  which this gate never sees. Every wave skill halts before merge. There is",
+           "  no flag and no override: push the branch, open the pull request, and stop."]
+    if shell.error is not None:
+        if _names_merge(shell.raw):
+            raise Deny("merge", [
+                f"this command names a merge but cannot be parsed ({shell.error})."] + why)
+        return
+    for sc in shell.cmds:
+        what = merges(shell, sc)
+        if what:
+            raise Deny("merge", [f"this command {what}."] + why)
+
+
 def rerolls(shell, label):
     """Does the command run evaluate_wave.py dispatch or verify for wave `label`?
     Read as a call where it can be; otherwise any text that reaches something
@@ -1261,6 +1404,7 @@ def pre_tool_use(root, cwd, event):
         lifecycle_rule(target, shell)
         review_rule(root, shell)
         record_rule(shell)
+        merge_rule(shell)
         in_place_rule(root, tool, target, shell, session_id)
     except Deny as d:
         sys.stderr.write(f"wave-gate DENIED ({d.rule}): " + "\n".join(d.lines) + "\n")

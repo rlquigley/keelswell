@@ -67,9 +67,18 @@ class TestRunWave(unittest.TestCase):
         _, _, call = self.run_it("--allow", "Bash(npm *)")
         argv = call["argv"]
         allowed = argv[argv.index("--allowedTools") + 1:]
-        for rule in ("Bash(python3 *)", "Bash(git *)", "Bash(gh *)", "Bash(bash *)", "Bash(rsync *)",
+        for rule in ("Bash(python3 *)", "Bash(git *)", "Bash(gh *)", "Bash(rsync *)",
                      "Bash(npm *)"):
             self.assertIn(rule, allowed)
+
+    def test_bash_is_not_allowed_and_merges_are_disallowed(self):  # V2-14
+        _, _, call = self.run_it()
+        argv = call["argv"]
+        self.assertNotIn("Bash(bash *)", argv)
+        flags = [j for j, a in enumerate(argv) if a.startswith("--")]
+        start = argv.index("--disallowedTools") + 1
+        end = min([j for j in flags if j >= start] or [len(argv)])
+        self.assertEqual(argv[start:end], ["Bash(gh pr merge *)", "Bash(gh api *)"])
 
     def test_no_step_means_as_far_as_the_skill_goes(self):
         _, _, call = self.run_it()

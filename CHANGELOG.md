@@ -4,6 +4,92 @@ All notable changes to Keelswell. Format: Keep a Changelog; versioning: semver.
 ## [Unreleased]
 
 ### Fixed
+- No session merges, in any shape the gate can read (2026-10-25, V2-14 of
+  docs/reviews/harness-review-v2.md; bmad-dev-wave 1.25.0). wave_gate.py has
+  a seventh rule, merge. It denies `gh pr merge` (with `-R`, `--auto`,
+  behind `env`, `timeout`, a path, `bash -c`, `sh -c`, `eval` or a
+  substitution), a `gh alias set` that names a merge, and `gh api` with a
+  method other than GET to a path ending `/merge` or `/merges`. gh's method
+  is GET unless `-X` says otherwise or a field or `--input` makes it POST. It
+  also denies `gh api graphql` with `mergePullRequest` or
+  `enablePullRequestAutoMerge`, or a query it cannot read (`--input`,
+  `-F x=@file`, a variable), and a non-GET whose endpoint it cannot read. It
+  denies a `git push` that lands on main or master: `main`, `+main`,
+  `x:main`, `x:refs/heads/main`, `:main`, `--all`, `--mirror`, a refspec it
+  cannot read (a variable it cannot resolve, a substitution, a backtick),
+  and a bare push or `HEAD` or `@` from a checkout that has main or master
+  checked out, read with one `git symbolic-ref`. Text that names a merge
+  together with gh or push where the parse cannot read it is denied too:
+  `python3 -c`, `node -e`, a shell's stdin or here-document (a group's too,
+  `( bash ) <<EOF`), what is piped into a shell or xargs, and a command that
+  does not parse. The denial says a human merges, outside Claude Code, and
+  that there is no flag. Local `git merge`, `git pull --ff-only` and a push
+  of any other branch stay open; merge-wave and RQ's sync steps use the
+  first two. `tools/run_wave.py` no longer allows `Bash(bash *)`, since a
+  Bash rule does not see inside `bash -c`, and passes `--disallowedTools
+  "Bash(gh pr merge *)" "Bash(gh api *)"`; no wave skill calls `gh api` or
+  runs `bash` through the Bash tool (verify's `bash` is a subprocess of
+  evaluate_wave.py). `install.sh`'s permissions_check also reads the allow
+  lists of `settings.json` and `settings.local.json` and prints a WARN, not
+  a FAIL, for `Bash`, `Bash(*)`, `Bash(gh *)`, `Bash(gh pr *)`, `Bash(gh api
+  *)` or `Bash(bash *)` (the `:*` spelling too). Why: the template's
+  `Bash(gh pr merge *)` was the only thing between a session and a merge;
+  `gh api -X PUT .../merge` matched no rule, ffbapp's local settings allow
+  `gh api *` and `gh pr *`, and Claude Code's docs say a Bash deny rule does
+  not match inside `bash -c`.
+  **Rulings.** RQ, 2026-10-25, (a) to (e) as proposed, including the
+  additions: (a) the forms above, the graphql mutations and the bare push
+  from a main checkout included; local `git merge` and `git pull --ff-only`
+  stay allowed. (b) unreadable text naming a merge with gh or push is
+  denied, interpreter code included. (c) no override. (d) run_wave drops
+  `Bash(bash *)` and passes both disallowed rules. (e) a WARN, not the
+  review's FAIL: a FAIL would make ffbapp's validate exit 7 until RQ edits
+  their own settings, and the gate rule denies a merge whatever the allow
+  list says. `skills/bmad-dev-wave/evals/run_evals.py` still allows `Bash(bash
+  *)`; its trials have a stub `gh` and no remote, and it stays a follow-up.
+  **What was measured.** 8 new gate tests, 80 calls: 57 denied, 23 allowed
+  (bmad-dev-wave 405, both trees; tools 29 with one new run_wave and one new
+  install test; close-epic 12; `install.sh --validate-only
+  --skip-mcp-check` green). Against d64bb49's gate all 57 denials are red,
+  every V2-14 shape among them; the 23 allowed (`gh pr view`, `gh pr
+  create`, a GET `gh api`, a branch push, `git pull --ff-only`, `git merge
+  --ff-only`, a commit message and a here-document naming `gh pr merge`)
+  are green before and after. Validate on both real instances, read-only: exit 0, and
+  ffbapp prints the two WARNs for its `gh pr *` and `gh api *`. Mutation on
+  rsync copies of a frozen snapshot, one clause at a time, after an
+  unmutated control run went green: 28 of 28 killed (each gh, api, graphql
+  and push clause, the body-makes-POST default, `-XPUT`, `-R`, refs/heads/,
+  `+`, HEAD, the bare push, the unreadable-text clauses, the rule's call,
+  run_wave's two changes and the WARN's two). The first pass had no control
+  and reported every mutant killed on a usage error; the control caught it.
+  Three survivors on the real pass then got a test or a fix: `--all` and
+  `--mirror` (tested only from a main checkout), an unreadable refspec
+  (tested with a variable the parse resolves), and a refspec behind an
+  unquoted backtick, which the parse cut into a bare push; a command a
+  backtick cuts off is now marked. A clause for here-document text the parse
+  leaves unattached was removed: only shell that bash rejects leaves any.
+  Gate p50 of 20 calls against d64bb49 on the same machine, on a 200-file
+  project: `ls` 88.6 against 88.0 ms, `gh pr view` 88.9 against 87.9, `git
+  push -u origin claude/x` 88.6 against 87.7, a bare `git push` 97.7 against
+  87.4 (the `git symbolic-ref`), `gh pr merge 1` 88.9 against 87.5.
+  **Prediction.** The next wave either instance runs after syncing this
+  version carries through to its pull request with no `wave-gate DENIED
+  (merge)` on any step it needs (the branch push, `gh pr create`, `gh pr
+  view`, merge-wave's `pull --ff-only`), and every one of its merges is
+  made outside Claude Code. Gradable by grepping that wave's session
+  transcripts for `DENIED (merge)` and by `gh pr view <n> --json mergedBy`.
+  **At risk.** A script file written earlier and run later (`bash x.sh`,
+  `python3 x.py`) is not opened, as for every rule. A gh alias or
+  extension made outside the session, and curl or Python with a token
+  against the REST API, are not gh calls; `gh auth token` is an ask rule,
+  which a headless run denies, but a token in the environment is not seen.
+  Interpreter code that pushes to main without the word merge
+  (`python3 -c "...git push origin main"`) passes (b), which needs both
+  words. A branch that tracks main under `push.default=upstream`, and a
+  default branch with another name, are not read. A bare `git push --tags`
+  from a main checkout is denied, and so is a non-GET `gh api` whose
+  endpoint is a variable the gate cannot resolve, merge or not. Shell-capable
+  MCP tools reach no rule (V2-26).
 - Step 4.5's pending marker goes where the record is, from either checkout
   (2026-10-25, closes the at-risk item of the entry below; bmad-dev-wave
   1.24.0). `wave_status.py pend --project-root <root> --wave <id>
