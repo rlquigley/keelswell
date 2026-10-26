@@ -19,7 +19,7 @@ allowed-tools:
   - Bash
   - Task
 metadata:
-  version: 1.23.0
+  version: 1.24.0
   output-locations:
     - ../<project>-wave-<id>/                 # sibling worktree, branch wave-<id>-<suffix>
     - .bmad/wave-<id>/checkpoint.json         # plus step-N.done markers
@@ -89,13 +89,17 @@ refusal. Any step can be re-entered by /bmad-resume-wave.
     docs/wave-<id>/test-design.md.
 4.  Just-in-time story creation for stories not yet on disk.
 4.5 Open-questions gate: scan auto-memory for unresolved questions tagged to
-    this wave's stories. On any hit, write the questions to
-    .bmad/wave-<id>/step-4.5.pending and HALT for user input; when the
-    answers are recorded, delete that marker and run `wave_status.py mark
-    --step 4.5`. A
-    session that ends with the marker present has its wave blocked by the
-    SessionEnd hook (see The Hooks). Never dispatch parallel subagents past
-    an unfired gate.
+    this wave's stories. On any hit, put the questions in a file outside
+    `.bmad/` and run `wave_status.py pend --project-root {project-root}
+    --wave <id> --questions-file <file>`, which writes `step-4.5.pending`
+    beside the record, then HALT for user input. When the answers are
+    recorded, run `wave_status.py pend --project-root {project-root} --wave
+    <id> --clear`, then `wave_status.py mark --step 4.5`. Never write or
+    delete the pending marker with the Write tool, `touch` or `rm`: the
+    same refusal that splits a step marker splits this one, and `pend` exits
+    3 where `mark` does. A session that ends with the marker present has its
+    wave blocked by the SessionEnd hook (see The Hooks). Never dispatch
+    parallel subagents past an unfired gate.
 5.  ATDD scaffolding: failing test stubs per the test design. On completion
     set the status to ready-for-dev.
 6.  Implementation dispatch: set the status to in-progress before dispatching.
@@ -800,6 +804,12 @@ there is nothing to block.
   names. Do not retry the same write through a different tool.
 
 ## Version history
+- 1.24.0 (2026-10-25, follow-up to 1.23.0): step 4.5's `step-4.5.pending`
+  is written by `wave_status.py pend --questions-file <file>` and removed by
+  `pend --clear`, beside the record `route` printed, exit 3 where route
+  would. The agent's own Write tool put it in the worktree in a desktop
+  session isolated there, splitting the wave's state. No step's order
+  changed.
 - 1.23.0 (2026-10-25, follow-up to harness review v2 PR 4): every step's
   marker is made by `wave_status.py mark --step <N>`, which puts it beside
   the record `route` printed and exits 3 where route would. Step 4.5 runs it

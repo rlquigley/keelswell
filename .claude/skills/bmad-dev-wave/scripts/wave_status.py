@@ -69,15 +69,18 @@ done -- and this record owns the stage.
   wave_status.py show  --project-root P [--wave 5D]
   wave_status.py adopt --project-root P --wave 5D --from <wave worktree>
   wave_status.py mark  --project-root P --wave 5D --step 4.5
+  wave_status.py pend  --project-root P --wave 5D --questions-file F
+  wave_status.py pend  --project-root P --wave 5D --clear
 
-Exit codes (route, set, adopt and mark):
+Exit codes (route, set, adopt, mark and pend):
   0  proceed; route prints the stage and re-entry step; adopt copied, or
-     found nothing to copy; mark wrote the step's marker, or found it there
+     found nothing to copy; mark wrote the step's marker, or found it there;
+     pend wrote the pending marker, or removed it, or found none to remove
   1  blocked -- route refused to dispatch, or set refused to overwrite;
      adopt found a file that differs between the two copies, or runs inside
      the worktree it copies from
   2  structural: no wave map, or the wave is not in it; mark's step is not
-     one of bmad-dev-wave's
+     one of bmad-dev-wave's; pend's questions file is missing or empty
   3  corrupt: the record exists and cannot be read, names a key twice, or
      its status is missing or unrecognized; or the wave's state cannot be
      placed (two copies disagree, two worktrees match); nothing is written
@@ -108,6 +111,11 @@ isolated to the wave's worktree may not use the Write tool on the main
 checkout's `.bmad/`, and its refusal says to write in the worktree instead;
 a marker written there starts a second copy, and `route` and `set` then
 exit 3 until a human merges the two (2026-10-25).
+
+`pend` is the same for step 4.5's `step-4.5.pending`: it copies the
+questions file's bytes there, and `--clear` removes it once the answers are
+recorded. wave_gate.py's SessionEnd rule blocks a wave whose directory, in
+any checkout, still holds it.
 
 `show` is read-only: it never writes, never backfills, and exits 0 whenever it
 could read the wave map, so a dashboard can render a corrupt or blocked wave
@@ -185,6 +193,9 @@ MARKER_FILE = re.compile(r"^step-(\d+(?:\.\d+)?)(?:\.[A-Za-z0-9_-]+)?\.done$")
 MARKER_KEY = re.compile(r"^(\d+(?:_\d+)?)[_-]")
 
 RECORD_NAME = "wave.md"
+# Step 4.5's open questions; wave_gate.py's SessionEnd rule blocks the wave
+# of any directory still holding it.
+PENDING = "step-4.5.pending"
 
 
 # ---------------------------------------------------------------- wave map
@@ -959,6 +970,44 @@ def mark(project_root, label, step):
         f"Wave {label}: step {step} marked done at {marker}."]
 
 
+def pend(project_root, label, questions=None):
+    """Write step 4.5's pending marker beside the record, holding the bytes
+    of the `questions` file; with no file, remove the marker."""
+    root = state_root(project_root)
+    code, result, lines, resolved = _structural(root, label)
+    if resolved is None:
+        return code, result, lines
+    label = resolved
+
+    body = None
+    if questions is not None:
+        try:
+            body = questions.read_bytes()
+        except OSError:
+            body = b""
+        if not body.strip():
+            return 2, {"wave": label, "error": "no_questions", "file": str(questions)}, [
+                f"REFUSE: {questions} is missing or empty.",
+                "  The pending marker holds step 4.5's open questions; write them",
+                "  to that file first.",
+            ]
+
+    where = locate(project_root, label)
+    refusal = where_refusal(where, label)
+    if refusal:
+        return refusal
+    marker = wave_dir(where.base, label) / PENDING
+    result = {"wave": label, "marker": str(marker), "record": str(record_path(where.base, label))}
+    if body is None:
+        cleared = marker.is_file()
+        marker.unlink(missing_ok=True)
+        return 0, dict(result, cleared=cleared), [
+            f"Wave {label}: {'removed' if cleared else 'no'} pending marker at {marker}."]
+    marker.parent.mkdir(parents=True, exist_ok=True)
+    marker.write_bytes(body)
+    return 0, result, [f"Wave {label}: step 4.5's open questions are pending at {marker}."]
+
+
 def adopt(project_root, label, source_root):
     """Copy a worktree's `.bmad/wave-<ID>/` into the project root's, before the
     worktree is removed.
@@ -1099,13 +1148,15 @@ def main():
     # names, so `--stat` binding to --status would be a spelling it cannot see.
     ap = argparse.ArgumentParser(description="Wave lifecycle status: read, write, route.",
                                  allow_abbrev=False)
-    ap.add_argument("verb", choices=["route", "set", "show", "adopt", "mark"])
+    ap.add_argument("verb", choices=["route", "set", "show", "adopt", "mark", "pend"])
     ap.add_argument("--project-root", default=".", help="project root (default: cwd)")
     ap.add_argument("--wave", help="wave label as it appears in waves.md (e.g. 5D)")
     ap.add_argument("--status", help="for set: one of " + ", ".join(STATUSES))
     ap.add_argument("--reason", help="for set --status blocked: why, on one line")
     ap.add_argument("--from", dest="source", help="for adopt: the wave's worktree")
     ap.add_argument("--step", help="for mark: the dev-wave step done (e.g. 4.5)")
+    ap.add_argument("--questions-file", help="for pend: the file holding step 4.5's questions")
+    ap.add_argument("--clear", action="store_true", help="for pend: remove the pending marker")
     args = ap.parse_args()
 
     root = Path(args.project_root).resolve()
@@ -1123,6 +1174,11 @@ def main():
         if not args.wave or not args.step:
             ap.error("mark needs --wave and --step")
         code, result, lines = mark(root, args.wave, args.step)
+    elif args.verb == "pend":
+        if not args.wave or bool(args.questions_file) == args.clear:
+            ap.error("pend needs --wave and one of --questions-file or --clear")
+        questions = None if args.clear else Path(args.questions_file).resolve()
+        code, result, lines = pend(root, args.wave, questions)
     else:
         if not args.wave or not args.status:
             ap.error("set needs --wave and --status")

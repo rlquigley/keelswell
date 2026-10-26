@@ -1116,23 +1116,159 @@ class Mark(unittest.TestCase):
         self.assertIn("mark needs --wave and --step", out.stderr)
 
 
+class Pend(unittest.TestCase):
+    """`pend` writes step 4.5's `step-4.5.pending` where route printed the
+    record, and `pend --clear` removes it, from either checkout. The Write
+    tool's refusal in an isolated session sends a hand-written one to the
+    worktree, which splits the state (2026-10-25)."""
+
+    GATE = SCRIPT.parent / "wave_gate.py"
+
+    setUp = OneStateRoot.setUp
+    worktree = OneStateRoot.worktree
+    run_in = OneStateRoot.run_in
+    main_dir = OneStateRoot.main_dir
+
+    def questions(self, text="Q: which auth provider?\n"):
+        f = self.p.root.parent / f"{self.p.root.name}-questions.md"
+        f.write_text(text)
+        self.addCleanup(f.unlink, missing_ok=True)
+        return f
+
+    def pend_in(self, root, *args, wave="7A"):
+        return self.run_in(root, "pend", "--wave", wave, *args)
+
+    def session_end(self, root):
+        out = subprocess.run([sys.executable, str(self.GATE), "session-end",
+                              "--project-root", str(root)],
+                             input=json.dumps({"session_id": "s1", "cwd": str(root),
+                                               "hook_event_name": "SessionEnd",
+                                               "reason": "other"}),
+                             capture_output=True, text=True)
+        self.assertEqual(out.returncode, 0, out.stderr)
+        return out.stdout
+
+    def test_a_worktree_rooted_session_pends_beside_a_main_record(self):
+        self.assertEqual(self.p.route("7A")[0], 0)
+        wt = self.worktree()
+        code, out, err = self.pend_in(wt, "--questions-file", str(self.questions()))
+        self.assertEqual(code, 0, err)
+        marker = self.main_dir() / "step-4.5.pending"
+        self.assertEqual(Path(out["marker"]).resolve(), marker)
+        self.assertEqual(marker.read_text(), "Q: which auth provider?\n")
+        self.assertFalse((wt / ".bmad").exists())
+        self.assertIn("wave 7A", self.session_end(wt))
+        self.assertIn("status: blocked", self.p.record_text("7A"))
+
+    def test_a_main_rooted_session_pends_beside_a_worktree_record(self):
+        wt = self.worktree()
+        self.assertEqual(self.run_in(wt, "route", "--wave", "7A")[0], 0)
+        code, out, err = self.pend_in(self.p.root, "--questions-file", str(self.questions()))
+        self.assertEqual(code, 0, err)
+        own = wt / ".bmad" / "wave-7A"
+        self.assertEqual(Path(out["marker"]).resolve(), own / "step-4.5.pending")
+        self.assertEqual(Path(out["record"]).resolve(), own / "wave.md")
+        self.assertFalse(self.main_dir().exists())
+        self.assertIn("wave 7A", self.session_end(self.p.root))
+        self.assertIn("status: blocked", (own / "wave.md").read_text())
+
+    def test_with_no_copy_the_marker_starts_where_route_starts_the_record(self):
+        wt = self.worktree()
+        code, out, err = self.pend_in(wt, "--questions-file", str(self.questions()))
+        self.assertEqual(code, 0, err)
+        own = wt / ".bmad" / "wave-7A"
+        self.assertEqual(Path(out["marker"]).resolve(), own / "step-4.5.pending")
+        code, out, err = self.run_in(wt, "route", "--wave", "7A")
+        self.assertEqual(code, 0, err)
+        self.assertEqual(Path(out["record"]).resolve(), own / "wave.md")
+        self.assertFalse(self.main_dir().exists())
+
+    def test_clear_removes_the_marker_from_either_checkout(self):
+        self.assertEqual(self.p.route("7A")[0], 0)
+        wt = self.worktree()
+        marker = self.main_dir() / "step-4.5.pending"
+        for root in (wt, self.p.root):
+            self.assertEqual(self.pend_in(root, "--questions-file", str(self.questions()))[0], 0)
+            self.assertTrue(marker.is_file())
+            code, out, err = self.pend_in(root, "--clear")
+            self.assertEqual(code, 0, err)
+            self.assertEqual(Path(out["marker"]).resolve(), marker)
+            self.assertTrue(out["cleared"])
+            self.assertFalse(marker.exists())
+        self.assertNotIn("wave 7A", self.session_end(self.p.root))
+        self.assertIn("status: draft", self.p.record_text("7A"))
+
+    def test_clearing_with_no_marker_is_not_an_error(self):
+        self.assertEqual(self.p.route("7A")[0], 0)
+        code, out, err = self.pend_in(self.p.root, "--clear")
+        self.assertEqual(code, 0, err)
+        self.assertFalse(out["cleared"])
+
+    def test_a_split_is_refused_and_nothing_is_written_or_removed(self):
+        wt = self.worktree()
+        self.assertEqual(self.run_in(wt, "route", "--wave", "7A")[0], 0)
+        own = wt / ".bmad" / "wave-7A" / "step-4.5.pending"
+        own.write_text("Q?\n")
+        self.main_dir().mkdir(parents=True)
+        (self.main_dir() / "evaluation-session").write_text("s1\n")
+        for root in (self.p.root, wt):
+            for args in (("--questions-file", str(self.questions())), ("--clear",)):
+                code, out, err = self.pend_in(root, *args)
+                self.assertEqual(code, 3, f"{root} {args}: {err}")
+                self.assertEqual(out["error"], "split_state")
+        self.assertFalse((self.main_dir() / "step-4.5.pending").exists())
+        self.assertEqual(own.read_text(), "Q?\n")
+
+    def test_two_worktrees_on_the_suffix_are_refused_and_nothing_is_written(self):
+        one = self.worktree("wave-7a-alpha", name="one")
+        two = self.worktree("claude/wave-7a-alpha-def456", name="two")
+        code, out, err = self.pend_in(one, "--questions-file", str(self.questions()))
+        self.assertEqual(code, 3, err)
+        self.assertEqual(out["error"], "ambiguous_worktree")
+        for root in (self.p.root, one, two):
+            self.assertFalse((root / ".bmad").exists(), root)
+
+    def test_a_missing_or_empty_questions_file_is_refused(self):
+        self.assertEqual(self.p.route("7A")[0], 0)
+        for f in (self.p.root.parent / "no-such-questions.md", self.questions(" \n")):
+            code, out, err = self.pend_in(self.p.root, "--questions-file", str(f))
+            self.assertEqual(code, 2, f"{f}: {err}")
+            self.assertEqual(out["error"], "no_questions")
+        self.assertFalse((self.main_dir() / "step-4.5.pending").exists())
+
+    def test_a_wave_not_in_the_map_is_refused(self):
+        code, out, _ = self.pend_in(self.p.root, "--clear", wave="9Z")
+        self.assertEqual(code, 2)
+        self.assertEqual(out["error"], "wave_not_in_map")
+
+    def test_pend_needs_exactly_one_of_questions_file_and_clear(self):
+        for extra in ([], ["--clear", "--questions-file", str(self.questions())]):
+            out = subprocess.run([sys.executable, str(SCRIPT), "pend", "--wave", "7A", *extra,
+                                  "--project-root", str(self.p.root)],
+                                 capture_output=True, text=True)
+            self.assertEqual(out.returncode, 2)
+            self.assertIn("pend needs --wave and one of --questions-file or --clear", out.stderr)
+
+
 class NoSkillWritesAMarkerItself(unittest.TestCase):
-    """Every step marker goes through `wave_status.py mark`: no skill tells
-    the agent to write, touch or create a `step-*.done` path (or a
-    checkpoint marker) itself. Version histories are left out; they
-    describe what earlier versions did."""
+    """Every step marker goes through `wave_status.py mark`, and step 4.5's
+    pending marker through `wave_status.py pend`: no skill tells the agent
+    to write, touch, create or delete a `step-*.done` or `step-*.pending`
+    path (or a checkpoint marker) itself. Version histories are left out;
+    they describe what earlier versions did."""
 
     SKILLS = SCRIPT.parent.parent.parent
     WRITE = re.compile(r"\b(?:write|writes|writing|wrote|written|touch|touches|"
-                       r"create|creates|creating|echo)\b", re.I)
-    MARKER = re.compile(r"step-[^\s`]*\.done|checkpoint markers?", re.I)
+                       r"create|creates|creating|echo|delete|deletes|deleting|"
+                       r"remove|removes|removing|rm)\b", re.I)
+    MARKER = re.compile(r"step-[^\s`]*\.(?:done|pending)|checkpoint markers?", re.I)
 
     def offending(self, text):
         text = text.split("\n## Version history", 1)[0]
         sentences = re.split(r"(?<=[.:;])\s+|\n\s*\n", text)
         return [" ".join(s.split()) for s in sentences
                 if self.WRITE.search(s) and self.MARKER.search(s)
-                and "wave_status.py mark" not in s]
+                and "wave_status.py mark" not in s and "wave_status.py pend" not in s]
 
     def test_no_skill_md_writes_a_step_marker(self):
         skills = sorted(self.SKILLS.glob("*/SKILL.md"))
@@ -1147,6 +1283,13 @@ class NoSkillWritesAMarkerItself(unittest.TestCase):
         self.assertTrue(self.offending(
             "Each step writes a checkpoint marker in the wave's state directory."))
         self.assertTrue(self.offending("Run `touch .bmad/wave-7A/step-3.done`."))
+        self.assertTrue(self.offending(
+            "On any hit, write the questions to\n    .bmad/wave-<id>/step-4.5.pending "
+            "and HALT for user input"))
+        self.assertTrue(self.offending("Then rm .bmad/wave-7A/step-4.5.pending."))
+        self.assertFalse(self.offending(
+            "On any hit, write the questions to step-4.5.pending with "
+            "`wave_status.py pend --questions-file <file>`."))
         self.assertFalse(self.offending(
             "Each step ends by writing its marker with `wave_status.py mark --step 3`, "
             "which puts step-3.done beside the record."))
