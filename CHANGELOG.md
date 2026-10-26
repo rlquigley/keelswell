@@ -4,6 +4,50 @@ All notable changes to Keelswell. Format: Keep a Changelog; versioning: semver.
 ## [Unreleased]
 
 ### Fixed
+- A step marker goes where the record is, from either checkout (2026-10-25,
+  follow-up to PR 4 of docs/reviews/harness-review-v2.md; bmad-dev-wave
+  1.23.0). `wave_status.py mark --project-root <root> --wave <id> --step
+  <N>` makes an empty `step-<N>.done` in `wave_dir(locate(...).base)`, the
+  directory whose `wave.md` `route` prints. It exits 2 for a step not in
+  `STAGES` (4.5 is one; 13, 4.6 and `1.0` are not) and 3 on route's
+  `split_state` or `ambiguous_worktree`, writing nothing. The twelve-step
+  list in bmad-dev-wave and its step 4.5 now say to run it and not to use
+  the Write tool or `touch`. Why: since #58 a wave create-wave opened keeps
+  its markers in the main checkout's `.bmad/`. A probe on 2026-10-25 from a
+  desktop session isolated to a worktree found Bash may write there and the
+  Write tool may not, and the refusal tells the agent to use the worktree's
+  path; a marker written there starts a second copy whose `wave.md` is
+  missing, and route and set exit 3 until a human merges the two.
+  bmad-resume-wave only reads markers. bmad-merge-wave's cleanup markers
+  are unchanged: its preflight refuses a session inside the worktree, and
+  they are made in the main checkout after the worktree is gone.
+  **What was measured.** 11 new tests (387 for bmad-dev-wave, both
+  trees; tools 27, close-epic 12 and `install.sh --validate-only
+  --skip-mcp-check` green). `mark` from a worktree-rooted session lands
+  beside a main record, from a main-rooted session beside a worktree record,
+  and with no copy anywhere where route then starts the record; it refuses
+  an unknown step, a split, two worktrees on the suffix and a wave not in
+  the map. A test reads every `skills/*/SKILL.md` above its version history
+  and fails on any sentence that names `step-*.done` or a checkpoint marker
+  beside write, touch, create or echo without `wave_status.py mark`; on
+  f761376's prose it named the two bmad-dev-wave sentences changed here.
+  Against f761376's script all 9 `mark` tests fail. Mutation on rsync
+  copies, one at a time: 5 of 5 killed (the root's directory for the
+  base's, the refusal dropped, the step check dropped, `locate` called from
+  the main checkout instead of the caller's, a marker with content). The
+  fourth survived the first run and got the no-copy test. A PreToolUse
+  call of `mark` through wave_gate.py exits 0: the review rule reads only
+  `set`.
+  **Prediction.** The next wave either instance runs keeps one
+  `.bmad/wave-<id>/` across its checkouts at every step, and no route or set
+  on it exits 3 with `split_state`. Gradable by listing that directory in
+  every checkout at each step and by merge-wave's adopt output.
+  **At risk.** Step 4.5's `step-4.5.pending` is still written by the agent's
+  own tool; in a desktop session isolated to the worktree the same refusal
+  sends it there, which splits the state the same way. An instance that has
+  not synced this version still writes markers by hand. The prose test is a
+  pattern: an instruction to make a marker that names neither the path nor
+  "checkpoint marker", or uses a verb it does not list, gets through.
 - An evaluation is bound to the exact work it graded (2026-10-25, PR 3 of
   docs/reviews/harness-review-v2.md: V2-02 in full, V2-05, V2-06, V2-22,
   V2-23; bmad-dev-wave 1.22.0). dispatch writes `wave-diff.patch` from

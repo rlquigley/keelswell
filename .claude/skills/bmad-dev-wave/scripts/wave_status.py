@@ -68,14 +68,16 @@ done -- and this record owns the stage.
   wave_status.py set   --project-root P --wave 5D --status in-progress
   wave_status.py show  --project-root P [--wave 5D]
   wave_status.py adopt --project-root P --wave 5D --from <wave worktree>
+  wave_status.py mark  --project-root P --wave 5D --step 4.5
 
-Exit codes (route, set and adopt):
+Exit codes (route, set, adopt and mark):
   0  proceed; route prints the stage and re-entry step; adopt copied, or
-     found nothing to copy
+     found nothing to copy; mark wrote the step's marker, or found it there
   1  blocked -- route refused to dispatch, or set refused to overwrite;
      adopt found a file that differs between the two copies, or runs inside
      the worktree it copies from
-  2  structural: no wave map, or the wave is not in it
+  2  structural: no wave map, or the wave is not in it; mark's step is not
+     one of bmad-dev-wave's
   3  corrupt: the record exists and cannot be read, names a key twice, or
      its status is missing or unrecognized; or the wave's state cannot be
      placed (two copies disagree, two worktrees match); nothing is written
@@ -99,6 +101,13 @@ copy is right is a human's call.
 rooted in the wave's worktree writes this directory there (2026-10-17). It
 refuses when the session runs inside that worktree (V2-15): removing it
 removes the wave gate's hook for the rest of the session.
+
+`mark` writes `step-<N>.done` where `route` printed the record, refusing
+as `route` does when that place cannot be decided. A desktop session
+isolated to the wave's worktree may not use the Write tool on the main
+checkout's `.bmad/`, and its refusal says to write in the worktree instead;
+a marker written there starts a second copy, and `route` and `set` then
+exit 3 until a human merges the two (2026-10-25).
 
 `show` is read-only: it never writes, never backfills, and exits 0 whenever it
 could read the wave map, so a dashboard can render a corrupt or blocked wave
@@ -921,6 +930,35 @@ def _set_locked(project_root, label, status, reason):
     return 0, result, lines
 
 
+def mark(project_root, label, step):
+    """Write dev-wave step `step`'s completion marker beside the record.
+
+    Empty, so the same marker in two copies never differs in bytes."""
+    root = state_root(project_root)
+    code, result, lines, resolved = _structural(root, label)
+    if resolved is None:
+        return code, result, lines
+    label = resolved
+
+    steps = list(dict.fromkeys(s for _, listed in STAGES.values() for s in listed))
+    if step not in steps:
+        return 2, {"wave": label, "error": "unknown_step", "found": step, "valid": steps}, [
+            f"REFUSE: {step!r} is not a bmad-dev-wave step.",
+            f"  Valid steps: {', '.join(steps)}.",
+        ]
+
+    where = locate(project_root, label)
+    refusal = where_refusal(where, label)
+    if refusal:
+        return refusal
+    marker = wave_dir(where.base, label) / f"step-{step}.done"
+    marker.parent.mkdir(parents=True, exist_ok=True)
+    marker.touch()
+    return 0, {"wave": label, "step": step, "marker": str(marker),
+               "record": str(record_path(where.base, label))}, [
+        f"Wave {label}: step {step} marked done at {marker}."]
+
+
 def adopt(project_root, label, source_root):
     """Copy a worktree's `.bmad/wave-<ID>/` into the project root's, before the
     worktree is removed.
@@ -1061,12 +1099,13 @@ def main():
     # names, so `--stat` binding to --status would be a spelling it cannot see.
     ap = argparse.ArgumentParser(description="Wave lifecycle status: read, write, route.",
                                  allow_abbrev=False)
-    ap.add_argument("verb", choices=["route", "set", "show", "adopt"])
+    ap.add_argument("verb", choices=["route", "set", "show", "adopt", "mark"])
     ap.add_argument("--project-root", default=".", help="project root (default: cwd)")
     ap.add_argument("--wave", help="wave label as it appears in waves.md (e.g. 5D)")
     ap.add_argument("--status", help="for set: one of " + ", ".join(STATUSES))
     ap.add_argument("--reason", help="for set --status blocked: why, on one line")
     ap.add_argument("--from", dest="source", help="for adopt: the wave's worktree")
+    ap.add_argument("--step", help="for mark: the dev-wave step done (e.g. 4.5)")
     args = ap.parse_args()
 
     root = Path(args.project_root).resolve()
@@ -1080,6 +1119,10 @@ def main():
         if not args.wave:
             ap.error("route needs --wave")
         code, result, lines = route(root, args.wave)
+    elif args.verb == "mark":
+        if not args.wave or not args.step:
+            ap.error("mark needs --wave and --step")
+        code, result, lines = mark(root, args.wave, args.step)
     else:
         if not args.wave or not args.status:
             ap.error("set needs --wave and --status")

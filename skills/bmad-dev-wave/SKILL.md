@@ -19,7 +19,7 @@ allowed-tools:
   - Bash
   - Task
 metadata:
-  version: 1.22.0
+  version: 1.23.0
   output-locations:
     - ../<project>-wave-<id>/                 # sibling worktree, branch wave-<id>-<suffix>
     - .bmad/wave-<id>/checkpoint.json         # plus step-N.done markers
@@ -63,11 +63,22 @@ merge. It never merges.
 - GitHub remote: from `git remote get-url origin`.
 
 ## The Twelve-Step Workflow
-Each step writes a checkpoint marker in the wave's state directory, the one
+Each step ends with its checkpoint marker, made by the status script and
+never by hand:
+
+    python3 {skill-root}/scripts/wave_status.py mark \
+        --project-root {project-root} --wave <id> --step <N>
+
+The marker, `step-<N>.done`, lands in the wave's state directory, the one
 holding the `record` path step 1's `route` prints: `.bmad/wave-<id>/` in the
 wave's worktree when it has one, else the main checkout's; a wave with
-neither starts in the checkout the session is rooted in. Never both. Any step can be re-entered by
-/bmad-resume-wave.
+neither starts in the checkout the session is rooted in. Never both. Do not
+use the Write tool or `touch` for one: a desktop session isolated to the
+worktree is refused the Write tool in the main checkout and told to use the
+worktree's path, and a marker put there splits the wave's state, so route
+and set exit 3 until a human merges the copies. Exit 2 from `mark` names a
+step this skill does not have; exit 3 is route's split or ambiguous-worktree
+refusal. Any step can be re-entered by /bmad-resume-wave.
 1.  Preflight: the status gate below decides whether this wave may be
     dispatched at all and at which step to re-enter; then clean tree, wave
     exists in waves.md, gh authenticated, and no earlier epic is
@@ -80,7 +91,8 @@ neither starts in the checkout the session is rooted in. Never both. Any step ca
 4.5 Open-questions gate: scan auto-memory for unresolved questions tagged to
     this wave's stories. On any hit, write the questions to
     .bmad/wave-<id>/step-4.5.pending and HALT for user input; when the
-    answers are recorded, delete that marker and write step-4.5.done. A
+    answers are recorded, delete that marker and run `wave_status.py mark
+    --step 4.5`. A
     session that ends with the marker present has its wave blocked by the
     SessionEnd hook (see The Hooks). Never dispatch parallel subagents past
     an unfired gate.
@@ -788,6 +800,12 @@ there is nothing to block.
   names. Do not retry the same write through a different tool.
 
 ## Version history
+- 1.23.0 (2026-10-25, follow-up to harness review v2 PR 4): every step's
+  marker is made by `wave_status.py mark --step <N>`, which puts it beside
+  the record `route` printed and exits 3 where route would. Step 4.5 runs it
+  too. A desktop session isolated to the worktree is refused the Write tool
+  in the main checkout, and the refusal's advice put the marker in the
+  worktree, splitting the wave's state. No step's order changed.
 - 1.22.0 (2026-10-25, harness review v2 PR 3: V2-02 in full, V2-05, V2-06,
   V2-22, V2-23): an evaluation is bound to the sha256 of the wave diff it
   graded, committed, uncommitted and untracked work alike. dispatch refuses

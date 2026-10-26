@@ -10,6 +10,7 @@ test_hand_edit_clears_block (removing the status by hand lets it proceed).
 import contextlib
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -1016,6 +1017,139 @@ class OneStateRoot(unittest.TestCase):
         code, out, err = self.run_in(self.p.root, *args, cwd=self.p.root, env=env)
         self.assertEqual(code, 0, err)
         self.assertIn("wave.md", out["adopted"])
+
+
+class Mark(unittest.TestCase):
+    """`mark` writes a step's marker where route printed the record, from
+    either checkout. A desktop session isolated to the worktree is refused
+    the Write tool on main's `.bmad/` and told to write in the worktree; a
+    marker there splits the state (2026-10-25)."""
+
+    setUp = OneStateRoot.setUp
+    worktree = OneStateRoot.worktree
+    run_in = OneStateRoot.run_in
+    main_dir = OneStateRoot.main_dir
+
+    def mark_in(self, root, step, wave="7A"):
+        return self.run_in(root, "mark", "--wave", wave, "--step", step)
+
+    def test_a_worktree_rooted_session_marks_beside_a_main_record(self):
+        self.assertEqual(self.p.route("7A")[0], 0)
+        wt = self.worktree()
+        code, out, err = self.mark_in(wt, "1")
+        self.assertEqual(code, 0, err)
+        self.assertEqual(Path(out["marker"]).resolve(), self.main_dir() / "step-1.done")
+        self.assertTrue((self.main_dir() / "step-1.done").is_file())
+        self.assertFalse((wt / ".bmad").exists())
+        code, out, err = self.run_in(wt, "route", "--wave", "7A")
+        self.assertEqual(code, 0, err)
+        self.assertEqual(out["completed_steps"], ["1"])
+        self.assertEqual(out["reentry_step"], "2")
+
+    def test_a_main_rooted_session_marks_beside_a_worktree_record(self):
+        wt = self.worktree()
+        self.assertEqual(self.run_in(wt, "route", "--wave", "7A")[0], 0)
+        code, out, err = self.mark_in(self.p.root, "4.5")
+        self.assertEqual(code, 0, err)
+        own = wt / ".bmad" / "wave-7A"
+        self.assertEqual(Path(out["marker"]).resolve(), own / "step-4.5.done")
+        self.assertEqual(Path(out["record"]).resolve(), own / "wave.md")
+        self.assertFalse(self.main_dir().exists())
+
+    def test_with_no_copy_the_marker_starts_where_route_starts_the_record(self):
+        wt = self.worktree()
+        code, out, err = self.mark_in(wt, "1")
+        self.assertEqual(code, 0, err)
+        own = wt / ".bmad" / "wave-7A"
+        self.assertEqual(Path(out["marker"]).resolve(), own / "step-1.done")
+        code, out, err = self.run_in(wt, "route", "--wave", "7A")
+        self.assertEqual(code, 0, err)
+        self.assertEqual(Path(out["record"]).resolve(), own / "wave.md")
+        self.assertFalse(self.main_dir().exists())
+
+    def test_marking_twice_keeps_one_empty_marker(self):
+        self.assertEqual(self.p.route("7A")[0], 0)
+        for _ in range(2):
+            self.assertEqual(self.mark_in(self.p.root, "2")[0], 0)
+        self.assertEqual((self.main_dir() / "step-2.done").read_bytes(), b"")
+
+    def test_a_step_dev_wave_does_not_have_is_refused(self):
+        self.assertEqual(self.p.route("7A")[0], 0)
+        for step in ("13", "4.6", "0", "1.0", "../wave.md", ""):
+            code, out, err = self.mark_in(self.p.root, step)
+            self.assertEqual(code, 2, f"{step!r}: {err}")
+            if step:
+                self.assertEqual(out["error"], "unknown_step")
+        self.assertEqual(sorted(p.name for p in self.main_dir().iterdir()), ["wave.md"])
+
+    def test_a_split_is_refused_and_nothing_is_written(self):
+        wt = self.worktree()
+        self.assertEqual(self.run_in(wt, "route", "--wave", "7A")[0], 0)
+        self.main_dir().mkdir(parents=True)
+        (self.main_dir() / "evaluation-session").write_text("s1\n")
+        for root in (self.p.root, wt):
+            code, out, err = self.mark_in(root, "1")
+            self.assertEqual(code, 3, err)
+            self.assertEqual(out["error"], "split_state")
+        self.assertFalse((self.main_dir() / "step-1.done").exists())
+        self.assertFalse((wt / ".bmad" / "wave-7A" / "step-1.done").exists())
+
+    def test_two_worktrees_on_the_suffix_are_refused_and_nothing_is_written(self):
+        one = self.worktree("wave-7a-alpha", name="one")
+        two = self.worktree("claude/wave-7a-alpha-def456", name="two")
+        code, out, err = self.mark_in(one, "1")
+        self.assertEqual(code, 3, err)
+        self.assertEqual(out["error"], "ambiguous_worktree")
+        for root in (self.p.root, one, two):
+            self.assertFalse((root / ".bmad").exists(), root)
+
+    def test_a_wave_not_in_the_map_is_refused(self):
+        code, out, _ = self.mark_in(self.p.root, "1", wave="9Z")
+        self.assertEqual(code, 2)
+        self.assertEqual(out["error"], "wave_not_in_map")
+
+    def test_mark_needs_step(self):
+        out = subprocess.run([sys.executable, str(SCRIPT), "mark", "--wave", "7A",
+                              "--project-root", str(self.p.root)],
+                             capture_output=True, text=True)
+        self.assertEqual(out.returncode, 2)
+        self.assertIn("mark needs --wave and --step", out.stderr)
+
+
+class NoSkillWritesAMarkerItself(unittest.TestCase):
+    """Every step marker goes through `wave_status.py mark`: no skill tells
+    the agent to write, touch or create a `step-*.done` path (or a
+    checkpoint marker) itself. Version histories are left out; they
+    describe what earlier versions did."""
+
+    SKILLS = SCRIPT.parent.parent.parent
+    WRITE = re.compile(r"\b(?:write|writes|writing|wrote|written|touch|touches|"
+                       r"create|creates|creating|echo)\b", re.I)
+    MARKER = re.compile(r"step-[^\s`]*\.done|checkpoint markers?", re.I)
+
+    def offending(self, text):
+        text = text.split("\n## Version history", 1)[0]
+        sentences = re.split(r"(?<=[.:;])\s+|\n\s*\n", text)
+        return [" ".join(s.split()) for s in sentences
+                if self.WRITE.search(s) and self.MARKER.search(s)
+                and "wave_status.py mark" not in s]
+
+    def test_no_skill_md_writes_a_step_marker(self):
+        skills = sorted(self.SKILLS.glob("*/SKILL.md"))
+        self.assertTrue(any(p.parent.name == "bmad-dev-wave" for p in skills), self.SKILLS)
+        found = {str(p.relative_to(self.SKILLS)): self.offending(p.read_text(encoding="utf-8"))
+                 for p in skills}
+        self.assertEqual({k: v for k, v in found.items() if v}, {})
+
+    def test_the_check_catches_the_old_prose(self):
+        self.assertTrue(self.offending(
+            "When the answers are recorded, delete that marker and write step-4.5.done."))
+        self.assertTrue(self.offending(
+            "Each step writes a checkpoint marker in the wave's state directory."))
+        self.assertTrue(self.offending("Run `touch .bmad/wave-7A/step-3.done`."))
+        self.assertFalse(self.offending(
+            "Each step ends by writing its marker with `wave_status.py mark --step 3`, "
+            "which puts step-3.done beside the record."))
 
 
 if __name__ == "__main__":
