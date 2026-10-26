@@ -374,11 +374,12 @@ is_fork_root() { [ "$(cd "$1" 2>/dev/null && pwd -P)" = "$(cd "$FORK_ROOT" && pw
 
 hooks_check() {
   # $1: the project root. The three hook wrappers must exist, be executable, and
-  # be registered. The fork has no .claude/settings.json of its own (hooks are
-  # resolved into a target project from the template), so there, and only there,
-  # the template is the registration that is checked (V2-17).
+  # be registered. The fork's own .claude/settings.json configures sessions on
+  # the fork and is not an install (hooks are resolved into a target project
+  # from the template), so there, and only there, the template is the
+  # registration that is checked (V2-17).
   local base="$1" bad=0 h settings="$1/.claude/settings.json" reference="templates/settings.json.template"
-  if [ ! -f "$settings" ] && is_fork_root "$base"; then settings="$reference"; fi
+  if is_fork_root "$base"; then settings="$reference"; fi
   echo "  Harness hooks under $base/.claude/hooks/ (registration: $settings):"
   for h in wave-gate.sh wave-session-end.sh wave-evaluator-record.sh; do
     if [ -x "$base/.claude/hooks/$h" ]; then echo "    $h present and executable ... ok"
@@ -450,14 +451,14 @@ permissions_check() {
   # the template's deny and ask rules and its bypass lock back the merge halt,
   # the verdict rule and the lifecycle record where the hook does not run, so
   # an instance's settings.json must carry every one of them. An instance may
-  # add rules of its own. As with the hooks, the fork has no settings.json, so
-  # there, and only there, the template is read against itself, which still
-  # fails if it stops parsing or loses a list. An allow rule in either
+  # add rules of its own. As with the hooks, the fork's settings.json is not an
+  # install, so there, and only there, the template is read against itself,
+  # which still fails if it stops parsing or loses a list. An allow rule in either
   # settings file that covers a merge is a WARN, not a FAIL (V2-14): the
   # gate's merge rule denies a merge whatever the allow lists say, and
   # settings.local.json is the human's own file.
   local settings="$1/.claude/settings.json" reference="templates/settings.json.template"
-  if [ ! -f "$settings" ] && is_fork_root "$1"; then settings="$reference"; fi
+  if is_fork_root "$1"; then settings="$reference"; fi
   echo "  Permission rules in $settings (reference: $reference):"
   python3 - "$reference" "$settings" "$1/.claude/settings.local.json" <<'PY'
 import json, os, sys

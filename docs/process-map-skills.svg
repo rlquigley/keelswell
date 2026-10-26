@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="738" viewBox="0 0 600 738" role="img">
+<title>Keelswell skills map</title>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#35546a"/></marker></defs>
+<rect width="600" height="738" fill="#ffffff"/>
+<rect x="0" y="0" width="200" height="738" rx="0" fill="#f6f8fa" stroke="#35546a"/>
+<rect x="0" y="0" width="200" height="34" rx="0" fill="#cfd9e2" stroke="#35546a"/>
+<text font-family="Helvetica, Arial, sans-serif" font-size="13" font-weight="bold" fill="#14232e" text-anchor="middle" dominant-baseline="central"><tspan x="100" y="17">You</tspan></text>
+<rect x="200" y="0" width="200" height="738" rx="0" fill="#e9eef2" stroke="#35546a"/>
+<rect x="200" y="0" width="200" height="34" rx="0" fill="#cfd9e2" stroke="#35546a"/>
+<text font-family="Helvetica, Arial, sans-serif" font-size="13" font-weight="bold" fill="#14232e" text-anchor="middle" dominant-baseline="central"><tspan x="300" y="17">Wave skills</tspan></text>
+<rect x="400" y="0" width="200" height="738" rx="0" fill="#f6f8fa" stroke="#35546a"/>
+<rect x="400" y="0" width="200" height="34" rx="0" fill="#cfd9e2" stroke="#35546a"/>
+<text font-family="Helvetica, Arial, sans-serif" font-size="13" font-weight="bold" fill="#14232e" text-anchor="middle" dominant-baseline="central"><tspan x="500" y="17">Session skills</tspan></text>
+<rect x="52" y="52" width="96" height="28" rx="14" fill="#bccfdd" stroke="#35546a"/>
+<text font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="normal" fill="#14232e" text-anchor="middle" dominant-baseline="central"><tspan x="100" y="66">Start</tspan></text>
+<rect x="432" y="111" width="136" height="38" rx="3" fill="#bccfdd" stroke="#35546a"/>
+<text font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="normal" fill="#14232e" text-anchor="middle" dominant-baseline="central"><tspan x="500" y="122.8">/bmad-status-wave</tspan><tspan x="500" y="137.2">check status</tspan></text>
+<rect x="232" y="175" width="136" height="38" rx="3" fill="#bccfdd" stroke="#35546a"/>
+<text font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="normal" fill="#14232e" text-anchor="middle" dominant-baseline="central"><tspan x="300" y="186.8">/bmad-create-wave</tspan><tspan x="300" y="201.2">plan the waves</tspan></text>
+<rect x="452" y="180" width="96" height="28" rx="14" fill="#bccfdd" stroke="#35546a"/>
+<text font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="normal" fill="#14232e" text-anchor="middle" dominant-baseline="central"><tspan x="500" y="194">Stopped wave</tspan></text>
+<rect x="232" y="239" width="136" height="38" rx="3" fill="#bccfdd" stroke="#35546a"/>
+<text font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="normal" fill="#14232e" text-anchor="middle" dominant-baseline="central"><tspan x="300" y="250.8">/bmad-dev-wave</tspan><tspan x="300" y="265.2">build one wave</tspan></text>
+<rect x="432" y="239" width="136" height="38" rx="3" fill="#bccfdd" stroke="#35546a"/>
+<text font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="normal" fill="#14232e" text-anchor="middle" dominant-baseline="central"><tspan x="500" y="250.8">/bmad-resume-wave</tspan><tspan x="500" y="265.2">resume a wave</tspan></text>
+<rect x="432" y="303" width="136" height="38" rx="3" fill="#bccfdd" stroke="#35546a"/>
+<text font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="normal" fill="#14232e" text-anchor="middle" dominant-baseline="central"><tspan x="500" y="314.8">/bmad-wrap</tspan><tspan x="500" y="329.2">end each session</tspan></text>
+<rect x="32" y="367" width="136" height="38" rx="3" fill="#bccfdd" stroke="#35546a"/>
+<text font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="normal" fill="#14232e" text-anchor="middle" dominant-baseline="central"><tspan x="100" y="378.8">Merge the</tspan><tspan x="100" y="393.2">pull request</tspan></text>
+<rect x="232" y="431" width="136" height="38" rx="3" fill="#bccfdd" stroke="#35546a"/>
+<text font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="normal" fill="#14232e" text-anchor="middle" dominant-baseline="central"><tspan x="300" y="442.8">/bmad-merge-wave</tspan><tspan x="300" y="457.2">clean up the wave</tspan></text>
+<path d="M300,488 L348,514 L300,540 L252,514 Z" fill="#bccfdd" stroke="#35546a"/>
+<text font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="normal" fill="#14232e" text-anchor="middle" dominant-baseline="central"><tspan x="300" y="506.8">Epic</tspan><tspan x="300" y="521.2">done?</tspan></text>
+<rect x="232" y="559" width="136" height="38" rx="3" fill="#bccfdd" stroke="#35546a"/>
+<text font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="normal" fill="#14232e" text-anchor="middle" dominant-baseline="central"><tspan x="300" y="570.8">/bmad-close-epic</tspan><tspan x="300" y="585.2">close the epic</tspan></text>
+<rect x="32" y="623" width="136" height="38" rx="3" fill="#bccfdd" stroke="#35546a"/>
+<text font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="normal" fill="#14232e" text-anchor="middle" dominant-baseline="central"><tspan x="100" y="634.8">Merge the</tspan><tspan x="100" y="649.2">closure PR</tspan></text>
+<rect x="52" y="692" width="96" height="28" rx="14" fill="#bccfdd" stroke="#35546a"/>
+<text font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="normal" fill="#14232e" text-anchor="middle" dominant-baseline="central"><tspan x="100" y="706">Next epic</tspan></text>
+<polyline points="148,66 500,66 500,111" fill="none" stroke="#35546a" stroke-width="1.3" marker-end="url(#arrow)"/>
+<polyline points="432,130 300,130 300,175" fill="none" stroke="#35546a" stroke-width="1.3" marker-end="url(#arrow)"/>
+<polyline points="300,213 300,239" fill="none" stroke="#35546a" stroke-width="1.3" marker-end="url(#arrow)"/>
+<polyline points="500,208 500,239" fill="none" stroke="#35546a" stroke-width="1.3" marker-end="url(#arrow)"/>
+<polyline points="432,258 368,258" fill="none" stroke="#35546a" stroke-width="1.3" marker-end="url(#arrow)"/>
+<polyline points="300,277 300,322 432,322" fill="none" stroke="#35546a" stroke-width="1.3" marker-end="url(#arrow)"/>
+<polyline points="500,341 500,386 168,386" fill="none" stroke="#35546a" stroke-width="1.3" marker-end="url(#arrow)"/>
+<polyline points="100,405 100,450 232,450" fill="none" stroke="#35546a" stroke-width="1.3" marker-end="url(#arrow)"/>
+<polyline points="300,469 300,488" fill="none" stroke="#35546a" stroke-width="1.3" marker-end="url(#arrow)"/>
+<polyline points="252,514 184,514 184,258 232,258" fill="none" stroke="#35546a" stroke-width="1.3" marker-end="url(#arrow)"/>
+<rect x="223" y="506" width="22" height="16" rx="3" fill="#ffffff" stroke="#35546a" stroke-width="0.6"/>
+<text font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="bold" fill="#14232e" text-anchor="middle" dominant-baseline="central"><tspan x="234" y="514">No</tspan></text>
+<polyline points="300,540 300,559" fill="none" stroke="#35546a" stroke-width="1.3" marker-end="url(#arrow)"/>
+<rect x="304" y="541.5" width="29" height="16" rx="3" fill="#ffffff" stroke="#35546a" stroke-width="0.6"/>
+<text font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="bold" fill="#14232e" text-anchor="middle" dominant-baseline="central"><tspan x="318.5" y="549.5">Yes</tspan></text>
+<polyline points="300,597 300,642 168,642" fill="none" stroke="#35546a" stroke-width="1.3" marker-end="url(#arrow)"/>
+<polyline points="100,661 100,692" fill="none" stroke="#35546a" stroke-width="1.3" marker-end="url(#arrow)"/>
+</svg>
