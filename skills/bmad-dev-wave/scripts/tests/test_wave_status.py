@@ -492,6 +492,135 @@ class Structural(unittest.TestCase):
             self.assertFalse((p.root / ".bmad" / "wave-7A" / "wave.md").exists())
 
 
+class ClosurePending(unittest.TestCase):
+    """V2-13: route refuses a draft wave while an earlier epic, every wave of
+    which has landed, has no closure that covers them all."""
+
+    def setUp(self):
+        self.stack = contextlib.ExitStack()
+        self.addCleanup(self.stack.close)
+        self.p = Project(self.stack)
+        self.p.init_git()
+
+    def commit(self, rel, text, msg):
+        f = self.p.root / rel
+        f.parent.mkdir(parents=True, exist_ok=True)
+        f.write_text(text)
+        self.p.git("add", "-A")
+        self.p.git("commit", "-q", "-m", msg)
+
+    def close(self, epic):
+        self.commit(f"_bmad-output/epic-closure/epic-{epic}/SUMMARY.md", "# Summary\n",
+                    f"close epic {epic}")
+
+    def defer(self, line):
+        path = self.p.root / "_bmad-output" / "planning-artifacts" / "waves.md"
+        self.commit("_bmad-output/planning-artifacts/waves.md",
+                    path.read_text() + "\n" + line + "\n", "defer")
+
+    def head(self):
+        return subprocess.run(["git", "-C", str(self.p.root), "rev-parse", "HEAD"],
+                              capture_output=True, text=True).stdout.strip()
+
+    def test_an_unclosed_earlier_epic_refuses(self):
+        self.p.land_docs_on_main("7A")
+        self.p.land_docs_on_main("7B")
+        code, out, err = self.p.route("8A")
+        self.assertEqual(code, 5, err)
+        self.assertEqual(out["error"], "closure_pending")
+        self.assertEqual(out["pending"][0]["epic"], 7)
+        self.assertIn("epic 7", err)
+        self.assertIn("/bmad-close-epic 7", err)
+        self.assertIn("Closure deferral: epic 7 -- ", err)
+
+    def test_a_closed_earlier_epic_passes(self):
+        self.p.land_docs_on_main("7A")
+        self.p.land_docs_on_main("7B")
+        self.close(7)
+        code, out, err = self.p.route("8A")
+        self.assertEqual(code, 0, err)
+
+    def test_a_wave_merged_after_the_closure_makes_it_pending_again(self):
+        self.p.land_docs_on_main("7A")
+        self.close(7)
+        self.p.land_docs_on_main("7B")
+        code, out, err = self.p.route("8A")
+        self.assertEqual(code, 5, err)
+        self.assertEqual(out["pending"][0]["late"], ["7B"])
+        self.assertIn("7B", err)
+
+    def test_an_addendum_to_the_closure_covers_the_late_wave(self):
+        self.p.land_docs_on_main("7A")
+        self.close(7)
+        self.p.land_docs_on_main("7B")
+        self.commit("_bmad-output/epic-closure/epic-7/addendum-7b.md", "# 7B\n", "addendum")
+        self.assertEqual(self.p.route("8A")[0], 0)
+
+    def test_an_epic_still_mid_flight_is_not_pending(self):
+        # The ruled 6A placement: a later epic's wave runs while an earlier
+        # epic still has a wave to land.
+        self.p.land_docs_on_main("7A")
+        code, _, err = self.p.route("8A")
+        self.assertEqual(code, 0, err)
+
+    def test_a_valid_deferral_line_passes(self):
+        self.p.land_docs_on_main("7A")
+        self.p.land_docs_on_main("7B")
+        self.defer("Closure deferral: epic 7 -- 2099-01-01 -- RQ ruled the closure waits for 8A.")
+        code, out, err = self.p.route("8A")
+        self.assertEqual(code, 0, err)
+
+    def test_a_deferral_dated_before_a_landing_does_not_cover_it(self):
+        self.p.land_docs_on_main("7A")
+        self.p.land_docs_on_main("7B")
+        self.defer("Closure deferral: epic 7 -- 2000-01-01 -- stale.")
+        code, _, err = self.p.route("8A")
+        self.assertEqual(code, 5, err)
+
+    def test_a_deferral_for_another_epic_does_not_cover_it(self):
+        self.p.land_docs_on_main("7A")
+        self.p.land_docs_on_main("7B")
+        self.defer("Closure deferral: epic 6 -- 2099-01-01 -- wrong epic.")
+        self.assertEqual(self.p.route("8A")[0], 5)
+
+    def test_an_uncommitted_deferral_does_not_count(self):
+        self.p.land_docs_on_main("7A")
+        self.p.land_docs_on_main("7B")
+        path = self.p.root / "_bmad-output" / "planning-artifacts" / "waves.md"
+        path.write_text(path.read_text() + "\nClosure deferral: epic 7 -- 2099-01-01 -- x.\n")
+        self.assertEqual(self.p.route("8A")[0], 5)
+
+    def test_a_deferral_off_origin_main_does_not_count(self):
+        self.p.land_docs_on_main("7A")
+        self.p.land_docs_on_main("7B")
+        before = self.head()
+        self.defer("Closure deferral: epic 7 -- 2099-01-01 -- local only.")
+        self.p.git("update-ref", "refs/remotes/origin/main", before)
+        self.assertEqual(self.p.route("8A")[0], 5)
+
+    def test_a_malformed_deferral_line_is_quoted(self):
+        self.p.land_docs_on_main("7A")
+        self.p.land_docs_on_main("7B")
+        self.defer("Closure deferral: epic seven, later")
+        code, _, err = self.p.route("8A")
+        self.assertEqual(code, 5, err)
+        self.assertIn("Closure deferral: epic seven, later", err)
+
+    def test_a_wave_past_draft_is_not_refused(self):
+        self.p.land_docs_on_main("7A")
+        self.p.land_docs_on_main("7B")
+        self.p.walk("8A", "in-progress")
+        code, out, err = self.p.route("8A")
+        self.assertEqual(code, 0, err)
+        self.assertEqual(out["status"], "in-progress")
+
+    def test_a_wave_of_the_pending_epic_itself_is_not_refused(self):
+        self.p.land_docs_on_main("7A")
+        self.p.git("checkout", "-q", "-b", "side")  # 7B unlanded: 7 mid-flight anyway
+        self.p.git("checkout", "-q", "main")
+        self.assertEqual(self.p.route("7B")[0], 0)
+
+
 class Show(unittest.TestCase):
 
     def test_show_lists_every_wave(self):

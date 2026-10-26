@@ -19,7 +19,7 @@ allowed-tools:
   - Bash
   - Task
 metadata:
-  version: 1.25.0
+  version: 1.26.0
   output-locations:
     - ../<project>-wave-<id>/                 # sibling worktree, branch wave-<id>-<suffix>
     - .bmad/wave-<id>/checkpoint.json         # plus step-N.done markers
@@ -81,8 +81,8 @@ step this skill does not have; exit 3 is route's split or ambiguous-worktree
 refusal. Any step can be re-entered by /bmad-resume-wave.
 1.  Preflight: the status gate below decides whether this wave may be
     dispatched at all and at which step to re-enter; then clean tree, wave
-    exists in waves.md, gh authenticated, and no earlier epic is
-    closure-pending (see The Closure Gate).
+    exists in waves.md, gh authenticated. `route` itself refuses, exit 5,
+    while an earlier epic is closure-pending (see The Closure Gate).
 2.  Worktree creation: sibling ../<project>-wave-<id> on branch
     wave-<id>-<suffix>.
 3.  Wave-scoped test design (one QA-persona subagent) ->
@@ -194,7 +194,7 @@ derive:
 
 Exit 0 proceeds, and its JSON names the `reentry_step` to start at -- use it
 instead of assuming step 1, and instead of inferring the step from the
-conversation. Exit 1, 2 or 3 is the refusal; quote its stderr, which names the
+conversation. Exit 1, 2, 3 or 5 is the refusal; quote its stderr, which names the
 wave and the remedy. There is no flag and no override.
 
   0  proceed; the JSON carries status, stage and reentry_step
@@ -204,6 +204,8 @@ wave and the remedy. There is no flag and no override.
      missing or unrecognized status; or the wave's state cannot be placed:
      two checkouts are on its branch, or the main checkout's copy of its
      directory disagrees with the worktree's
+  5  the wave is a draft and an earlier epic is closure-pending (The
+     Closure Gate). Not a block, and nothing to clear on the wave
 
 The six statuses and the step each re-enters at:
 
@@ -468,7 +470,11 @@ What the PreToolUse hook denies, reading only what is on disk:
 
 - **closure**: any write under `_bmad-output/epic-closure/epic-<N>/` while
   `check_review_records.py --epic N` exits non-zero. /bmad-close-epic's gate,
-  run by the hook at the moment the artifact would be written.
+  run by the hook at the moment the artifact would be written. Bash is read
+  for the paths it writes, through cd, variables and symlinks, so `ls` or
+  `cat` of a closure directory is allowed; a write under `epic-closure/`
+  that names no single `epic-<N>/`, and interpreter code that names
+  closure and epic, are denied.
 - **verdict**: any write to `docs/wave-<id>/evaluation-<n>.md`. The evaluator
   hook is the one writer. A verdict typed by the agent it grades is not one,
   and neither is one copied, moved, linked or unpacked into
@@ -551,28 +557,39 @@ dispatch would walk past it. Ending by `resume` does not count. Sticky as
 always: a human records the answer, deletes the marker, and clears the block.
 
 ## The Closure Gate
-Step 1 refuses to open a wave while an earlier epic is closure-pending
-(register row 51, ruled by RQ 2026-09-10). Closure-pending means every story
-of that epic has landed and no closure record exists: each of its waves'
-pull requests reads `MERGED` via
-`gh pr view <branch> --json number,state,mergedAt`, and
-`_bmad-output/epic-closure/epic-<n>/` is absent.
+Step 1's `route` refuses a draft wave, exit 5, while an earlier epic is
+closure-pending (register row 51, ruled by RQ 2026-09-10; code since 1.26.0,
+V2-13 of the harness review v2). Quote its stderr. It names the epic, the
+waves that make it pending, and the two ways out.
+
+Closure-pending is read from git, on origin/main when that ref exists and
+main otherwise: every wave of the epic has landed (the commit that added its
+`docs/wave-<id>/` is on that line), and `_bmad-output/epic-closure/epic-<n>/`
+is missing there, or was last changed by a commit that does not contain one
+of those waves. The second case is a wave merged after its epic closed, as
+ffbapp's 5E merged into epic 5 a month after 97976b0. An addendum to the
+closure covers it.
 
 Test merged, not cleaned up. A session cannot remove the worktree it runs
 in, so cleanup always lags one session; gating on cleanup would leave open
 the exact window Epic 4 fell through, where wave 4B merged on 2026-09-03 and
-wave 5A opened the next day. /bmad-status-wave already computes this state
-and, by its own charter, only surfaces it; this gate is what acts on it.
+wave 5A opened the next day. /bmad-close-epic is where cleanup is checked.
 
 The gate does not fire for an epic still mid-flight. A wave running out of
-epic order while an earlier epic has an unmerged wave is unaffected, which is
-what keeps a ruled placement like wave 6A's (between 4A and 4B) legal.
+epic order while an earlier epic has a wave still to land is unaffected,
+which is what keeps a ruled placement like wave 6A's (between 4A and 4B)
+legal. Nor does it stop a wave already past draft: it decides whether a wave
+opens.
 
 Not overridable by a flag: a flag is how the gap recurs. A deliberate
-deferral is a founder act, recorded as a dated amendment in waves.md naming
-the epic and the reason, which this preflight reads and accepts. Refusal
-names the epic, names the waves whose pull requests are merged, and points at
-/bmad-close-epic.
+deferral is a founder act, one line in waves.md on main (never the working
+tree, which this session could edit):
+
+    Closure deferral: epic <N> -- <YYYY-MM-DD> -- <reason>
+
+It covers the epic's waves that landed on or before its date; a wave landing
+later makes the epic pending again. A line that says Closure deferral and
+does not parse is quoted in the refusal, and does not count.
 
 ## The Reviewer Selection
 
@@ -776,9 +793,10 @@ there is nothing to block.
   stderr, which names the moves that are allowed; do not reach the status by
   another route.
 - Dirty working tree at preflight: refuse; name the dirty paths.
-- Earlier epic closure-pending at preflight: refuse; name the epic and its
-  merged waves, and point at /bmad-close-epic. Not overridable by a flag;
-  a deliberate deferral is a dated waves.md amendment.
+- Earlier epic closure-pending at preflight: `route` exits 5; quote its
+  stderr, which names the epic and its late waves and points at
+  /bmad-close-epic. Not overridable by a flag; the one override is a
+  `Closure deferral:` line in waves.md on main, a founder act.
 - --no-party with no review record on disk from the prior session: refuse
   the flag. The flag skips a step that already ran, not the artifact.
 - Wave ID not in waves.md: refuse; suggest /bmad-create-wave.
@@ -813,6 +831,13 @@ there is nothing to block.
   names. Do not retry the same write through a different tool.
 
 ## Version history
+- 1.26.0 (2026-10-25, harness review v2 V2-11 and V2-13): the closure gate
+  reads Bash for the paths it writes, through cd, variables and symlinks;
+  reads of a closure directory are allowed, and a write naming no single
+  epic is denied. `route` refuses a draft wave, exit 5, while an earlier
+  epic is closure-pending, read from git, a wave merged after its epic's
+  closure included; a `Closure deferral:` line in waves.md on main is the
+  one override. The step-1 check that was prose is code; no step changed.
 - 1.25.0 (2026-10-25, harness review v2 V2-14): the gate has a merge rule.
   `gh pr merge`, a `gh api` merge and a push to main or master are denied in
   every shape the parse reads, and text naming a merge that it cannot read

@@ -4,6 +4,139 @@ All notable changes to Keelswell. Format: Keep a Changelog; versioning: semver.
 ## [Unreleased]
 
 ### Fixed
+- An epic closure means what it says: the gate reads where a command
+  writes, a review record counts only from main, and a wave cannot open past
+  an earlier epic that is closure-pending (2026-10-25, V2-11, V2-12 and V2-13
+  of docs/reviews/harness-review-v2.md; bmad-dev-wave 1.26.0, bmad-close-epic
+  1.5.0, bmad-resume-wave 1.5.1).
+  **V2-11.** wave_gate.py's closure rule matched Bash's raw text, so a write
+  that did not spell `_bmad-output/epic-closure/epic-<N>` skipped
+  check_review_records.py, and an `ls` of a closure directory ran it. It now
+  takes the paths a command writes, removes, links from, unpacks into, edits
+  through `find`, or runs interpreter code or `patch` in, resolved the way
+  the other rules resolve them (cd, variables, `./`, `//` and `..`, and
+  symlinks, existing or made in the same call), and runs
+  the gate for each epic-<N> they reach. A write under `epic-closure/` that
+  names no single `epic-<N>/` (the directory itself, `epic-{7,}`, a copy
+  into the directory, a file beside the epic directories) is denied outright,
+  and so is a command naming `epic-closure` with a path or `cd` behind a
+  variable it cannot resolve (`export D=...`). Text the parse cannot read
+  keeps a text match: a command that does not parse, interpreter code, a
+  shell's stdin, what is piped to xargs, and a split string in interpreter
+  code that names closure and epic apart. Reads (`ls`, `cat`, `grep -r`,
+  `find` without `-delete` or a writing `-exec`, `git log`, a commit message
+  naming the path) are allowed.
+  **V2-12.** check_review_records.py read the working tree, so an empty,
+  untracked review-party.md passed. A record now counts only from the main
+  line's tree, origin/main when that ref exists and main otherwise, so a
+  file written now, untracked or committed only on the closure branch, does
+  not; it must not be empty; and for a wave that landed on or after
+  2026-09-12, when bmad-dev-wave 1.5.0 made it required, it must carry
+  `title`, `wave` (its own label), `created`, `model` and `effort`. The api-
+  surface "Party-review amendments" alternative is read from the same tree.
+  The script exits 4 while any checkout is on one of the epic's wave
+  branches (wave_status.locate's candidates), on every run including the
+  hook's. `--preflight`, which close-epic's step 1 now runs and the hook
+  never does, adds the network checks: no open pull request on a wave's
+  branch (`gh pr list`, matched as every wave script matches branches), and
+  no closure branch already (a local or origin branch named `close-epic-<N>`
+  or `epic-<N>-closure`, other than the one in the project root or the
+  cwd). gh or origin failing to answer is a refusal. The refusal no longer
+  says only "write the record": the remedy is a record landed on main by a
+  pull request.
+  **V2-13.** dev-wave's "refuse while an earlier epic is closure-pending" was
+  prose. `wave_status.py route` now refuses a draft wave, exit 5, while an
+  earlier epic is pending: every wave of it has landed on the main line, and
+  its `_bmad-output/epic-closure/epic-<N>/` there is missing or was last
+  changed by a commit that does not contain one of those waves. An epic
+  with a wave still to land is mid-flight and not pending, which keeps the
+  ruled 6A placement legal; a wave past draft routes as before. The one
+  override is a line in waves.md on the main line:
+  `Closure deferral: epic <N> -- <YYYY-MM-DD> -- <reason>`. It covers the
+  waves that landed on or before its date; a line that says Closure
+  deferral and does not parse is quoted in the refusal. resume-wave names
+  the new exit.
+  **Rulings.** RQ, 2026-10-25, (a) to (g) as amended in the session's
+  proposal: (a) resolved paths, the raw match only for unreadable text and
+  interpreter code, reads allowed, a write naming no epic denied; (b) the
+  origin/main tree rather than HEAD's and "the wave's own merge", which
+  would leave a missing record no way to land, and front matter from
+  2026-09-12 only, since 10 of ffbapp's 12 records predate it and 8 carry
+  none at all; (c) a
+  `--preflight` flag, not a subcommand, since the hook calls the script with
+  no verb; (d) the docs-only branch and "never set done before the four
+  passes" stay prose, under close-epic's new Not covered by code; (e)
+  pending only for an epic whose waves have all landed, draft waves only,
+  exit 5; (f) the deferral line, read from origin/main; (g) ffbapp's 6C is
+  refused until epic 5 is handled.
+  **What was measured.** 42 new tests (bmad-dev-wave 427 per tree, from 405:
+  9 gate tests holding 39 command shapes and 13 route tests; close-epic 32,
+  from 12; tools 29; `install.sh --validate-only --skip-mcp-check` green;
+  skills/ and .claude/skills/ identical). Against 3bcd100's three scripts
+  the new tests fail 47 times: 24 gate failures (every V2-11 shape, and
+  `ls`, `cat`, `cd ... && ls`, `git log` and a commit message naming the
+  path, which the old rule denied), 7 route cases and 16 close-epic cases
+  (the untracked, empty, front-matter-less, key-less, wrong-wave and
+  closure-branch records, origin/main, the worktree, the seven preflight
+  cases and a missing wave_status.py). The
+  passing cases (a record merged with its wave, an addendum, a deferral, a
+  mid-flight epic, a wave past draft) are green before and after.
+  Mutation on rsync copies, one clause at a time, after an unmutated
+  control went green: 47 of 47 killed. The first pass left two survivors:
+  `removed()` in the closure targets, which `write_paths` and the `find`
+  clause already covered, so it was deleted; and `git -C` into a closure
+  directory, whose test used `checkout -- .`, which `write_paths` also
+  reads, so a `reset --hard` case was added. Gate p50 of 20 calls against
+  3bcd100 on the same machine and a 200-file project whose epic 7 gate
+  passes: `ls` 131.1 against 128.7 ms, a matched `mkdir` 270.8 against
+  188.6 and a matched Write 269.7 against 188.7 (check_review_records now
+  reads the main line per wave and every checkout's branch: once per
+  closure file), `cat` of a closure file 130.9 against 188.4 (no longer a
+  gate run). This machine's absolute numbers sit above #62's 88 ms; the
+  comparison is within one run.
+  **ffbapp, on an rsync copy.** `route --wave 6C` exits 5:
+
+      REFUSE: wave 6C (epic 6) cannot open: epic 5 is closure-pending.
+        epic 5: wave 5E landed after the closure was last changed.
+          closure: _bmad-output/epic-closure/epic-5/ last changed in 97976b0 (2026-09-10)
+          5E: docs/wave-5e/ landed on 2026-10-09
+
+  followed by the close-epic and deferral remedies. Before this change it
+  exited 0 and wrote a draft record. Ancestry on the real repository agrees:
+  every wave of epics 1 to 4 is inside its closure commit, and 5E alone is
+  outside epic 5's. check_review_records: epics 1 to 4 exit 0 (records and
+  pre-rule gaps as before; 5D passes by its api-surface amendments), epic 5
+  exits 4 because the worktree `.claude/worktrees/wave-6b-eval-pass-2-abd1f2`
+  is still on `claude/wave-5e-qb-archetypes`, and epic 6 exits 3 because 6C
+  has not landed. So an epic 5 addendum needs that worktree removed first.
+  **Prediction.** After this syncs to ffbapp, the next `route` for 6C exits
+  5 with the refusal above, and it opens only after a commit on origin/main
+  either changes `_bmad-output/epic-closure/epic-5/` (an addendum that
+  check_review_records lets the hook write once the stale 5E worktree is
+  gone) or adds a `Closure deferral: epic 5` line. No ffbapp session writes
+  under `epic-closure/` by a shape the gate cannot resolve. Gradable from
+  6C's first route output and `git log origin/main --
+  _bmad-output/epic-closure/epic-5/ _bmad-output/planning-artifacts/waves.md`.
+  #62's prediction is not graded: no wave has run in either instance since
+  it synced (ffbapp main is still 20a51cd, green-ledger 7f29ca0), and this
+  change refuses ffbapp's next wave until epic 5 is handled, which delays it.
+  **At risk.** A script file written earlier and run later is not opened,
+  as for every rule. Interpreter code that builds the path without both
+  words (`chr()`, a variable from the environment) passes. A recursive copy
+  or unreadable unpack into a directory above `epic-closure/` whose source
+  carries a closure (`cp -r /tmp/x .`, `tar -x` from stdin) is not seen.
+  `git checkout` or `pull` of a branch carrying closure files is allowed,
+  which is how a merged closure arrives. Any commit that touches an epic's
+  closure directory clears its pending state, a typo fix included; the
+  deferral and the record both trust whoever can push to main, and an agent
+  that can move `refs/remotes/origin/main` by hand moves the main line.
+  The closure-branch check is a name match (`close-epic-<N>`,
+  `epic-<N>-closure`) and misses other names, as ffbapp's epic 5 branch
+  `epic-5-retrospective-cleanup` shows. bmad-status-wave's closure-pending
+  row still means "no closure record" and does not show a wave merged after
+  its closure. V2-33's compaction cut still falls above The Closure Gate;
+  the gate is code now, so losing the prose loses the explanation, not the
+  refusal.
 - No session merges, in any shape the gate can read (2026-10-25, V2-14 of
   docs/reviews/harness-review-v2.md; bmad-dev-wave 1.25.0). wave_gate.py has
   a seventh rule, merge. It denies `gh pr merge` (with `-R`, `--auto`,

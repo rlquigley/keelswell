@@ -17,10 +17,18 @@ the plan asked for, plus the SessionEnd half Phase 2's step 4.5 needed.
 
 Seven rules, each read off disk and none of them a judgement:
 
-  closure   Nothing touches _bmad-output/epic-closure/epic-<N>/ unless
+  closure   Nothing writes under _bmad-output/epic-closure/epic-<N>/ unless
             check_review_records.py --epic N exits 0. Phase 1's gate, run by
             the hook at the moment the closure artifact would be written,
-            rather than by the closing agent at a step it may skip.
+            rather than by the closing agent at a step it may skip. For Bash
+            it reads the paths the command writes, removes, links from or
+            unpacks into, resolved through cd, variables and symlinks, so a
+            read of a closure directory is allowed and a write spelled
+            another way is not (V2-11). A write under epic-closure/ that does
+            not name one epic-<N> directory is denied outright, and text the
+            parse cannot read (interpreter code, a command that does not
+            parse) is matched as text, a split string naming closure and
+            epic included.
   verdict   docs/wave-<id>/evaluation-<n>.md is written by the evaluator
             hook and by nothing else. A verdict typed by the agent whose
             work it grades is not a verdict, and neither is one copied, moved,
@@ -135,6 +143,10 @@ GIT_TIMEOUT = 10
 # (evaluate_wave.EVALUATION_FILE), so a rule that minded case would guard one
 # spelling of a file the reader finds under any.
 CLOSURE_PATH = re.compile(r"_bmad-output/epic-closure/epic-(\d+)(?=/|$|\s|['\"])", re.I)
+# A resolved path under the closure directory, and the name right below it.
+CLOSURE_DIR = re.compile(r"(?:^|/)_bmad-output/epic-closure(?:$|/([^/]*))", re.I)
+EPIC_DIR = re.compile(r"^epic-(\d+)$", re.I)
+CLOSURE_NAMED = re.compile(r"epic-closure", re.I)
 EVALUATION_FILE = re.compile(r"(?:^|/)docs/wave-[^/]+/evaluation-\d+\.md$", re.I)
 EVALUATION_NAMED = re.compile(r"docs/wave-[^/\s'\"]+/evaluation-\d+\.md", re.I)
 # Where a record arrives: a wave's directory, or docs/ above it.
@@ -350,6 +362,14 @@ def _find_removes(args):
         return True  # a negation or a path pattern: not read, so assumed to match
     patterns = [args[j + 1].lower() for j, a in enumerate(args[:-1]) if a in ("-name", "-iname")]
     return not patterns or any(fnmatch.fnmatchcase(n, p) for p in patterns for n in FIND_TARGETS)
+
+
+def _find_writes(args):
+    """Does a find command line delete, or run something that writes?"""
+    return "-delete" in args or any(
+        a in ("-exec", "-execdir", "-ok", "-okdir") and j + 1 < len(args)
+        and _base(args[j + 1]) in REMOVERS | WRITES_ALL | WRITES_LAST | {"sed", "gsed", "perl"}
+        for j, a in enumerate(args))
 
 
 def _stashes_untracked(argv):
@@ -1020,8 +1040,102 @@ def unpacks_record(shell):
 
 # -------------------------------------------------------------------- rules
 
-def closure_rule(root, text):
-    for epic in sorted({int(n) for n in CLOSURE_PATH.findall(text or "")}):
+def _closure_hits(paths):
+    """(epics, unresolved): the epic-<N> directories under epic-closure/ that
+    resolved `paths` reach, and the paths that reach it without naming one:
+    the directory itself, or a name under it that is not epic-<N> (a brace, a
+    glob that matched nothing)."""
+    epics, unresolved = set(), []
+    for p in paths:
+        m = CLOSURE_DIR.search(p)
+        if not m:
+            continue
+        e = EPIC_DIR.match(m.group(1) or "")
+        if e:
+            epics.add(int(e.group(1)))
+        else:
+            unresolved.append(p)
+    return epics, unresolved
+
+
+def _named_epics(texts):
+    """(epics, unresolved) for text the parse cannot read as commands. A whole
+    epic-closure/epic-<N> path names its epic. Text that names closure and
+    epic apart, as a split string does, names one the gate cannot tell."""
+    epics, unresolved = set(), []
+    for t in texts:
+        found = {int(n) for n in CLOSURE_PATH.findall(t or "")}
+        epics |= found
+        if not found and re.search("closure", t or "", re.I) and re.search("epic", t, re.I):
+            unresolved.append(" ".join(t.split())[:80])
+    return epics, unresolved
+
+
+def closure_targets(shell):
+    """(epics, unresolved) for a Bash or Monitor command: what it writes,
+    removes, links from, unpacks into or runs code in, resolved the way every
+    other rule resolves it (cd, variables, symlinks, `./` and `//`), so a read
+    of a closure directory is not a write of it (V2-11). Interpreter code and
+    text the parse cannot read keep the old match on the text itself."""
+    if shell.error is not None:
+        return _named_epics([shell.raw])
+    paths, texts, blind = [], list(shell.stray), False
+    for sc in shell.cmds:
+        paths += shell.write_paths(sc)
+        operands = [a for a in sc.argv[1:] if not a.startswith("-")]
+        if sc.name == "find" and _find_writes(sc.argv[1:]):
+            # Any find that deletes or edits writes where it starts.
+            starts = []
+            for a in sc.argv[1:]:
+                if a.startswith("-") or a in ("(", "!"):
+                    break
+                starts.append(a)
+            paths += [p for t in starts or ["."] for p in _paths(_expand(t, shell.env), sc.cwd)]
+        if sc.name == "ln":
+            # The link's source: through the link, what it points at is written.
+            paths += [p for t in operands[:-1] for p in _paths(_expand(t, shell.env), sc.cwd)]
+        git = shell.git(sc)
+        if git and git[0] in GIT_WRITES:
+            paths.append(git[1])
+        code = shell.code(sc)
+        if code or sc.name == "patch":
+            paths.append(sc.cwd)
+        unpacked = shell.unpacks(sc)
+        if unpacked:
+            archive, where = unpacked
+            paths.append(where)
+            paths += [os.path.realpath(os.path.join(where, m))
+                      for m in (_members(archive) if archive else None) or []]
+        # A shell's -c text and eval's words were parsed above as commands.
+        texts += code if sc.nested else shell.fed(sc)
+        if sc.name in ("cd", "pushd") and len(sc.argv) > 1 \
+                and "$" in _expand(sc.argv[1], shell.env):
+            blind = True  # every path after it is relative to a directory not read
+    blind |= any("$" in p for p in paths)
+    epics, unresolved = _closure_hits(paths)
+    named, vague = _named_epics(texts)
+    epics |= named
+    unresolved += vague
+    if blind and shell.names(CLOSURE_NAMED):
+        unresolved.append("a path behind a variable the gate cannot resolve, in a command "
+                          "that names epic-closure")
+    return epics, unresolved
+
+
+def closure_rule(root, target, shell):
+    if shell is not None:
+        epics, unresolved = closure_targets(shell)
+    else:
+        epics, unresolved = _closure_hits([target] if target else [])
+    if unresolved:
+        raise Deny("closure", [
+            "this call writes under _bmad-output/epic-closure/, and the gate cannot tell which "
+            "epic's closure it writes:"]
+            + [f"  {u}" for u in unresolved[:3]]
+            + ["  Name the directory whole, _bmad-output/epic-closure/epic-<N>/, with the "
+               "Write tool or a plain command.",
+               "  The gate runs check_review_records.py for that epic; there is no flag."])
+    for epic in sorted(epics):
         if not CLOSURE_GATE.is_file():
             raise Deny("closure", [
                 f"epic {epic}: the review-record gate is missing at {CLOSURE_GATE}.",
@@ -1392,14 +1506,12 @@ def pre_tool_use(root, cwd, event):
         # NotebookEdit names its file notebook_path; every other file tool file_path.
         raw = tool_input.get("file_path") or tool_input.get("notebook_path") or ""
         target = os.path.realpath(os.path.join(cwd, os.path.expanduser(raw))) if raw else None
-        text = target
     elif tool in SHELL_TOOLS:
-        text = tool_input.get("command") or ""
-        shell = Shell(text, str(cwd))
+        shell = Shell(tool_input.get("command") or "", str(cwd))
     else:
         return 0
     try:
-        closure_rule(root, text)
+        closure_rule(root, target, shell)
         verdict_rule(root, target, shell)
         lifecycle_rule(target, shell)
         review_rule(root, shell)
