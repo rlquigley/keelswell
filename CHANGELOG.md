@@ -3,6 +3,70 @@ All notable changes to Keelswell. Format: Keep a Changelog; versioning: semver.
 
 ## [Unreleased]
 
+### Added
+- README.md shows how Keelswell works as three swim-lane process maps, and
+  a pull request on the fork says what it did about them (2026-10-25, RQ's
+  request). The high-level map has four lanes (you, AI planners, AI
+  builders, AI reviewers) and thirteen steps. The detailed map has five
+  lanes (you, AI planners, AI lead, AI coders, AI reviewers) and forty-four
+  steps, from installing Keelswell through planning, every wave and epic
+  closure to the last epic. Both use short verb phrases and no skill,
+  script or file names, so a reader with no context can follow them. The
+  skills map has three lanes (you, wave skills, session skills) and
+  thirteen steps, and shows only Keelswell's own seven skills and when
+  each runs. `tools/process_map.py` draws them as
+  `docs/process-map-{high-level,detailed,skills}.svg` from the data at its
+  top: lanes, steps on a (lane, slot) grid, and links
+  that name the sides they leave and enter by. It refuses a link with a
+  diagonal segment and two steps in one cell, and
+  tools/tests/test_process_map.py fails while a committed map differs from
+  what it draws. GitHub's Mermaid was tried first and cannot draw swim
+  lanes: subgraph lanes came out as uneven boxes in arbitrary order, 1063
+  and 1798 px wide. The fork's CLAUDE.md gains a Process Diagrams section:
+  before `gh pr create` on this repository, compare the diff with the
+  maps, edit the data and re-run the script when the change adds, removes
+  or reorders an activity, a decision or a hand-off, and say which on a
+  `Diagrams:` line in the body.
+  `tools/pr_diagram_check.py` enforces the line. It is a PreToolUse hook on
+  Bash, registered in the fork's new `.claude/settings.json` (exec form, `if:
+  Bash(gh *)`), and it denies, exit 2, a `gh pr create` or `gh pr new` for
+  the fork's own repository whose body (its words, a here-document or a
+  `--body-file`) has no such line. It reads the command with wave_gate.py's
+  `Shell`, so text that names gh pr create is not a call and a `cd` before
+  gh is followed; a pull request whose `--repo`, or whose directory's
+  origin, is another repository passes, which leaves the instance PRs a
+  propagation opens alone. It lives in tools/ because install.sh copies
+  `.claude/hooks/*.sh` into every target. install.sh's hooks_check and
+  permissions_check now read the template at the fork root whether or not
+  the fork has a settings.json; under the old `[ ! -f "$settings" ] &&`
+  guard the fork's file was validated as an install and `--validate-only`
+  failed.
+  **What was measured.** The maps are 916 x 336, 750 x 2594 and 600 x 738
+  px and were checked as images in Chromium; GitHub's rendering is checked
+  on the pull request. 3 map tests, 10 hook tests and 1 install test are
+  new; tools 43, bmad-dev-wave 405 and close-epic 12 in both trees, and
+  `install.sh --validate-only --skip-mcp-check` at the fork root pass under
+  Python 3.12 with PyYAML, as CI runs them. Mutation on scratch copies: 9
+  of 9 hook mutations killed (the repository check, the body check, the
+  here-document, `--body-file`, the `cd`, the `new` alias, an empty line,
+  `--repo`, a raw-text match in place of the parse), each install.sh guard
+  restored alone fails the new install test,
+  and a step label edited without a re-run fails the map test. A headless
+  session in the fork ran `gh pr create --help --title t --body x`: the
+  hook denied it and its stderr reached the model. With `--body
+  "Diagrams: no change -- hook check"` gh ran and printed its help.
+  **Prediction.** The next pull request a session opens on the fork carries
+  a `Diagrams:` line, because the session followed CLAUDE.md or because the
+  hook refused it once. Gradable from that pull request's body and, for a
+  refusal, from the pr-diagram-check text in the session's transcript.
+  **At risk.** The hook forces a statement, not a right one: "no change" can
+  be written for a change that moved a step. The maps are placed by hand,
+  so a new step needs a free cell and a route around the others, which
+  takes a render and a look. `if: Bash(gh *)` is best-effort, so gh run
+  through a full path or a wrapper may never reach the hook, and `GH_REPO`
+  is not read. A crash fails open. A session reads hooks when it starts, so
+  one that began before this merged runs without it.
+
 ### Fixed
 - An epic closure means what it says: the gate reads where a command
   writes, a review record counts only from main, and a wave cannot open past

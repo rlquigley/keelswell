@@ -1,0 +1,195 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="750" height="2594" viewBox="0 0 750 2594" role="img">
+<title>Keelswell detailed process map</title>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#35546a"/></marker></defs>
+<rect width="750" height="2594" fill="#ffffff"/>
+<rect x="0" y="0" width="150" height="2594" rx="0" fill="#f6f8fa" stroke="#35546a"/>
+<rect x="0" y="0" width="150" height="34" rx="0" fill="#cfd9e2" stroke="#35546a"/>
+<text font-family="Helvetica, Arial, sans-serif" font-size="13" font-weight="bold" fill="#14232e" text-anchor="middle" dominant-baseline="central"><tspan x="75" y="17">You</tspan></text>
+<rect x="150" y="0" width="150" height="2594" rx="0" fill="#e9eef2" stroke="#35546a"/>
+<rect x="150" y="0" width="150" height="34" rx="0" fill="#cfd9e2" stroke="#35546a"/>
+<text font-family="Helvetica, Arial, sans-serif" font-size="13" font-weight="bold" fill="#14232e" text-anchor="middle" dominant-baseline="central"><tspan x="225" y="17">AI planners</tspan></text>
+<rect x="300" y="0" width="150" height="2594" rx="0" fill="#f6f8fa" stroke="#35546a"/>
+<rect x="300" y="0" width="150" height="34" rx="0" fill="#cfd9e2" stroke="#35546a"/>
+<text font-family="Helvetica, Arial, sans-serif" font-size="13" font-weight="bold" fill="#14232e" text-anchor="middle" dominant-baseline="central"><tspan x="375" y="17">AI lead</tspan></text>
+<rect x="450" y="0" width="150" height="2594" rx="0" fill="#e9eef2" stroke="#35546a"/>
+<rect x="450" y="0" width="150" height="34" rx="0" fill="#cfd9e2" stroke="#35546a"/>
+<text font-family="Helvetica, Arial, sans-serif" font-size="13" font-weight="bold" fill="#14232e" text-anchor="middle" dominant-baseline="central"><tspan x="525" y="17">AI coders</tspan></text>
+<rect x="600" y="0" width="150" height="2594" rx="0" fill="#f6f8fa" stroke="#35546a"/>
+<rect x="600" y="0" width="150" height="34" rx="0" fill="#cfd9e2" stroke="#35546a"/>
+<text font-family="Helvetica, Arial, sans-serif" font-size="13" font-weight="bold" fill="#14232e" text-anchor="middle" dominant-baseline="central"><tspan x="675" y="17">AI reviewers</tspan></text>
+<rect x="35" y="52" width="80" height="28" rx="14" fill="#bccfdd" stroke="#35546a"/>
+<text font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="normal" fill="#14232e" text-anchor="middle" dominant-baseline="central"><tspan x="75" y="66">Start</tspan></text>
+<rect x="33" y="111" width="84" height="38" rx="3" fill="#bccfdd" stroke="#35546a"/>
+<text font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="normal" fill="#14232e" text-anchor="middle" dominant-baseline="central"><tspan x="75" y="122.8">Install</tspan><tspan x="75" y="137.2">Keelswell</tspan></text>
+<rect x="33" y="175" width="84" height="38" rx="3" fill="#bccfdd" stroke="#35546a"/>
+<text font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="normal" fill="#14232e" text-anchor="middle" dominant-baseline="central"><tspan x="75" y="186.8">Share an</tspan><tspan x="75" y="201.2">idea</tspan></text>
+<rect x="183" y="239" width="84" height="38" rx="3" fill="#bccfdd" stroke="#35546a"/>
+<text font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="normal" fill="#14232e" text-anchor="middle" dominant-baseline="central"><tspan x="225" y="250.8">Research the</tspan><tspan x="225" y="265.2">idea</tspan></text>
+<rect x="183" y="303" width="84" height="38" rx="3" fill="#bccfdd" stroke="#35546a"/>
+<text font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="normal" fill="#14232e" text-anchor="middle" dominant-baseline="central"><tspan x="225" y="314.8">Write the</tspan><tspan x="225" y="329.2">product brief</tspan></text>
+<rect x="183" y="367" width="84" height="38" rx="3" fill="#bccfdd" stroke="#35546a"/>
+<text font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="normal" fill="#14232e" text-anchor="middle" dominant-baseline="central"><tspan x="225" y="378.8">Write the</tspan><tspan x="225" y="393.2">PRD</tspan></text>
+<path d="M225,424 L267,450 L225,476 L183,450 Z" fill="#bccfdd" stroke="#35546a"/>
+<text font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="normal" fill="#14232e" text-anchor="middle" dominant-baseline="central"><tspan x="225" y="442.8">Has a</tspan><tspan x="225" y="457.2">UI?</tspan></text>
+<rect x="183" y="495" width="84" height="38" rx="3" fill="#bccfdd" stroke="#35546a"/>
+<text font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="normal" fill="#14232e" text-anchor="middle" dominant-baseline="central"><tspan x="225" y="506.8">Design the</tspan><tspan x="225" y="521.2">UX</tspan></text>
+<rect x="183" y="559" width="84" height="38" rx="3" fill="#bccfdd" stroke="#35546a"/>
+<text font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="normal" fill="#14232e" text-anchor="middle" dominant-baseline="central"><tspan x="225" y="570.8">Design the</tspan><tspan x="225" y="585.2">architecture</tspan></text>
+<rect x="183" y="623" width="84" height="38" rx="3" fill="#bccfdd" stroke="#35546a"/>
+<text font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="normal" fill="#14232e" text-anchor="middle" dominant-baseline="central"><tspan x="225" y="634.8">Write epics</tspan><tspan x="225" y="649.2">and stories</tspan></text>
+<rect x="33" y="687" width="84" height="38" rx="3" fill="#bccfdd" stroke="#35546a"/>
+<text font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="normal" fill="#14232e" text-anchor="middle" dominant-baseline="central"><tspan x="75" y="698.8">Approve the</tspan><tspan x="75" y="713.2">plan</tspan></text>
+<rect x="333" y="751" width="84" height="38" rx="3" fill="#bccfdd" stroke="#35546a"/>
+<text font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="normal" fill="#14232e" text-anchor="middle" dominant-baseline="central"><tspan x="375" y="762.8">Map story</tspan><tspan x="375" y="777.2">dependencies</tspan></text>
+<rect x="333" y="815" width="84" height="38" rx="3" fill="#bccfdd" stroke="#35546a"/>
+<text font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="normal" fill="#14232e" text-anchor="middle" dominant-baseline="central"><tspan x="375" y="826.8">Draft the</tspan><tspan x="375" y="841.2">wave plan</tspan></text>
+<rect x="33" y="879" width="84" height="38" rx="3" fill="#bccfdd" stroke="#35546a"/>
+<text font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="normal" fill="#14232e" text-anchor="middle" dominant-baseline="central"><tspan x="75" y="890.8">Approve the</tspan><tspan x="75" y="905.2">wave plan</tspan></text>
+<rect x="33" y="943" width="84" height="38" rx="3" fill="#bccfdd" stroke="#35546a"/>
+<text font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="normal" fill="#14232e" text-anchor="middle" dominant-baseline="central"><tspan x="75" y="954.8">Start a</tspan><tspan x="75" y="969.2">wave</tspan></text>
+<path d="M375,1000 L417,1026 L375,1052 L333,1026 Z" fill="#bccfdd" stroke="#35546a"/>
+<text font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="normal" fill="#14232e" text-anchor="middle" dominant-baseline="central"><tspan x="375" y="1018.8">Ready to</tspan><tspan x="375" y="1033.2">start?</tspan></text>
+<rect x="35" y="1012" width="80" height="28" rx="14" fill="#bccfdd" stroke="#35546a"/>
+<text font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="normal" fill="#14232e" text-anchor="middle" dominant-baseline="central"><tspan x="75" y="1026">Blocked</tspan></text>
+<rect x="333" y="1071" width="84" height="38" rx="3" fill="#bccfdd" stroke="#35546a"/>
+<text font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="normal" fill="#14232e" text-anchor="middle" dominant-baseline="central"><tspan x="375" y="1082.8">Open a</tspan><tspan x="375" y="1097.2">workspace</tspan></text>
+<rect x="633" y="1135" width="84" height="38" rx="3" fill="#bccfdd" stroke="#35546a"/>
+<text font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="normal" fill="#14232e" text-anchor="middle" dominant-baseline="central"><tspan x="675" y="1146.8">Design the</tspan><tspan x="675" y="1161.2">tests</tspan></text>
+<rect x="333" y="1199" width="84" height="38" rx="3" fill="#bccfdd" stroke="#35546a"/>
+<text font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="normal" fill="#14232e" text-anchor="middle" dominant-baseline="central"><tspan x="375" y="1210.8">Write story</tspan><tspan x="375" y="1225.2">details</tspan></text>
+<path d="M375,1256 L417,1282 L375,1308 L333,1282 Z" fill="#bccfdd" stroke="#35546a"/>
+<text font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="normal" fill="#14232e" text-anchor="middle" dominant-baseline="central"><tspan x="375" y="1274.8">Open</tspan><tspan x="375" y="1289.2">questions?</tspan></text>
+<rect x="33" y="1263" width="84" height="38" rx="3" fill="#bccfdd" stroke="#35546a"/>
+<text font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="normal" fill="#14232e" text-anchor="middle" dominant-baseline="central"><tspan x="75" y="1274.8">Answer the</tspan><tspan x="75" y="1289.2">questions</tspan></text>
+<rect x="333" y="1327" width="84" height="38" rx="3" fill="#bccfdd" stroke="#35546a"/>
+<text font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="normal" fill="#14232e" text-anchor="middle" dominant-baseline="central"><tspan x="375" y="1338.8">Write failing</tspan><tspan x="375" y="1353.2">tests</tspan></text>
+<rect x="483" y="1391" width="84" height="38" rx="3" fill="#bccfdd" stroke="#35546a"/>
+<text font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="normal" fill="#14232e" text-anchor="middle" dominant-baseline="central"><tspan x="525" y="1402.8">Code each</tspan><tspan x="525" y="1417.2">story</tspan></text>
+<rect x="333" y="1455" width="84" height="38" rx="3" fill="#bccfdd" stroke="#35546a"/>
+<text font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="normal" fill="#14232e" text-anchor="middle" dominant-baseline="central"><tspan x="375" y="1466.8">Run all</tspan><tspan x="375" y="1481.2">tests</tspan></text>
+<path d="M375,1512 L417,1538 L375,1564 L333,1538 Z" fill="#bccfdd" stroke="#35546a"/>
+<text font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="normal" fill="#14232e" text-anchor="middle" dominant-baseline="central"><tspan x="375" y="1530.8">Tests</tspan><tspan x="375" y="1545.2">pass?</tspan></text>
+<rect x="633" y="1583" width="84" height="38" rx="3" fill="#bccfdd" stroke="#35546a"/>
+<text font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="normal" fill="#14232e" text-anchor="middle" dominant-baseline="central"><tspan x="675" y="1594.8">Fresh-eyes</tspan><tspan x="675" y="1609.2">review</tspan></text>
+<path d="M675,1640 L717,1666 L675,1692 L633,1666 Z" fill="#bccfdd" stroke="#35546a"/>
+<text font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="normal" fill="#14232e" text-anchor="middle" dominant-baseline="central"><tspan x="675" y="1666">Approved?</tspan></text>
+<rect x="33" y="1647" width="84" height="38" rx="3" fill="#bccfdd" stroke="#35546a"/>
+<text font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="normal" fill="#14232e" text-anchor="middle" dominant-baseline="central"><tspan x="75" y="1658.8">Resume in a</tspan><tspan x="75" y="1673.2">new session</tspan></text>
+<rect x="33" y="1711" width="84" height="38" rx="3" fill="#bccfdd" stroke="#35546a"/>
+<text font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="normal" fill="#14232e" text-anchor="middle" dominant-baseline="central"><tspan x="75" y="1722.8">Approve the</tspan><tspan x="75" y="1737.2">commits</tspan></text>
+<path d="M375,1768 L417,1794 L375,1820 L333,1794 Z" fill="#bccfdd" stroke="#35546a"/>
+<text font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="normal" fill="#14232e" text-anchor="middle" dominant-baseline="central"><tspan x="375" y="1786.8">Critical</tspan><tspan x="375" y="1801.2">wave?</tspan></text>
+<rect x="633" y="1775" width="84" height="38" rx="3" fill="#bccfdd" stroke="#35546a"/>
+<text font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="normal" fill="#14232e" text-anchor="middle" dominant-baseline="central"><tspan x="675" y="1786.8">Specialist</tspan><tspan x="675" y="1801.2">review</tspan></text>
+<path d="M675,1832 L717,1858 L675,1884 L633,1858 Z" fill="#bccfdd" stroke="#35546a"/>
+<text font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="normal" fill="#14232e" text-anchor="middle" dominant-baseline="central"><tspan x="675" y="1850.8">Serious</tspan><tspan x="675" y="1865.2">issues?</tspan></text>
+<rect x="333" y="1903" width="84" height="38" rx="3" fill="#bccfdd" stroke="#35546a"/>
+<text font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="normal" fill="#14232e" text-anchor="middle" dominant-baseline="central"><tspan x="375" y="1914.8">Record the</tspan><tspan x="375" y="1929.2">review</tspan></text>
+<rect x="333" y="1967" width="84" height="38" rx="3" fill="#bccfdd" stroke="#35546a"/>
+<text font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="normal" fill="#14232e" text-anchor="middle" dominant-baseline="central"><tspan x="375" y="1978.8">Open a pull</tspan><tspan x="375" y="1993.2">request</tspan></text>
+<rect x="333" y="2031" width="84" height="38" rx="3" fill="#bccfdd" stroke="#35546a"/>
+<text font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="normal" fill="#14232e" text-anchor="middle" dominant-baseline="central"><tspan x="375" y="2042.8">Wrap up the</tspan><tspan x="375" y="2057.2">session</tspan></text>
+<rect x="33" y="2095" width="84" height="38" rx="3" fill="#bccfdd" stroke="#35546a"/>
+<text font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="normal" fill="#14232e" text-anchor="middle" dominant-baseline="central"><tspan x="75" y="2106.8">Merge the</tspan><tspan x="75" y="2121.2">pull request</tspan></text>
+<rect x="333" y="2159" width="84" height="38" rx="3" fill="#bccfdd" stroke="#35546a"/>
+<text font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="normal" fill="#14232e" text-anchor="middle" dominant-baseline="central"><tspan x="375" y="2170.8">Clean up the</tspan><tspan x="375" y="2185.2">workspace</tspan></text>
+<path d="M375,2216 L417,2242 L375,2268 L333,2242 Z" fill="#bccfdd" stroke="#35546a"/>
+<text font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="normal" fill="#14232e" text-anchor="middle" dominant-baseline="central"><tspan x="375" y="2234.8">Epic</tspan><tspan x="375" y="2249.2">done?</tspan></text>
+<rect x="633" y="2287" width="84" height="38" rx="3" fill="#bccfdd" stroke="#35546a"/>
+<text font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="normal" fill="#14232e" text-anchor="middle" dominant-baseline="central"><tspan x="675" y="2298.8">Audit the</tspan><tspan x="675" y="2313.2">epic</tspan></text>
+<rect x="333" y="2351" width="84" height="38" rx="3" fill="#bccfdd" stroke="#35546a"/>
+<text font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="normal" fill="#14232e" text-anchor="middle" dominant-baseline="central"><tspan x="375" y="2362.8">Open the</tspan><tspan x="375" y="2377.2">closure PR</tspan></text>
+<rect x="33" y="2415" width="84" height="38" rx="3" fill="#bccfdd" stroke="#35546a"/>
+<text font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="normal" fill="#14232e" text-anchor="middle" dominant-baseline="central"><tspan x="75" y="2426.8">Merge the</tspan><tspan x="75" y="2441.2">closure PR</tspan></text>
+<path d="M75,2472 L117,2498 L75,2524 L33,2498 Z" fill="#bccfdd" stroke="#35546a"/>
+<text font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="normal" fill="#14232e" text-anchor="middle" dominant-baseline="central"><tspan x="75" y="2490.8">More</tspan><tspan x="75" y="2505.2">epics?</tspan></text>
+<rect x="35" y="2548" width="80" height="28" rx="14" fill="#bccfdd" stroke="#35546a"/>
+<text font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="normal" fill="#14232e" text-anchor="middle" dominant-baseline="central"><tspan x="75" y="2562">Done</tspan></text>
+<polyline points="75,80 75,111" fill="none" stroke="#35546a" stroke-width="1.3" marker-end="url(#arrow)"/>
+<polyline points="75,149 75,175" fill="none" stroke="#35546a" stroke-width="1.3" marker-end="url(#arrow)"/>
+<polyline points="117,194 225,194 225,239" fill="none" stroke="#35546a" stroke-width="1.3" marker-end="url(#arrow)"/>
+<polyline points="225,277 225,303" fill="none" stroke="#35546a" stroke-width="1.3" marker-end="url(#arrow)"/>
+<polyline points="225,341 225,367" fill="none" stroke="#35546a" stroke-width="1.3" marker-end="url(#arrow)"/>
+<polyline points="225,405 225,424" fill="none" stroke="#35546a" stroke-width="1.3" marker-end="url(#arrow)"/>
+<polyline points="225,476 225,495" fill="none" stroke="#35546a" stroke-width="1.3" marker-end="url(#arrow)"/>
+<rect x="229" y="477.5" width="29" height="16" rx="3" fill="#ffffff" stroke="#35546a" stroke-width="0.6"/>
+<text font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="bold" fill="#14232e" text-anchor="middle" dominant-baseline="central"><tspan x="243.5" y="485.5">Yes</tspan></text>
+<polyline points="267,450 288,450 288,578 267,578" fill="none" stroke="#35546a" stroke-width="1.3" marker-end="url(#arrow)"/>
+<rect x="266.5" y="430" width="22" height="16" rx="3" fill="#ffffff" stroke="#35546a" stroke-width="0.6"/>
+<text font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="bold" fill="#14232e" text-anchor="middle" dominant-baseline="central"><tspan x="277.5" y="438">No</tspan></text>
+<polyline points="225,533 225,559" fill="none" stroke="#35546a" stroke-width="1.3" marker-end="url(#arrow)"/>
+<polyline points="225,597 225,623" fill="none" stroke="#35546a" stroke-width="1.3" marker-end="url(#arrow)"/>
+<polyline points="183,642 75,642 75,687" fill="none" stroke="#35546a" stroke-width="1.3" marker-end="url(#arrow)"/>
+<polyline points="117,706 375,706 375,751" fill="none" stroke="#35546a" stroke-width="1.3" marker-end="url(#arrow)"/>
+<polyline points="375,789 375,815" fill="none" stroke="#35546a" stroke-width="1.3" marker-end="url(#arrow)"/>
+<polyline points="333,834 75,834 75,879" fill="none" stroke="#35546a" stroke-width="1.3" marker-end="url(#arrow)"/>
+<polyline points="75,917 75,943" fill="none" stroke="#35546a" stroke-width="1.3" marker-end="url(#arrow)"/>
+<polyline points="117,962 375,962 375,1000" fill="none" stroke="#35546a" stroke-width="1.3" marker-end="url(#arrow)"/>
+<polyline points="333,1026 115,1026" fill="none" stroke="#35546a" stroke-width="1.3" marker-end="url(#arrow)"/>
+<rect x="304" y="1018" width="22" height="16" rx="3" fill="#ffffff" stroke="#35546a" stroke-width="0.6"/>
+<text font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="bold" fill="#14232e" text-anchor="middle" dominant-baseline="central"><tspan x="315" y="1026">No</tspan></text>
+<polyline points="375,1052 375,1071" fill="none" stroke="#35546a" stroke-width="1.3" marker-end="url(#arrow)"/>
+<rect x="379" y="1053.5" width="29" height="16" rx="3" fill="#ffffff" stroke="#35546a" stroke-width="0.6"/>
+<text font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="bold" fill="#14232e" text-anchor="middle" dominant-baseline="central"><tspan x="393.5" y="1061.5">Yes</tspan></text>
+<polyline points="417,1090 675,1090 675,1135" fill="none" stroke="#35546a" stroke-width="1.3" marker-end="url(#arrow)"/>
+<polyline points="675,1173 675,1218 417,1218" fill="none" stroke="#35546a" stroke-width="1.3" marker-end="url(#arrow)"/>
+<polyline points="375,1237 375,1256" fill="none" stroke="#35546a" stroke-width="1.3" marker-end="url(#arrow)"/>
+<polyline points="333,1282 117,1282" fill="none" stroke="#35546a" stroke-width="1.3" marker-end="url(#arrow)"/>
+<rect x="300.5" y="1274" width="29" height="16" rx="3" fill="#ffffff" stroke="#35546a" stroke-width="0.6"/>
+<text font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="bold" fill="#14232e" text-anchor="middle" dominant-baseline="central"><tspan x="315" y="1282">Yes</tspan></text>
+<polyline points="375,1308 375,1327" fill="none" stroke="#35546a" stroke-width="1.3" marker-end="url(#arrow)"/>
+<rect x="379" y="1309.5" width="22" height="16" rx="3" fill="#ffffff" stroke="#35546a" stroke-width="0.6"/>
+<text font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="bold" fill="#14232e" text-anchor="middle" dominant-baseline="central"><tspan x="390" y="1317.5">No</tspan></text>
+<polyline points="75,1301 75,1346 333,1346" fill="none" stroke="#35546a" stroke-width="1.3" marker-end="url(#arrow)"/>
+<polyline points="417,1346 525,1346 525,1391" fill="none" stroke="#35546a" stroke-width="1.3" marker-end="url(#arrow)"/>
+<polyline points="483,1410 375,1410 375,1455" fill="none" stroke="#35546a" stroke-width="1.3" marker-end="url(#arrow)"/>
+<polyline points="375,1493 375,1512" fill="none" stroke="#35546a" stroke-width="1.3" marker-end="url(#arrow)"/>
+<polyline points="417,1538 525,1538 525,1429" fill="none" stroke="#35546a" stroke-width="1.3" marker-end="url(#arrow)"/>
+<rect x="424" y="1530" width="22" height="16" rx="3" fill="#ffffff" stroke="#35546a" stroke-width="0.6"/>
+<text font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="bold" fill="#14232e" text-anchor="middle" dominant-baseline="central"><tspan x="435" y="1538">No</tspan></text>
+<polyline points="375,1564 375,1602 633,1602" fill="none" stroke="#35546a" stroke-width="1.3" marker-end="url(#arrow)"/>
+<rect x="360.5" y="1574" width="29" height="16" rx="3" fill="#ffffff" stroke="#35546a" stroke-width="0.6"/>
+<text font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="bold" fill="#14232e" text-anchor="middle" dominant-baseline="central"><tspan x="375" y="1582">Yes</tspan></text>
+<polyline points="675,1621 675,1640" fill="none" stroke="#35546a" stroke-width="1.3" marker-end="url(#arrow)"/>
+<polyline points="633,1666 117,1666" fill="none" stroke="#35546a" stroke-width="1.3" marker-end="url(#arrow)"/>
+<rect x="604" y="1658" width="22" height="16" rx="3" fill="#ffffff" stroke="#35546a" stroke-width="0.6"/>
+<text font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="bold" fill="#14232e" text-anchor="middle" dominant-baseline="central"><tspan x="615" y="1666">No</tspan></text>
+<polyline points="75,1647 75,1634 525,1634 525,1429" fill="none" stroke="#35546a" stroke-width="1.3" marker-end="url(#arrow)"/>
+<polyline points="675,1692 675,1730 117,1730" fill="none" stroke="#35546a" stroke-width="1.3" marker-end="url(#arrow)"/>
+<rect x="660.5" y="1702" width="29" height="16" rx="3" fill="#ffffff" stroke="#35546a" stroke-width="0.6"/>
+<text font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="bold" fill="#14232e" text-anchor="middle" dominant-baseline="central"><tspan x="675" y="1710">Yes</tspan></text>
+<polyline points="75,1749 75,1794 333,1794" fill="none" stroke="#35546a" stroke-width="1.3" marker-end="url(#arrow)"/>
+<polyline points="417,1794 633,1794" fill="none" stroke="#35546a" stroke-width="1.3" marker-end="url(#arrow)"/>
+<rect x="420.5" y="1786" width="29" height="16" rx="3" fill="#ffffff" stroke="#35546a" stroke-width="0.6"/>
+<text font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="bold" fill="#14232e" text-anchor="middle" dominant-baseline="central"><tspan x="435" y="1794">Yes</tspan></text>
+<polyline points="375,1820 375,1903" fill="none" stroke="#35546a" stroke-width="1.3" marker-end="url(#arrow)"/>
+<rect x="364" y="1830" width="22" height="16" rx="3" fill="#ffffff" stroke="#35546a" stroke-width="0.6"/>
+<text font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="bold" fill="#14232e" text-anchor="middle" dominant-baseline="central"><tspan x="375" y="1838">No</tspan></text>
+<polyline points="675,1813 675,1832" fill="none" stroke="#35546a" stroke-width="1.3" marker-end="url(#arrow)"/>
+<polyline points="717,1858 738,1858 738,1410 567,1410" fill="none" stroke="#35546a" stroke-width="1.3" marker-end="url(#arrow)"/>
+<rect x="713" y="1838" width="29" height="16" rx="3" fill="#ffffff" stroke="#35546a" stroke-width="0.6"/>
+<text font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="bold" fill="#14232e" text-anchor="middle" dominant-baseline="central"><tspan x="727.5" y="1846">Yes</tspan></text>
+<polyline points="675,1884 675,1922 417,1922" fill="none" stroke="#35546a" stroke-width="1.3" marker-end="url(#arrow)"/>
+<rect x="664" y="1894" width="22" height="16" rx="3" fill="#ffffff" stroke="#35546a" stroke-width="0.6"/>
+<text font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="bold" fill="#14232e" text-anchor="middle" dominant-baseline="central"><tspan x="675" y="1902">No</tspan></text>
+<polyline points="375,1941 375,1967" fill="none" stroke="#35546a" stroke-width="1.3" marker-end="url(#arrow)"/>
+<polyline points="375,2005 375,2031" fill="none" stroke="#35546a" stroke-width="1.3" marker-end="url(#arrow)"/>
+<polyline points="333,2050 75,2050 75,2095" fill="none" stroke="#35546a" stroke-width="1.3" marker-end="url(#arrow)"/>
+<polyline points="117,2114 375,2114 375,2159" fill="none" stroke="#35546a" stroke-width="1.3" marker-end="url(#arrow)"/>
+<polyline points="375,2197 375,2216" fill="none" stroke="#35546a" stroke-width="1.3" marker-end="url(#arrow)"/>
+<polyline points="333,2242 12,2242 12,962 33,962" fill="none" stroke="#35546a" stroke-width="1.3" marker-end="url(#arrow)"/>
+<rect x="304" y="2234" width="22" height="16" rx="3" fill="#ffffff" stroke="#35546a" stroke-width="0.6"/>
+<text font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="bold" fill="#14232e" text-anchor="middle" dominant-baseline="central"><tspan x="315" y="2242">No</tspan></text>
+<polyline points="375,2268 375,2306 633,2306" fill="none" stroke="#35546a" stroke-width="1.3" marker-end="url(#arrow)"/>
+<rect x="360.5" y="2278" width="29" height="16" rx="3" fill="#ffffff" stroke="#35546a" stroke-width="0.6"/>
+<text font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="bold" fill="#14232e" text-anchor="middle" dominant-baseline="central"><tspan x="375" y="2286">Yes</tspan></text>
+<polyline points="675,2325 675,2370 417,2370" fill="none" stroke="#35546a" stroke-width="1.3" marker-end="url(#arrow)"/>
+<polyline points="333,2370 75,2370 75,2415" fill="none" stroke="#35546a" stroke-width="1.3" marker-end="url(#arrow)"/>
+<polyline points="75,2453 75,2472" fill="none" stroke="#35546a" stroke-width="1.3" marker-end="url(#arrow)"/>
+<polyline points="33,2498 12,2498 12,962 33,962" fill="none" stroke="#35546a" stroke-width="1.3" marker-end="url(#arrow)"/>
+<rect x="8" y="2478" width="29" height="16" rx="3" fill="#ffffff" stroke="#35546a" stroke-width="0.6"/>
+<text font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="bold" fill="#14232e" text-anchor="middle" dominant-baseline="central"><tspan x="22.5" y="2486">Yes</tspan></text>
+<polyline points="75,2524 75,2548" fill="none" stroke="#35546a" stroke-width="1.3" marker-end="url(#arrow)"/>
+<rect x="79" y="2528" width="22" height="16" rx="3" fill="#ffffff" stroke="#35546a" stroke-width="0.6"/>
+<text font-family="Helvetica, Arial, sans-serif" font-size="11" font-weight="bold" fill="#14232e" text-anchor="middle" dominant-baseline="central"><tspan x="90" y="2536">No</tspan></text>
+</svg>
