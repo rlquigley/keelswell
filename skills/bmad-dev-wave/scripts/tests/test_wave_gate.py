@@ -16,6 +16,9 @@ import zipfile
 from pathlib import Path
 
 SCRIPT = Path(__file__).resolve().parent.parent / "wave_gate.py"
+sys.path.insert(0, str(SCRIPT.parent))
+import evaluate_wave  # noqa: E402
+
 CLOSURE_GATE = SCRIPT.parent.parent.parent / "bmad-close-epic" / "scripts" / "check_review_records.py"
 
 
@@ -98,10 +101,17 @@ class Project:
         git(self.root, "add", "-A")
         git(self.root, "commit", "-q", "-m", f"wave {wave}", when=POST_RULE)
 
-    def evaluation(self, wave, n, verdict, where=None):
-        d = (where or self.root) / "docs" / f"wave-{wave.lower()}"
+    def evaluation(self, wave, n, verdict, where=None, bound=True):
+        """A record; a PASS carries the hook's binding to its checkout's diff as
+        it stands now, unless `bound` is False."""
+        checkout = where or self.root
+        d = checkout / "docs" / f"wave-{wave.lower()}"
         d.mkdir(parents=True, exist_ok=True)
-        (d / f"evaluation-{n}.md").write_text(f"# Evaluation\n\nVERDICT: {verdict}\n")
+        header = ""
+        if verdict == "PASS" and bound:
+            header = (f"<!-- Written by the evaluator hook.\n"
+                      f"     diff-sha256 {evaluate_wave.bound_diff(checkout, wave)[1]} -->\n\n")
+        (d / f"evaluation-{n}.md").write_text(f"{header}# Evaluation\n\nVERDICT: {verdict}\n")
 
     def worktree(self, wave):
         """A checkout on a real-shaped wave branch, inside the project tree."""
@@ -340,6 +350,49 @@ class TestReview(Base):
         """merge-wave's set: the worktree is gone and the records are on main."""
         self.p.evaluation("7A", 1, "NEEDS_WORK")
         self.p.evaluation("7A", 2, "PASS")
+        self.p.land("7A")
+        code, _, err = self.p.pre("Bash", command=self.SET + "done")
+        self.assertEqual(code, 0, err)
+
+    def test_a_commit_after_pass_closes_review(self):  # V2-05, B2
+        wt = self.p.worktree("7A")
+        (wt / "src.py").write_text("x = 1\n")
+        self.p.evaluation("7A", 1, "PASS", where=wt)
+        code, _, err = self.p.pre("Bash", command=self.SET + "in-review")
+        self.assertEqual(code, 0, err)
+        (wt / "new_module.py").write_text("import os\n")
+        git(wt, "add", "-A")
+        git(wt, "commit", "-q", "-m", "after PASS", when=POST_RULE)
+        code, _, err = self.p.pre("Bash", command=self.SET + "in-review")
+        self.assertEqual(code, 2, err)
+        self.assertIn("DENIED (review)", err)
+        self.assertIn("changed since", err)
+
+    def test_an_uncommitted_edit_after_pass_closes_review(self):
+        self.p.evaluation("7A", 1, "PASS")
+        (self.p.root / "src.py").write_text("x = 2\n")
+        code, _, err = self.p.pre("Bash", command=self.SET + "in-review")
+        self.assertEqual(code, 2, err)
+
+    def test_a_pass_bound_to_no_diff_does_not_open_review(self):
+        self.p.evaluation("7A", 1, "PASS", bound=False)
+        code, _, err = self.p.pre("Bash", command=self.SET + "in-review")
+        self.assertEqual(code, 2, err)
+        self.assertIn("names no diff", err)
+
+    def test_a_hash_in_the_body_is_not_the_binding(self):
+        """Only the hook's header binds; the evaluator's text below it does not."""
+        self.p.evaluation("7A", 1, "PASS", bound=False)
+        record = self.p.root / "docs" / "wave-7a" / "evaluation-1.md"
+        record.write_text(record.read_text() + "diff-sha256 "
+                          + evaluate_wave.bound_diff(self.p.root, "7A")[1] + "\n")
+        code, _, err = self.p.pre("Bash", command=self.SET + "in-review")
+        self.assertEqual(code, 2, err)
+        self.assertIn("names no diff", err)
+
+    def test_done_does_not_read_the_binding(self):
+        """The worktree is gone by merge-wave's set; there is no diff left to bind."""
+        self.p.evaluation("7A", 1, "PASS", bound=False)
         self.p.land("7A")
         code, _, err = self.p.pre("Bash", command=self.SET + "done")
         self.assertEqual(code, 0, err)
@@ -1103,8 +1156,24 @@ class TestInPlaceSwitches(Base):
                 self.assertEqual(code, 2, err)
                 self.assertIn("DENIED (lifecycle)", err)
 
+    def test_the_verify_stamp_is_guarded_like_the_record(self):  # V2-06
+        path = str(self.wt / ".bmad" / "wave-7A" / "verify-stamp")
+        code, _, err = self.p.pre("Write", session="s2", file_path=path, content="{}")
+        self.assertEqual(code, 2, err)
+        self.assertIn("DENIED (lifecycle)", err)
+        for command in ("echo '{}' > .bmad/wave-7A/verify-stamp",
+                        "python3 -c \"open('.bmad/wave-7A/verify-stamp', 'w').write('{}')\"",
+                        "cp /tmp/stamp .bmad/wave-7A/verify-stamp",
+                        "cp /tmp/verify-stamp .bmad/wave-7A/"):
+            with self.subTest(command):
+                code, _, err = self.p.pre("Bash", session="s2", command=command)
+                self.assertEqual(code, 2, err)
+                self.assertIn("DENIED (lifecycle)", err)
+
     def test_reading_the_markers_is_allowed(self):
         code, _, err = self.p.pre("Bash", command="cat .bmad/wave-7A/evaluation-session")
+        self.assertEqual(code, 0, err)
+        code, _, err = self.p.pre("Bash", command="cat .bmad/wave-7A/verify-stamp")
         self.assertEqual(code, 0, err)
 
     def test_a_case_variant_of_the_worktree_path_is_the_worktree(self):
@@ -1303,9 +1372,16 @@ class TestWrapper(Base):
         return p.returncode, p.stdout, p.stderr
 
     def pending(self, wt):
+        """What dispatch leaves: the marker, and the evidence it binds by hash."""
+        d = wt / "docs" / "wave-7a"
+        d.mkdir(parents=True, exist_ok=True)
+        patch, diff_sha256 = evaluate_wave.bound_diff(wt, "7A")
+        (d / "wave-diff.patch").write_text(patch)
+        (d / "verify-output.txt").write_text("3 passed\n")
         (self.p.root / ".bmad" / "wave-7A" / "evaluation-pending").write_text(json.dumps({
             "session_id": "s1", "wave": "7A", "pass_number": 1, "project_root": str(wt),
-            "rounds": 0}))
+            "rounds": 0, "diff_sha256": diff_sha256,
+            "output_sha256": evaluate_wave.file_sha256(d / "verify-output.txt")}))
 
     def test_the_record_wrapper_writes_in_the_worktree_from_either_side(self):
         wt = self.p.sibling("7A")
@@ -1341,7 +1417,7 @@ class TestWrapper(Base):
         code, _, err = self.evaluator_stop(self.p.root)
         self.assertEqual(code, 1, err)
         self.assertIn("install.sh --validate-only", err)
-        self.assertFalse((self.p.root / "docs" / "wave-7a").exists())
+        self.assertFalse((self.p.root / "docs" / "wave-7a" / "evaluation-1.md").exists())
 
     def evaluator_ready(self):
         """A wave worktree that `evaluate_wave.py dispatch` will accept."""
@@ -1406,7 +1482,25 @@ class TestWrapper(Base):
                 code, _, err = self.p.wrapped("Bash", self.p.root, self.p.root, command=command)
                 self.assertEqual(code, 2, err)
         # The next session takes the findings and evaluates the fix.
+        (wt / "src.py").write_text("x = 2\n")
         self.assertEqual(self.step8(wt, "s2"), (0, ""))
+
+    def test_a_change_after_pass_goes_back_through_step_8(self):  # V2-05, verify check 3
+        wt = self.evaluator_ready()
+        self.assertEqual(self.step8(wt, "s1"), (0, ""))
+        self.assertEqual(self.evaluator_stop(wt)[0], 0)
+        code, _, err = self.p.wrapped("Bash", self.p.root, wt, command=self.SET)
+        self.assertEqual(code, 0, err)
+        (wt / "src.py").write_text("x = 'unreviewed'\n")
+        git(wt, "commit", "-q", "-am", "after PASS", when=POST_RULE)
+        code, _, err = self.p.wrapped("Bash", self.p.root, wt, command=self.SET)
+        self.assertEqual(code, 2, err)
+        self.assertIn("changed since", err)
+        self.assertEqual(self.step8(wt, "s1"), (0, ""))
+        self.assertEqual(self.evaluator_stop(wt)[0], 0)
+        self.assertTrue((wt / "docs" / "wave-7a" / "evaluation-2.md").is_file())
+        code, _, err = self.p.wrapped("Bash", self.p.root, wt, command=self.SET)
+        self.assertEqual(code, 0, err)
 
     def test_no_python3_denies(self):
         bin_dir = self.p.base / "bin2"

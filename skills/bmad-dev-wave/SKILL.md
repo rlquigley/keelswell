@@ -19,7 +19,7 @@ allowed-tools:
   - Bash
   - Task
 metadata:
-  version: 1.21.0
+  version: 1.22.0
   output-locations:
     - ../<project>-wave-<id>/                 # sibling worktree, branch wave-<id>-<suffix>
     - .bmad/wave-<id>/checkpoint.json         # plus step-N.done markers
@@ -111,9 +111,10 @@ neither starts in the checkout the session is rooted in. Never both. Any step ca
     HIGH or CRITICAL findings. Write docs/wave-<id>/review-party.md before
     step 11, always, including when the review found nothing and when it did
     not run (see The Review Record). A HIGH or CRITICAL finding fixed here
-    sends the wave back through steps 7 and 8 before step 11: nothing else
-    re-checks a fix made after PASS. Set the status to in-progress before
-    the fix; step 9 sets in-review again on the new PASS.
+    sends the wave back through steps 7 and 8 before step 11: a PASS is
+    bound to the diff it graded, and the gate denies in-review on the old
+    one. Set the status to in-progress before the fix; step 9 sets in-review
+    again on the new PASS.
 11. Commits and pull request. Parallel waves: exactly one foundation commit
     (every cross-cutting file every subagent edits -- pyproject.toml or the
     lockfile, errors.py, the CLI main, ci-fast.yml, the wave's
@@ -283,14 +284,18 @@ docs/reviews/harness-engineering-review-v1.md.
 
 It runs `tests/verify-fast.sh` from the worktree root and writes
 `docs/wave-<id>/verify-output.txt`, whose first line is a stamp: the command,
-its exit code, the HEAD it ran at, the time. There is no other verify command
+its exit code, the HEAD it ran at, the time. Beside the wave's `wave.md` it
+writes `.bmad/wave-<id>/verify-stamp`: the sha256 of that output and of the
+wave's diff as the run left it. The gate guards the stamp as it guards
+`wave.md`. There is no other verify command
 and no config key for one; a project whose suite lives elsewhere gives
 `tests/verify-fast.sh` one line that calls it.
 
   0  the script exited 0
   1  the script failed; the output is stamped all the same. Offer edit,
      demote or abort
-  3  refuse: no `tests/verify-fast.sh`, or not a git checkout
+  3  refuse: no `tests/verify-fast.sh`, not a git checkout, or two checkouts
+     on the wave's branch
 
 **Step 8, dispatch.** Ask the script before dispatching:
 
@@ -302,16 +307,30 @@ and no config key for one; a project whose suite lives elsewhere gives
   2  structural: no wave map, or the wave is not in it
   3  refuse: the definition is missing, declares a tool that can write, run
      or delegate, or lacks `effort: high`; or `verify-output.txt` is missing,
-     carries no stamp, or was stamped at a HEAD that is not the worktree's
+     carries no stamp, was stamped at a HEAD that is not the worktree's, or
+     is not the bytes the verify stamp hashed; or the wave's diff has changed
+     since verify ran; or the latest evaluation is NEEDS_WORK or
+     UPSTREAM_CAUSE on the same diff, with no upstream fix on record
 
 Exit 3 is not a warning. Do not dispatch an evaluator whose tool list this
 check refused, and do not repair it by adding a rule telling it not to use the
-tool. Remove the tool. A stale or missing stamp means step 7 has to run again;
-do not write `verify-output.txt` yourself, because an unstamped one is refused.
+tool. Remove the tool. A stale or missing stamp, or a change since verify,
+means step 7 has to run again; do not write `verify-output.txt` yourself,
+because one that is not verify's bytes is refused. A verdict is not re-rolled:
+the same diff after NEEDS_WORK is refused from any session, so the next pass
+grades a change.
 
 On exit 0 the script has written `docs/wave-<id>/wave-diff.patch` itself:
 everything the wave changed since its merge-base with main, committed or not,
-untracked files included. You do not write the diff. The evaluator has no
+untracked files included, and the harness's own files (`.bmad/`, the verify
+output, the patch, the evaluation records) left out. Its sha256 goes in the
+marker; the hook refuses to record a report if the patch or the verify output
+changed after dispatch, and writes the hash into the record's header. The
+gate's review rule recomputes it at step 9: `set --status in-review` is
+denied unless the latest PASS names the wave's diff as it is then, so a
+commit, an edit or a new file after PASS goes back through steps 7 and 8.
+Step 11's commits do not change it: the diff is taken against the working
+tree. You do not write the diff. The evaluator has no
 `Bash` and cannot produce this evidence for itself, which is the trade: it
 reviews execution evidence rather than running the suite again. It can still
 `Read`, `Glob` and `Grep` the whole worktree, so the bundle is its starting
@@ -389,8 +408,13 @@ at once:
 
 `dispatch` then reports `rule_pass` 1 while `pass_number`, which names the
 record file, keeps counting. The count restarts only for a fix recorded after
-the `UPSTREAM_CAUSE` it answers; a line written ahead of the verdict does
-nothing.
+the `UPSTREAM_CAUSE` it answers, naming a file the report's `Where:` or `Fix
+this instead:` line named, whose bytes have changed since: the hook writes
+each such file's sha256 into the record's header. A line written ahead of
+the verdict, or naming a file that is missing, unchanged or not in the
+report, does nothing. Name the artifact by its path from the project root,
+as the report does. A PASS also restarts the count, so step 10's re-check
+is pass 1 of its own.
 
 ### A fix at step 10 comes back through here
 
@@ -398,7 +422,8 @@ A HIGH or CRITICAL party finding fixed at step 10 changes code the evaluator
 passed. Set the status to in-progress, then run step 7 again, then step 8, then
 step 9, which sets in-review again only on a PASS: `dispatch` refuses the old
 verify stamp
-once HEAD has moved, and when `review-party.md` is dated on or after the
+once the wave's diff has moved, the gate denies in-review on the old PASS,
+and when `review-party.md` is dated on or after the
 latest evaluation it adds the review record to the evidence, so the evaluator
 checks the fix against the finding.
 
@@ -763,6 +788,16 @@ there is nothing to block.
   names. Do not retry the same write through a different tool.
 
 ## Version history
+- 1.22.0 (2026-10-25, harness review v2 PR 3: V2-02 in full, V2-05, V2-06,
+  V2-22, V2-23): an evaluation is bound to the sha256 of the wave diff it
+  graded, committed, uncommitted and untracked work alike. dispatch refuses
+  the same diff after NEEDS_WORK or UPSTREAM_CAUSE, a verify output that is
+  not verify's bytes, and a tree that changed since verify; the hook refuses
+  a report on evidence changed after dispatch; the gate denies in-review on
+  a PASS whose diff is not the wave's now. verify writes
+  `.bmad/wave-<id>/verify-stamp`, guarded like `wave.md`. A PASS restarts
+  the third-pass count, and an upstream fix restarts it only when a file the
+  report named has changed. No step's order changed.
 - 1.21.0 (2026-10-25, harness review v2 PR 4: V2-07, V2-08, V2-31): one
   answer to where a wave's state lives, `wave_status.locate`, read by every
   script. A session rooted in the worktree and one rooted in main read and

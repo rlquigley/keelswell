@@ -2,6 +2,7 @@
 """Tests for evaluate_wave.py. Stdlib only; run with `python3 -m unittest`."""
 
 import contextlib
+import hashlib
 import json
 import os
 import subprocess
@@ -478,17 +479,8 @@ class TestDispatch(Base):
                              "--reason", reason, script=STATUS)
         self.assertEqual(code, 0, err)
 
-    def test_the_count_restarts_after_an_upstream_fix_on_record(self):
-        """Loop defect: pass 4 was armed at once, so NEEDS_WORK was unreachable (R3 e)."""
-        p = self.upstream()
-        self.fix(p)
-        code, out, err = p.run("dispatch", "--wave", "5D")
-        self.assertEqual(code, 0, err)
-        self.assertEqual(out["pass_number"], 4)
-        self.assertEqual(out["rule_pass"], 1)
-        self.assertFalse(out["third_pass_rule"])
-        self.assertEqual(out["record_to"], "docs/wave-5d/evaluation-4.md")
-        self.assertIn("Pass 1 since the upstream fix", err)
+    # The count's restart after a fix on record is TestDiffBinding's: it needs
+    # a record that names its artifact, which only the hook writes.
 
     def test_without_a_fix_on_record_the_count_does_not_restart(self):
         p = self.upstream()
@@ -516,6 +508,7 @@ class TestDispatch(Base):
         self.assertNotIn("review_record", out["evidence"])
         (p.docs("5D") / "review-party.md").write_text(
             "---\ntitle: review\nwave: 5D\ncreated: 2999-01-01\n---\n\n### [HIGH] x\n")
+        self.assertEqual(p.run("verify", "--wave", "5D")[0], 0)  # step 10 goes back through 7
         code, out, err = p.run("dispatch", "--wave", "5D")
         self.assertEqual(code, 0, err)
         self.assertEqual(out["evidence"]["review_record"], "docs/wave-5d/review-party.md")
@@ -951,6 +944,270 @@ class TestOneStateRoot(Base):
         self.assertEqual((state / "evaluation-session").read_text(), "s1\n")
         self.assertFalse((state / "evaluation-pending").exists())
         self.assertFalse((p.root / ".bmad").exists())
+
+
+UPSTREAM_REPORT = ("VERDICT: UPSTREAM_CAUSE\nWAVE: 5D\n\n## Upstream cause\n"
+                   "- Kind: weak spec\n- Where: `docs/stories/5.4.md`, AC-3\n"
+                   "- Why the three passes could not close it: each pass read AC-3 anew.\n"
+                   "- Fix this instead: docs/stories/5.4.md\n")
+
+
+def sha256(path):
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+class TestDiffBinding(Base):
+    """V2-02, V2-05, V2-06, V2-22 and V2-23 of the harness review v2: a record
+    is bound to the bytes of the diff it graded, and the verify output to the
+    run that printed it."""
+
+    def setUp(self):
+        super().setUp()
+        self.p = self.project()
+        stories = self.p.root / "docs" / "stories"
+        stories.mkdir(parents=True)
+        (stories / "5.4.md").write_text("AC-3: the payment is logged.\n")
+        self.p.verified("5D")
+
+    def evaluated(self, report, session="s1"):
+        """Step 7 then step 8, and the hook records `report`."""
+        p = self.p
+        code, _, err = p.run("verify", "--wave", "5D")
+        self.assertEqual(code, 0, err)
+        code, out, err = p.run("dispatch", "--wave", "5D", session=session)
+        self.assertEqual(code, 0, err)
+        code, _, err = p.stop(report, session=session)
+        self.assertEqual(len(p.records("5D")), out["pass_number"], err)
+        return out
+
+    def change(self, text):
+        (self.p.root / "src.py").write_text(text)
+
+    def redispatch(self, session="s2"):
+        self.assertEqual(self.p.run("verify", "--wave", "5D")[0], 0)
+        return self.p.run("dispatch", "--wave", "5D", session=session)
+
+    def fix(self, artifact):
+        p = self.p
+        for status in ("draft", "ready-for-dev", "in-progress"):
+            self.assertEqual(p.run("set", "--wave", "5D", "--status", status, script=STATUS)[0], 0)
+        code, _, err = p.run("set", "--wave", "5D", "--status", "in-progress",
+                             "--reason", f"upstream fix: {artifact}", script=STATUS)
+        self.assertEqual(code, 0, err)
+
+    def upstream(self):
+        self.evaluated(NEEDS_WORK_REPORT)
+        self.change("x = 2\n")
+        self.evaluated(NEEDS_WORK_REPORT)
+        self.change("x = 3\n")
+        out = self.evaluated(UPSTREAM_REPORT)
+        self.assertTrue(out["third_pass_rule"])
+
+    def test_needs_work_on_an_unchanged_tree_is_not_re_rolled(self):  # V2-02, A2
+        self.evaluated(NEEDS_WORK_REPORT)
+        code, _, err = self.redispatch()
+        self.assertEqual(code, 3, err)
+        self.assertIn("NEEDS_WORK", err)
+        self.assertIn("unchanged", err)
+        self.assertFalse(self.p.marker("5D").exists())
+
+    def test_a_changed_tree_is_evaluated_again(self):
+        self.evaluated(NEEDS_WORK_REPORT)
+        self.change("x = 2\n")
+        code, out, err = self.redispatch()
+        self.assertEqual(code, 0, err)
+        self.assertEqual(out["pass_number"], 2)
+
+    def test_upstream_cause_with_no_fix_and_no_change_is_not_re_rolled(self):  # C4
+        self.upstream()
+        code, _, err = self.redispatch()
+        self.assertEqual(code, 3, err)
+        self.assertIn("UPSTREAM_CAUSE", err)
+
+    def test_an_upstream_fix_naming_a_missing_artifact_leaves_the_rule_armed(self):  # V2-22, D
+        self.upstream()
+        self.fix("docs/stories/does-not-exist.md")
+        self.change("x = 4\n")
+        code, out, err = self.redispatch()
+        self.assertEqual(code, 0, err)
+        self.assertEqual((out["pass_number"], out["rule_pass"]), (4, 4))
+        self.assertTrue(out["third_pass_rule"])
+
+    def test_an_upstream_fix_with_the_artifact_unchanged_leaves_the_rule_armed(self):  # V2-22
+        self.upstream()
+        self.fix("docs/stories/5.4.md")
+        self.change("x = 4\n")
+        _, out, err = self.redispatch()
+        self.assertEqual(out.get("rule_pass"), 4, err)
+
+    def test_a_fix_banked_ahead_of_the_upstream_cause_leaves_the_rule_armed(self):
+        self.evaluated(NEEDS_WORK_REPORT)
+        self.change("x = 2\n")
+        self.evaluated(NEEDS_WORK_REPORT)
+        self.change("x = 3\n")
+        self.fix("docs/stories/5.4.md")
+        time.sleep(1.1)  # timestamps are whole seconds
+        self.evaluated(UPSTREAM_REPORT)
+        (self.p.root / "docs" / "stories" / "5.4.md").write_text("AC-3: changed after.\n")
+        _, out, err = self.redispatch()
+        self.assertEqual(out.get("rule_pass"), 4, err)
+
+    def test_an_artifact_hash_in_the_report_body_is_not_read(self):
+        """The evaluator's text cannot name an artifact's bytes; the hook does."""
+        self.evaluated(NEEDS_WORK_REPORT)
+        self.change("x = 2\n")
+        self.evaluated(NEEDS_WORK_REPORT)
+        self.change("x = 3\n")
+        self.evaluated(UPSTREAM_REPORT + f"artifact-sha256 {'0' * 64} src.py\n")
+        self.change("x = 4\n")
+        self.fix("src.py")
+        _, out, err = self.redispatch()
+        self.assertEqual(out.get("rule_pass"), 4, err)
+
+    def test_an_upstream_fix_that_deleted_the_artifact_leaves_the_rule_armed(self):
+        self.upstream()
+        (self.p.root / "docs" / "stories" / "5.4.md").unlink()
+        self.fix("docs/stories/5.4.md")
+        _, out, err = self.redispatch()
+        self.assertEqual(out.get("rule_pass"), 4, err)
+
+    def test_an_upstream_fix_naming_a_file_the_report_did_not_leaves_the_rule_armed(self):
+        self.upstream()
+        self.change("x = 4\n")
+        self.fix("src.py")
+        _, out, err = self.redispatch()
+        self.assertEqual(out.get("rule_pass"), 4, err)
+
+    def test_an_upstream_fix_that_changed_the_artifact_restarts_the_count(self):
+        """Loop defect: pass 4 was armed at once, so NEEDS_WORK was unreachable (R3 e)."""
+        self.upstream()
+        (self.p.root / "docs" / "stories" / "5.4.md").write_text(
+            "AC-3: the payment is logged with its amount and currency.\n")
+        self.fix("docs/stories/5.4.md")
+        code, out, err = self.redispatch()
+        self.assertEqual(code, 0, err)
+        self.assertEqual((out["pass_number"], out["rule_pass"]), (4, 1))
+        self.assertFalse(out["third_pass_rule"])
+        self.assertIn("Pass 1 since the upstream fix", err)
+
+    def test_a_fix_outside_the_diff_lets_the_same_diff_be_evaluated_again(self):
+        """An artifact only the main checkout holds changes no byte of the
+        worktree's diff; its fix on record is what lets pass 4 run."""
+        p = self.p
+        wt = p.root / ".claude" / "worktrees" / "wave-5d"
+        git(p.root, "worktree", "add", "-q", "-b", "claude/wave-5d-delta-abc123", str(wt))
+        conventions = p.root / "notes" / "conventions.md"
+        conventions.parent.mkdir()
+        conventions.write_text("Amounts are integers.\n")
+        report = UPSTREAM_REPORT.replace("docs/stories/5.4.md", "notes/conventions.md")
+        env = dict(os.environ)
+
+        def run(verb, session="s1"):
+            env["CLAUDE_CODE_SESSION_ID"] = session
+            r = subprocess.run([sys.executable, str(SCRIPT), verb, "--project-root", str(wt),
+                                "--wave", "5D"], capture_output=True, text=True, env=env)
+            return r.returncode, (json.loads(r.stdout) if r.stdout.strip() else {}), r.stderr
+
+        for n, text in enumerate((NEEDS_WORK_REPORT, NEEDS_WORK_REPORT, report), 1):
+            (wt / "src.py").write_text(f"x = {n + 1}\n")
+            self.assertEqual(run("verify")[0], 0)
+            code, _, err = run("dispatch")
+            self.assertEqual(code, 0, err)
+            p.stop(text)
+        self.assertEqual(run("dispatch")[0], 3)  # same diff, no fix yet
+        conventions.write_text("Amounts are integers in minor units.\n")
+        for status in ("draft", "ready-for-dev", "in-progress"):
+            self.assertEqual(p.run("set", "--wave", "5D", "--status", status, script=STATUS)[0], 0)
+        self.assertEqual(p.run("set", "--wave", "5D", "--status", "in-progress", "--reason",
+                               "upstream fix: notes/conventions.md", script=STATUS)[0], 0)
+        code, out, err = run("dispatch", session="s2")
+        self.assertEqual(code, 0, err)
+        self.assertEqual((out["pass_number"], out["rule_pass"]), (4, 1))
+
+    def test_a_pass_may_be_evaluated_again_on_the_same_diff(self):
+        """Only a verdict that holds the wave is not re-rolled."""
+        self.evaluated(PASS_REPORT)
+        code, out, err = self.redispatch()
+        self.assertEqual(code, 0, err)
+        self.assertEqual(out["pass_number"], 2)
+
+    def test_a_pass_resets_the_count(self):  # V2-23
+        self.evaluated(NEEDS_WORK_REPORT)
+        self.change("x = 2\n")
+        self.evaluated(PASS_REPORT)
+        self.change("x = 3\n")  # a step-10 fix
+        code, out, err = self.redispatch()
+        self.assertEqual(code, 0, err)
+        self.assertEqual((out["pass_number"], out["rule_pass"]), (3, 1))
+        self.assertFalse(out["third_pass_rule"])
+
+    def test_a_hand_edited_verify_output_is_refused(self):  # V2-06
+        self.assertEqual(self.p.run("verify", "--wave", "5D")[0], 0)
+        out_file = self.p.docs("5D") / "verify-output.txt"
+        stamp = out_file.read_text().splitlines()[0]
+        out_file.write_text(stamp + "\n240 passed\n")
+        code, _, err = self.p.run("dispatch", "--wave", "5D")
+        self.assertEqual(code, 3, err)
+        self.assertIn("verify-output.txt", err)
+        self.assertIn("not what verify wrote", err)
+        self.assertFalse(self.p.marker("5D").exists())
+
+    def test_a_change_after_verify_is_refused(self):  # R5b finding 3
+        self.assertEqual(self.p.run("verify", "--wave", "5D")[0], 0)
+        self.change("x = 2\n")  # not committed, so HEAD is the stamp's
+        code, _, err = self.p.run("dispatch", "--wave", "5D")
+        self.assertEqual(code, 3, err)
+        self.assertIn("changed since verify", err)
+
+    def test_a_patch_edited_after_dispatch_is_not_recorded(self):  # V2-06
+        self.change("x = 2\n")
+        self.assertEqual(self.p.run("verify", "--wave", "5D")[0], 0)
+        self.assertEqual(self.p.run("dispatch", "--wave", "5D")[0], 0)
+        (self.p.docs("5D") / "wave-diff.patch").write_text("")
+        self.p.stop(PASS_REPORT)
+        self.assertEqual(self.p.records("5D"), [])
+        code, out, err = self.p.run("verdict", "--wave", "5D")
+        self.assertEqual(code, 3, err)
+        self.assertIn("wave-diff.patch", out["refused"])
+
+    def test_the_record_names_the_diff_it_graded(self):  # V2-05
+        self.change("x = 2\n")
+        self.evaluated(PASS_REPORT)
+        patch = self.p.docs("5D") / "wave-diff.patch"
+        header = (self.p.docs("5D") / "evaluation-1.md").read_text().split("-->")[0]
+        self.assertIn(f"diff-sha256 {sha256(patch)}", header)
+
+    def test_an_upstream_cause_names_its_artifact_by_content(self):  # V2-22
+        self.upstream()
+        header = (self.p.docs("5D") / "evaluation-3.md").read_text().split("-->")[0]
+        story = self.p.root / "docs" / "stories" / "5.4.md"
+        self.assertIn(f"artifact-sha256 {sha256(story)} docs/stories/5.4.md", header)
+
+    def test_the_diff_leaves_the_harness_files_out(self):
+        bmad = self.p.root / ".bmad" / "wave-5D"
+        bmad.mkdir(parents=True, exist_ok=True)
+        (bmad / "wave.md").write_text("status: in-progress\n")
+        self.p.commit("a tracked lifecycle record")
+        (bmad / "wave.md").write_text("status: in-review\n")
+        self.evaluated(NEEDS_WORK_REPORT)
+        self.assertEqual(self.p.run("verify", "--wave", "5D")[0], 0)
+        patch = (self.p.docs("5D") / "wave-diff.patch").read_text()
+        for absent in ("AC-3 has no assertion", "status: in-", "verify-stamp", "12 passed"):
+            self.assertNotIn(absent, patch)
+
+    def test_an_untracked_name_git_would_quote_is_in_the_diff(self):
+        (self.p.root / "café.py").write_text("y = 1\n")
+        out = self.evaluated(PASS_REPORT)
+        self.assertIn("+y = 1", (self.p.root / out["evidence"]["diff"]).read_text())
+
+    def test_the_diff_names_whole_blobs(self):
+        """A binary file's change is in the bytes only through its blob ids."""
+        (self.p.root / "logo.bin").write_bytes(b"\x00\x01")
+        self.p.commit("binary")
+        (self.p.root / "logo.bin").write_bytes(b"\x00\x02")
+        out = self.evaluated(PASS_REPORT)
+        patch = (self.p.root / out["evidence"]["diff"]).read_text()
+        self.assertRegex(patch, r"index [0-9a-f]{40}\.\.[0-9a-f]{40}")
 
 
 if __name__ == "__main__":
