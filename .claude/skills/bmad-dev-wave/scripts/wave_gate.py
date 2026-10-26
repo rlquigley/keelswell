@@ -165,7 +165,7 @@ REROLL_WORD = re.compile(r"(?<![\w-])(?:dispatch|verify)(?![\w-])")
 # Every status whose stage is review: in-review and done (V2-01).
 REVIEW_STATUSES = {s for s, (stage, _) in wave_status.STAGES.items() if stage == "review"}
 
-PENDING_MARKER = "step-4.5.pending"
+PENDING_MARKER = wave_status.PENDING
 # bmad-wrap's one output directory, exempt from the in-place rule.
 WRAP_DIR = Path("_bmad-output") / "session-wrap"
 SESSION_FILE = evaluate_wave.SESSION_FILE

@@ -4,6 +4,60 @@ All notable changes to Keelswell. Format: Keep a Changelog; versioning: semver.
 ## [Unreleased]
 
 ### Fixed
+- Step 4.5's pending marker goes where the record is, from either checkout
+  (2026-10-25, closes the at-risk item of the entry below; bmad-dev-wave
+  1.24.0). `wave_status.py pend --project-root <root> --wave <id>
+  --questions-file <f>` copies `<f>`'s bytes to `step-4.5.pending` in
+  `wave_dir(locate(...).base)`, the directory whose `wave.md` `route`
+  prints; `pend ... --clear` removes it and exits 0 when none is there. It
+  exits 2 for a questions file that is missing or holds only whitespace,
+  and 3 on route's `split_state` or `ambiguous_worktree`, writing and
+  removing nothing. Step 4.5 in bmad-dev-wave now says to run it, then
+  `pend --clear` and `mark --step 4.5` once the answers are recorded, and
+  never to write or delete the marker with the Write tool, `touch` or `rm`.
+  `wave_status.PENDING` names the file; wave_gate.py's `PENDING_MARKER` is
+  now that constant, so the SessionEnd rule and the verb cannot spell it
+  two ways. Why: the agent wrote the marker with its own tool, and in a
+  desktop session isolated to the worktree the Write tool's refusal in the
+  main checkout's `.bmad/` sends it to the worktree, starting a second copy
+  of the wave's state; route and set then exit 3 with `split_state`.
+  bmad-resume-wave and the Hooks section still have a human delete the
+  marker when clearing a block; that is a human's step and is unchanged.
+  **What was measured.** 10 new tests (397 for bmad-dev-wave, both trees:
+  a full run of 396, then `test_wave_status.py` again in both after the
+  tenth; tools 27, close-epic 12 and `install.sh --validate-only
+  --skip-mcp-check` green). `pend` from a worktree-rooted session lands
+  beside a main record, from a main-rooted session beside a worktree
+  record, and with no copy anywhere where route then starts the record; in
+  the first two, `wave_gate.py session-end` run from that session's root
+  blocks the wave. `--clear` from either checkout removes the marker and
+  the next SessionEnd leaves the wave at draft. It refuses a split (the
+  worktree's marker kept), two worktrees on the suffix, a missing or blank
+  questions file, a wave not in the map, and both or neither of
+  `--questions-file` and `--clear`. The prose test now also matches
+  `step-*.pending` and the verbs delete, remove and rm, and exempts
+  `wave_status.py pend`; on 672a280's prose it named the one step 4.5
+  sentence changed here. Against 672a280's script all 10 `pend` tests fail.
+  Mutation on rsync copies, one at a time: 6 of 6 killed (the root's
+  directory for the base's, the refusal dropped, `--clear` removing
+  nothing, the blank check dropped, other bytes written, `locate` called
+  from the main checkout instead of the caller's). The last survived the
+  first run and got the no-copy test. A PreToolUse call of `pend`, both
+  forms, through wave_gate.py exits 0.
+  **Prediction.** The next wave either instance runs that stops at step 4.5
+  keeps its `step-4.5.pending` in the same `.bmad/wave-<id>/` as its
+  `wave.md`, and no route or set on it exits 3 with `split_state`.
+  Gradable by listing `.bmad/wave-<id>/` in every checkout while the wave
+  is halted at 4.5, and by the SessionEnd hook's output naming that
+  directory if the session ends there.
+  **At risk.** The questions file is the agent's to write, and the prose
+  says only "outside `.bmad/`": one written into the worktree's
+  `.bmad/wave-<id>/` would itself start the second copy. An instance that
+  has not synced this version still writes the marker by hand. The prose
+  test is a pattern: an instruction that names neither `step-*.pending`
+  nor a checkpoint marker, or uses a verb it does not list, gets through.
+  No wave has stopped at step 4.5 since `pend` existed, so the SessionEnd
+  path is exercised only by the tests.
 - A step marker goes where the record is, from either checkout (2026-10-25,
   follow-up to PR 4 of docs/reviews/harness-review-v2.md; bmad-dev-wave
   1.23.0). `wave_status.py mark --project-root <root> --wave <id> --step
