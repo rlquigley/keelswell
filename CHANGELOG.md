@@ -85,7 +85,13 @@ All notable changes to Keelswell. Format: Keep a Changelog; versioning: semver.
   20 not) and added one: `set --status in-review` 138.5 against 81.6 ms, a
   merge-base, a diff, an `ls-files` and one `diff --no-index` more; `ls`
   85.6 against 81.3. The review's 10 ms budget is for the calls every tool
-  use makes; this one runs once per wave.
+  use makes; this one runs once per wave. The a_fire and a_pass eval tasks,
+  one trial each on a fresh install of this branch (RQ approved the spend):
+  both passed, $0.66 and $0.89. a_fire's `evaluation-1.md` is NEEDS_WORK
+  with the hook's `diff-sha256`, status stays in-progress; a_pass's is PASS
+  with its `diff-sha256` equal to the verify stamp's, and the session's
+  `set --status in-review` went through the gate's recompute. Neither
+  transcript holds a gate denial. One trial each is not pass^3.
   **Grade of PR 4's prediction (1.21.0).** Not gradable as of 2026-10-25.
   Both instances took #58 that afternoon (green-ledger 1da1c68 at 14:52,
   ffbapp 2ff773d at 14:59 through attacktheseam/ffbapp#119) and no wave
