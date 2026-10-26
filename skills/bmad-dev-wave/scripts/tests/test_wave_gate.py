@@ -306,6 +306,144 @@ class TestRecord(Base):
             self.assertEqual(code, 0, command + "\n" + err)
 
 
+class TestMerge(Base):
+    """V2-14: no session merges. The template's `Bash(gh pr merge *)` is a text
+    rule, which `bash -c`, `gh api` and `git push` to main all walk past."""
+
+    def denied(self, command, cwd=None, tool="Bash"):
+        code, _, err = self.p.pre(tool, cwd=cwd, command=command)
+        self.assertEqual(code, 2, command)
+        self.assertIn("DENIED (merge)", err, command)
+        return err
+
+    def allowed(self, command, cwd=None):
+        code, _, err = self.p.pre("Bash", cwd=cwd, command=command)
+        self.assertEqual(code, 0, command + "\n" + err)
+
+    def test_the_v2_14_shapes_are_denied(self):
+        for command in (
+                "gh pr merge 1",
+                "bash -c 'gh pr merge 1'",
+                'eval "gh pr merge 1"',
+                "gh api -X PUT repos/o/r/pulls/1/merge",
+                "gh api --method PUT repos/o/r/pulls/1/merge",
+                "git push origin HEAD:main",
+                "git push origin main",
+                f"git -C {self.p.root} push --all"):
+            with self.subTest(command):
+                self.denied(command)
+
+    def test_the_denial_names_who_merges(self):
+        err = self.denied("gh pr merge 1 --squash")
+        self.assertIn("A human merges", err)
+        self.assertIn("no flag", err)
+
+    def test_every_gh_pr_merge_the_parser_can_read_is_denied(self):
+        for command in (
+                "gh pr merge --auto --squash 1",
+                "env GH_REPO=o/r gh pr merge 1",
+                "timeout 30 gh pr merge 1",
+                "/opt/homebrew/bin/gh pr merge 1",
+                "gh pr -R o/r merge 1",
+                "gh pr --repo=o/r merge 1",
+                "echo x && gh pr merge 1",
+                "N=1; gh pr merge $N",
+                "sh -c \"cd /tmp && gh pr merge 1\"",
+                "x=$(gh pr merge 1)",
+                "gh 'pr' \"merge\" 1",
+                "gh alias set mm 'pr merge'"):
+            with self.subTest(command):
+                self.denied(command)
+        self.denied("gh pr merge 1", tool="Monitor")
+
+    def test_gh_api_merges_are_denied(self):
+        for command in (
+                "gh api -XPUT repos/o/r/pulls/1/merge",
+                "gh api --method=put /repos/o/r/pulls/1/merge",
+                "gh api repos/{owner}/{repo}/pulls/1/merge -f merge_method=squash",
+                "gh api repos/o/r/pulls/1/merge -F sha=abc",
+                "gh api repos/o/r/pulls/1/merge --input body.json",
+                "gh api -X POST repos/o/r/merges -f base=main -f head=x",
+                "gh api -X PUT https://api.github.com/repos/o/r/pulls/1/merge",
+                "P=repos/o/r/pulls/1/merge; gh api -X PUT $P",
+                "gh api -X PUT \"$(cat endpoint.txt)\"",
+                "gh api graphql -f query='mutation { mergePullRequest(input: {pullRequestId: \"x\"}) { clientMutationId } }'",
+                "gh api graphql -F query=@q.graphql -f x=enablePullRequestAutoMerge",
+                "gh api graphql --input q.json"):
+            with self.subTest(command):
+                self.denied(command)
+
+    def test_pushes_that_land_on_the_default_branch_are_denied(self):
+        for command in (
+                "git push origin master",
+                "git push origin +main",
+                "git push origin claude/x:main",
+                "git push origin claude/x:refs/heads/main",
+                "git push origin :main",
+                "git push origin HEAD",
+                "git push origin @",
+                "git push",
+                "git push -u origin",
+                "git push --mirror origin",
+                "git push origin --all",
+                "B=main; git push origin $B",
+                f"cd {self.p.root} && git push"):
+            with self.subTest(command):
+                self.denied(command)
+
+    def test_a_bare_push_from_a_main_worktree_is_denied_from_a_branch_allowed(self):
+        wt = self.p.linked("claude/x-1", "x")
+        self.allowed("git push", cwd=wt)
+        self.allowed("git push origin HEAD", cwd=wt)
+        self.allowed("git push -u origin HEAD", cwd=wt)
+        self.denied(f"git -C {self.p.root} push", cwd=wt)
+        for command in ("git push --all", "git push --mirror origin",
+                        "git push origin \"$(git rev-parse --abbrev-ref HEAD)\"",
+                        "git push origin `cat branch.txt`"):
+            with self.subTest(command):
+                self.denied(command, cwd=wt)
+
+    def test_what_the_parser_cannot_read_is_denied(self):
+        for command in (
+                "python3 -c \"import subprocess; subprocess.run(['gh', 'pr', 'merge', '1'])\"",
+                "python3 - <<'EOF'\nimport os\nos.system('gh pr merge 1')\nEOF",
+                "echo 'gh pr merge 1' | bash",
+                "bash <<'EOF'\ngh pr merge 1\nEOF",
+                "( bash ) <<'EOF'\ngh pr merge 1\nEOF",
+                "{ bash; } <<'EOF'\ngh pr merge 1\nEOF",
+                "echo gh pr merge 1 | xargs -I{} sh -c {}",
+                "node -e \"require('child_process').execSync('gh pr merge 1')\"",
+                "gh pr merge 1 'unclosed"):
+            with self.subTest(command):
+                self.denied(command)
+
+    def test_what_the_wave_skills_run_is_allowed(self):
+        for command in (
+                "gh pr view 1 --json state",
+                "gh pr view claude/wave-7a --json number,state,mergedAt,mergeCommit,headRefName",
+                "gh pr create --base main --title 'Wave 7A' --body 'Halts before merge.'",
+                "gh pr list --state open",
+                "gh api repos/o/r/pulls/1",
+                "gh api repos/o/r/pulls/1/merge",
+                "gh api -X GET repos/o/r/pulls/1/merge",
+                "gh api graphql -f query='{ repository(owner: \"o\", name: \"r\") { mergeCommitAllowed } }'",
+                "git push -u origin claude/x",
+                "git push origin claude/wave-7a-alpha-abc123",
+                "git push origin claude/main-fix",
+                "git pull --ff-only",
+                f"git -C {self.p.root} pull --ff-only origin main",
+                "git merge --ff-only origin/main",
+                "git fetch origin main",
+                "git log --merges --oneline",
+                'git commit -m "halt before gh pr merge; a human merges"',
+                "git commit -m \"$(cat <<'EOF'\nRun `gh pr merge` never.\nEOF\n)\" && "
+                "git push -u origin claude/x",
+                "grep -rn 'gh pr merge' .claude/skills",
+                "echo 'run gh pr merge after review'"):
+            with self.subTest(command):
+                self.allowed(command)
+
+
 class TestReview(Base):
     SET = "python3 x/scripts/wave_status.py set --project-root . --wave 7A --status "
 

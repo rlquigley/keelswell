@@ -19,7 +19,7 @@ allowed-tools:
   - Bash
   - Task
 metadata:
-  version: 1.24.0
+  version: 1.25.0
   output-locations:
     - ../<project>-wave-<id>/                 # sibling worktree, branch wave-<id>-<suffix>
     - .bmad/wave-<id>/checkpoint.json         # plus step-N.done markers
@@ -502,6 +502,15 @@ What the PreToolUse hook denies, reading only what is on disk:
   which session's evaluator it recorded.
   One exemption, to the file tools only: `_bmad-output/session-wrap/` in the
   worktree, so /bmad-wrap can still write its triage report.
+- **merge**: `gh pr merge` in any shape the gate reads (`bash -c`, `eval`,
+  `env`, a substitution), `gh api` with a method other than GET to a
+  `/merge` or `/merges` path or with a merge mutation, and a `git push` that
+  lands on main or master (`main`, `HEAD:main`, `:main`, `--all`,
+  `--mirror`, or a bare push or `HEAD` from a checkout on main). Text that
+  names a merge with gh or push where the parse cannot read it is denied
+  too. Push the wave's branch, open the pull request and halt: a human
+  merges, outside Claude Code. Local `git merge` and `git pull --ff-only`
+  are not merges of a pull request and stay open.
 
 Paths match without regard to case, as the filesystem and the record reader
 do. The hook finds the wave's state, its worktree and its evaluation records
@@ -804,6 +813,11 @@ there is nothing to block.
   names. Do not retry the same write through a different tool.
 
 ## Version history
+- 1.25.0 (2026-10-25, harness review v2 V2-14): the gate has a merge rule.
+  `gh pr merge`, a `gh api` merge and a push to main or master are denied in
+  every shape the parse reads, and text naming a merge that it cannot read
+  is denied too. The settings template's text rule could not see `bash -c`
+  or `gh api`. No step changed; every step already halts before merge.
 - 1.24.0 (2026-10-25, follow-up to 1.23.0): step 4.5's `step-4.5.pending`
   is written by `wave_status.py pend --questions-file <file>` and removed by
   `pend --clear`, beside the record `route` printed, exit 3 where route

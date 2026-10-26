@@ -7,9 +7,13 @@
 Starts `claude -p "/bmad-dev-wave <wave> ..."` in <project> (or
 /bmad-resume-wave with --resume), told to stop after step N, to halt at
 every gate the skill names, and never to merge. The permission setup is the
-eval runner's (acceptEdits; python3, git, gh and bash allowed) plus rsync,
-which step 10 uses to copy the worktree for each reviewer; --allow adds a
-rule. The project's own deny and ask rules, hooks and settings still apply.
+eval runner's (acceptEdits; python3, git and gh allowed) plus rsync, which
+step 10 uses to copy the worktree for each reviewer; --allow adds a rule.
+`gh pr merge` and `gh api` are disallowed: no wave skill calls `gh api`, and a
+merge is a human's. `bash` is not allowed either, since a Bash rule does not
+see inside `bash -c` (V2-14); a step that needs any of the three halts the
+run, and a disallowed rule wins over an --allow. The project's own deny and
+ask rules, hooks and settings still apply, the gate's merge rule among them.
 A call nothing allows is denied, not asked: there is no one to ask.
 
 The session's stream-json goes to <log-dir>/<project>/<wave>-<UTC time>.jsonl
@@ -23,7 +27,8 @@ import sys
 import time
 from pathlib import Path
 
-ALLOWED = ("Bash(python3 *)", "Bash(git *)", "Bash(gh *)", "Bash(bash *)", "Bash(rsync *)")
+ALLOWED = ("Bash(python3 *)", "Bash(git *)", "Bash(gh *)", "Bash(rsync *)")
+DISALLOWED = ("Bash(gh pr merge *)", "Bash(gh api *)")
 
 
 def prompt(wave, through, resume):
@@ -73,6 +78,7 @@ def main(argv=None):
                "--permission-mode", "acceptEdits"]
     if args.max_budget_usd:
         command += ["--max-budget-usd", args.max_budget_usd]
+    command += ["--disallowedTools", *DISALLOWED]
     command += ["--allowedTools", *ALLOWED, *args.allow]
 
     log = args.log_dir.expanduser() / project.name / \

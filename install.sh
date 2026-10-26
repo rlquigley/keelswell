@@ -452,12 +452,25 @@ permissions_check() {
   # an instance's settings.json must carry every one of them. An instance may
   # add rules of its own. As with the hooks, the fork has no settings.json, so
   # there, and only there, the template is read against itself, which still
-  # fails if it stops parsing or loses a list.
+  # fails if it stops parsing or loses a list. An allow rule in either
+  # settings file that covers a merge is a WARN, not a FAIL (V2-14): the
+  # gate's merge rule denies a merge whatever the allow lists say, and
+  # settings.local.json is the human's own file.
   local settings="$1/.claude/settings.json" reference="templates/settings.json.template"
   if [ ! -f "$settings" ] && is_fork_root "$1"; then settings="$reference"; fi
   echo "  Permission rules in $settings (reference: $reference):"
-  python3 - "$reference" "$settings" <<'PY'
-import json, sys
+  python3 - "$reference" "$settings" "$1/.claude/settings.local.json" <<'PY'
+import json, os, sys
+OVERLAP = {"Bash", "Bash(*)", "Bash(gh *)", "Bash(gh pr *)", "Bash(gh api *)", "Bash(bash *)"}
+for path in sys.argv[2:]:
+    try:
+        allow = (json.load(open(path)).get("permissions") or {}).get("allow") or []
+    except (OSError, ValueError, AttributeError):
+        continue  # a missing settings.json fails below; a broken local file is not ours
+    for rule in allow:
+        if isinstance(rule, str) and rule.replace(":*", " *") in OVERLAP:
+            print(f"    WARN: {os.path.basename(path)} allows {rule}, which covers a merge;"
+                  " the gate's merge rule still denies one")
 def permissions(path):
     try:
         return json.load(open(path)).get("permissions") or {}
