@@ -4,6 +4,134 @@ All notable changes to Keelswell. Format: Keep a Changelog; versioning: semver.
 ## [Unreleased]
 
 ### Fixed
+- An evaluation is bound to the exact work it graded (2026-10-25, PR 3 of
+  docs/reviews/harness-review-v2.md: V2-02 in full, V2-05, V2-06, V2-22,
+  V2-23; bmad-dev-wave 1.22.0). dispatch writes `wave-diff.patch` from
+  `evaluate_wave.wave_diff`, the one function the gate also calls: `git diff
+  --no-color --no-ext-diff --no-textconv --no-renames --full-index <base>`
+  against the working tree, then each untracked, non-ignored file (`git
+  ls-files -z`, sorted) as `diff --no-index /dev/null <f>` with the same
+  flags. The base is the merge-base of HEAD with `main`, else `origin/main`.
+  `.bmad/`, `verify-output.txt`, `wave-diff.patch` and `evaluation-*.md` in
+  `docs/wave-<id>/` are left out of both parts, so a record never changes the
+  diff it is bound to; before this they were in it, an untracked name git
+  quotes dropped out of it silently, and a binary change showed only as an
+  abbreviated blob id. The patch's sha256 goes in the pending marker and the
+  hook copies it into the record's header as `diff-sha256 <hex>`.
+  dispatch exits 3 when the latest record is NEEDS_WORK or UPSTREAM_CAUSE
+  and names the current diff, from any session, unless the UPSTREAM_CAUSE
+  has a fix on record; a PASS may be graded again. verify writes
+  `.bmad/wave-<id>/verify-stamp` (through `locate`, beside `wave.md`) with
+  the sha256 of its output and of the wave's diff after the run; dispatch
+  exits 3 when the output is not those bytes or the diff has moved since,
+  so a hand-written "240 passed" and an edit made after verify are both
+  refused. The hook records nothing when `wave-diff.patch` or
+  `verify-output.txt` is not what dispatch hashed, and verdict then exits 3
+  naming the file. The gate's review rule recomputes the hash in the
+  record's own checkout on `set --status in-review` and denies a PASS whose
+  header names no diff or another one, so a commit, an edit or a new file
+  after PASS goes back through steps 7 and 8; done is not held to it, since
+  the worktree is gone by then. The lifecycle rule guards `verify-stamp` as
+  it guards `wave.md`. A PASS restarts the third-pass count. An upstream fix
+  restarts it only when the fix line names a file whose sha256 the
+  UPSTREAM_CAUSE record's header holds and whose bytes have changed: the hook
+  hashes every existing file the report's `Where:` and `Fix this instead:`
+  lines name, in the record's checkout first, then the main checkout.
+  **Rulings.** RQ, 2026-10-25, (a) to (e) as proposed: (a) the hash covers
+  the bytes above, with the pinned flags and the harness files left out;
+  (b) the same-diff refusal, with a record from before this PR (no hash)
+  never matching; (c) in-review denied on a mismatch or on a PASS with no
+  hash, done not checked; (d) the stamp placed by `locate`, holding the
+  output's and the diff's hash, V2-50's lanes later; (e) the count restarts
+  at a PASS and at a fix to a hashed artifact. V2-29 stays under Not
+  covered. One reading made while building: V2-06 says the verdict rule
+  should cover the patch and the verify output; here the hook checks both
+  against the marker's hashes before it records, which also catches a
+  write the gate cannot see (Python file I/O), and no gate rule was added
+  for them.
+  **What was measured.** 28 new tests and one replaced (376 for
+  bmad-dev-wave, both trees; close-epic 12, tools 27 and `install.sh
+  --validate-only` green). Against bbe309e's scripts 23 of the 28 fail, each
+  for its finding: the same-diff re-dispatch after NEEDS_WORK (V2-02 A2) and
+  after UPSTREAM_CAUSE (C4), an upstream fix naming a missing, unchanged,
+  deleted or unreported file (V2-22 D), a hash in the report body read as
+  the hook's, the PASS that did not reset the count (V2-23), a hand-edited
+  verify output (V2-06), an edit after verify (R5b finding 3), a patch
+  edited after dispatch, the record header with no hash, the records and a
+  tracked `.bmad/` file inside the diff, an untracked name git quotes
+  missing from it, abbreviated blob ids, a commit and an uncommitted edit
+  after PASS opening review (V2-05 B2), an unbound PASS and a body hash
+  opening review, the stamp written by hand, and the verify, dispatch, PASS,
+  commit, re-verify, PASS sequence through the real wrappers. The five that
+  pass there are guards that must not change: a changed tree is evaluated
+  again, a PASS may be graded again, a fix that changed its artifact
+  restarts the count, a fix banked ahead of the verdict does not, and done
+  is not held to the hash. The count-restart test on hand-written records
+  became the hook-written one, since a hand record names no artifact; the
+  NEEDS_WORK end-to-end test now changes the code before the next session's
+  dispatch; the step-10 review-record test re-runs verify after writing
+  `review-party.md`, as step 10 does. The review's `p2_loop.py`, re-run
+  against this branch on a copy: A2 re-dispatch exit 3, B2 in-review
+  denied ("has changed since its latest PASS"), C4 exit 3, D2 exit 3.
+  Mutation, one at a time on rsync copies: 21 clauses dropped or widened,
+  20 killed. The sweep's first run left 8 survivors; each got a test (a fix
+  outside the diff, a PASS graded again, a deleted artifact, an unreported
+  artifact, a banked fix, the stamp named in `python3 -c`, a hash in the
+  record body for the gate and for the count). The survivor, the verdict
+  clause in the same-diff refusal, is equivalent: a PASS already moves the
+  count's base to its own pass, and the hook writes no hashed record without
+  a readable verdict. Gate p50 of 20 calls against bbe309e on the same
+  machine, on a 200-file project whose wave changed 60 files (40 committed,
+  20 not) and added one: `set --status in-review` 138.5 against 81.6 ms, a
+  merge-base, a diff, an `ls-files` and one `diff --no-index` more; `ls`
+  85.6 against 81.3. The review's 10 ms budget is for the calls every tool
+  use makes; this one runs once per wave. The a_fire and a_pass eval tasks,
+  one trial each on a fresh install of this branch (RQ approved the spend):
+  both passed, $0.66 and $0.89. a_fire's `evaluation-1.md` is NEEDS_WORK
+  with the hook's `diff-sha256`, status stays in-progress; a_pass's is PASS
+  with its `diff-sha256` equal to the verify stamp's, and the session's
+  `set --status in-review` went through the gate's recompute. Neither
+  transcript holds a gate denial. One trial each is not pass^3.
+  **Grade of PR 4's prediction (1.21.0).** Not gradable as of 2026-10-25.
+  Both instances took #58 that afternoon (green-ledger 1da1c68 at 14:52,
+  ffbapp 2ff773d at 14:59 through attacktheseam/ffbapp#119) and no wave
+  has started since: green-ledger has no `.bmad/wave-*`, ffbapp's newest
+  wave file is 5E's from 2026-10-09. When a wave runs: list its
+  `.bmad/wave-<id>/` in every checkout at each step (one copy only), look
+  for an exit 3 from route or set on it, and read merge-wave's adopt output
+  (exit 0, no conflicts). A probe made for this PR bears on it: a desktop
+  session isolated in a worktree may write into the main checkout's
+  `.bmad/` by Bash (`mkdir -p` and `touch`, `python3 -c`, a script file),
+  and only the Write tool is refused, with a message that names the
+  worktree's path instead.
+  **Prediction.** No wave in either instance reaches in-review on a PASS
+  whose header names another diff, and no `evaluation-*.md` written after
+  the sync follows a NEEDS_WORK that names the same `diff-sha256`.
+  Gradable from the records' headers.
+  **Not covered.** V2-29: `gh pr create` and `git push` are not gated, so a
+  pull request can still open on a stale PASS; only in-review is held.
+  V2-50: only `tests/verify-fast.sh` is stamped; a second verify lane the
+  session writes is not. The hash binds bytes, not intent: after NEEDS_WORK
+  a later session that changes any byte (a comment, a blank line) gets a
+  fresh dispatch. A write the gate cannot see (Python file I/O) can still
+  rewrite `verify-stamp` with a matching hash; dispatch then accepts the
+  forged output, though the hook's check still catches a patch or output
+  changed after dispatch.
+  **At risk.** A PASS written before 1.22.0 has no `diff-sha256`, so `set
+  --status in-review` on that wave is denied until steps 7 and 8 run again;
+  none is in flight on either instance, and done (merge-wave's set) is not
+  affected. Any untracked, non-ignored file that appears between PASS and
+  step 9 (coverage output, a scratch note) changes the diff and denies
+  in-review; the fix is a `.gitignore` line or deleting it. An upstream fix
+  restarts the count only for a file the report named by a path that
+  exists, in the record's checkout first and then the main checkout: a spec
+  fixed on main while the worktree keeps its old copy does not restart it
+  until the worktree has the fix, and a report that names no path cannot be
+  answered except by a PASS or a human edit. Fix-line and record times are
+  whole seconds; a fix written in the same second as the UPSTREAM_CAUSE
+  counts as after it, as before this PR. PR 1's at-risk item is closed
+  here: a resume that re-enters at step 9 after a step-10 fix now meets a
+  denied in-review and goes back through steps 7 and 8.
 - Every wave script gives one answer to where a wave's state lives
   (2026-10-25, PR 4 of docs/reviews/harness-review-v2.md: V2-07, V2-08,
   V2-31, V2-15; bmad-dev-wave 1.21.0, bmad-merge-wave 1.4.0).

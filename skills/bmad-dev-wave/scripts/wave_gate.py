@@ -37,14 +37,17 @@ Six rules, each read off disk and none of them a judgement:
   lifecycle .bmad/wave-<id>/wave.md is written by wave_status.py and by
             nothing else. A status edited by hand skips every refusal the
             script makes, and blocked is sticky only if the session it blocks
-            cannot edit, move or delete the record. The evaluator's two
-            markers beside it, evaluation-session and evaluation-pending, are
-            guarded the same way: the first is the in-place rule's only state.
+            cannot edit, move or delete the record. The evaluator's markers
+            beside it, evaluation-session, evaluation-pending and
+            verify-stamp, are guarded the same way: the first is the in-place
+            rule's only state, the last the hash of what verify printed.
   review    wave_status.py set to a status whose stage is review (in-review,
             done) is denied for a wave whose latest evaluation on disk is not
             PASS. There is no way into the review stage except through the
             evaluator, so step 8 cannot be walked past, and done is held to
             the same check: merge-wave's set reads the records that merged.
+            in-review also needs the PASS to name, by sha256, the wave's diff
+            as it is now (V2-05): work after the PASS goes back through it.
   in-place  The session that recorded NEEDS_WORK for a wave cannot edit that
             wave's worktree. The findings are the next session's opening
             prompt, and the session that built the wave is the one least able
@@ -134,11 +137,13 @@ UNDER_DOCS = re.compile(r"(?:^|/)docs(?:/|$)", re.I)
 # the reader finds whatever it points at.
 VERDICT_COPIERS = {"cp", "rsync", "install", "mv", "ln", "ditto", "scp"}
 # The record and the evaluator's markers beside it.
-LIFECYCLE_NAMES = ("wave.md", "evaluation-session", "evaluation-pending")
+LIFECYCLE_NAMES = ("wave.md", "evaluation-session", "evaluation-pending", "verify-stamp")
 LIFECYCLE_FILE = re.compile(
-    r"(?:^|/)\.bmad/wave-[^/]+/(?:wave\.md|evaluation-session|evaluation-pending)$", re.I)
+    r"(?:^|/)\.bmad/wave-[^/]+/(?:wave\.md|evaluation-session|evaluation-pending|verify-stamp)$",
+    re.I)
 LIFECYCLE_NAMED = re.compile(
-    r"\.bmad/wave-[^/\s'\"]+/(?:wave\.md|evaluation-session|evaluation-pending)", re.I)
+    r"\.bmad/wave-[^/\s'\"]+/(?:wave\.md|evaluation-session|evaluation-pending|verify-stamp)",
+    re.I)
 # .bmad/ itself, or one wave's directory: removing either removes the record.
 LIFECYCLE_DIR = re.compile(r"(?:^|/)\.bmad(?:/wave-[^/]+)?$", re.I)
 # Copiers whose last operand is where the copy lands: a directory there
@@ -1046,9 +1051,28 @@ def lifecycle_rule(target, shell):
                               or shell.copies_into(LIFECYCLE_DIR, LIFECYCLE_NAMES)):
         raise Deny("lifecycle", [
             "This command writes, moves or deletes a .bmad/wave-<id>/ record or marker",
-            "  (wave.md, evaluation-session, evaluation-pending), names one where the gate",
-            "  cannot tell whether it is written, or copies into its directory a source",
-            "  that could carry one (one of those names, a glob, a directory)."] + why)
+            "  (wave.md, evaluation-session, evaluation-pending, verify-stamp), names one",
+            "  where the gate cannot tell whether it is written, or copies into its",
+            "  directory a source that could carry one (one of those names, a glob, a",
+            "  directory)."] + why)
+
+
+def bound_rule(root, label, path):
+    """A PASS opens review only for the diff it graded (V2-05): the wave's diff
+    in the checkout the record sits in, recomputed now, must be the one its
+    header names. done is not held to this; by then the worktree is gone."""
+    recorded = evaluate_wave.recorded_diff(path.read_text(encoding="utf-8", errors="ignore"))
+    again = ["  Run step 7 and step 8 again: verify, then dispatch the evaluator on the",
+             "  wave as it stands. The review stage opens on that PASS."]
+    if recorded is None:
+        raise Deny("review", [
+            f"wave {label}'s latest PASS ({shown(path, root)}) names no diff, so what it",
+            "  graded cannot be told from what the wave holds now."] + again)
+    if evaluate_wave.bound_diff(path.parents[2], label)[1] != recorded:
+        raise Deny("review", [
+            f"wave {label} has changed since its latest PASS ({shown(path, root)}): the",
+            "  wave's diff is not the one that evaluation graded. A commit, an edit or a",
+            "  new file after PASS has not been evaluated."] + again)
 
 
 def review_rule(root, shell):
@@ -1095,6 +1119,8 @@ def review_rule(root, shell):
                 "  waves.md."])
         verdict, path = latest_verdict(root, label, where)
         if verdict == evaluate_wave.PASS:
+            if status == wave_status.IN_REVIEW:
+                bound_rule(root, label, path)
             continue
         if path is None:
             raise Deny("review", [

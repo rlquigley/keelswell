@@ -16,9 +16,15 @@ What the building agent no longer decides:
     evaluator cannot edit" is then a file the script read, not a sentence in a
     skill anyone can drift away from.
   * what the evaluator is shown. `verify` runs tests/verify-fast.sh and stamps
-    its output with the command, the exit code and the HEAD it ran at.
-    `dispatch` refuses evidence that is missing or was stamped at another
-    HEAD, and writes the diff itself, from the wave's merge-base with main.
+    its output with the command, the exit code and the HEAD it ran at, and
+    hashes the output and the wave's diff into .bmad/wave-<id>/verify-stamp.
+    `dispatch` refuses evidence that is missing, was stamped at another HEAD,
+    was edited, or describes another tree, and writes the diff itself, from
+    the wave's merge-base with main.
+  * what a verdict is about. The diff's sha256 goes in the marker and the
+    record's header (V2-02, V2-05 of the harness review v2): dispatch will
+    not grade the same diff again after NEEDS_WORK, and the gate opens
+    review only on a PASS that names the wave's diff as it is.
   * which pass this is. `dispatch` counts the evaluation records already on
     disk. BMAD's stopping rule fires on the third pass, and a rule whose
     trigger the reviewed party counts is not a rule.
@@ -49,8 +55,9 @@ Exit codes:
   2  structural: no wave map, or the wave is not in it
   3  refuse: the evaluator definition is missing, declares a tool that can
      write, run or delegate, or lacks `effort: high`; the verify output is
-     missing, unstamped or stale; nothing is recorded for the dispatch; or
-     two checkouts are on the wave's branch
+     missing, unstamped, stale or edited, or the wave changed since verify;
+     the latest NEEDS_WORK or UPSTREAM_CAUSE graded the same diff; nothing is
+     recorded for the dispatch; or two checkouts are on the wave's branch
   4  UPSTREAM_CAUSE -- the third-pass rule fired; fix the named artifact, not
      the code
 
@@ -60,6 +67,7 @@ a hook's stdout: it prints a decision or nothing. Stdlib only.
 """
 
 import argparse
+import hashlib
 import json
 import os
 import re
@@ -131,11 +139,31 @@ HANDBACK_TOOL = "SubagentHandback"
 # A report that cannot be recorded is sent back this many times, then dropped.
 HOOK_ROUNDS = 2
 
+# .bmad/wave-<id>/verify-stamp: what `verify` printed and the tree it ran on,
+# by hash, beside wave.md, where the gate guards it as it guards wave.md
+# (V2-06 of the harness review v2). A plain-text stamp in the output itself
+# can be typed by hand.
+VERIFY_STAMP_FILE = "verify-stamp"
+
+# The record header's binding to the diff it graded (V2-05), and on an
+# UPSTREAM_CAUSE the artifacts its report named, by content (V2-22). Read
+# from the header comment only, never from the evaluator's body below it.
+DIFF_HASH = re.compile(r"^\s*diff-sha256 ([0-9a-f]{64})\b", re.MULTILINE)
+ARTIFACT_HASH = re.compile(r"^\s*artifact-sha256 ([0-9a-f]{64}) (\S+)$", re.MULTILINE)
+# The evaluator definition's UPSTREAM_CAUSE lines that name an artifact.
+UPSTREAM_NAMES = re.compile(r"^- (?:Where|Fix this instead):(.*)$", re.MULTILINE | re.IGNORECASE)
+PATH_TOKEN = re.compile(r"[\w][\w./-]*")
+
+# Pinned, so dispatch and the gate print the same bytes whatever the user's
+# git config says. Full blob ids also carry a binary file's change, which a
+# "Binary files differ" line and an abbreviated id would not.
+DIFF_FLAGS = ("--no-color", "--no-ext-diff", "--no-textconv", "--no-renames", "--full-index")
+
 # "- 2026-10-02T09:00:00+00:00  in-progress -> in-progress  (upstream fix: docs/stories/5.4.md)",
 # the history line `wave_status.py set --status in-progress --reason
 # "upstream fix: <artifact>"` writes.
 UPSTREAM_FIX = re.compile(r"^- (\S+)\s+\S+ -> " + re.escape(wave_status.IN_PROGRESS)
-                          + r"\s+\(upstream fix:\s*\S", re.IGNORECASE)
+                          + r"\s+\(upstream fix:\s*([^\s)]+)", re.IGNORECASE)
 WRITTEN_AT = re.compile(r"\bat (\d{4}-\d\d-\d\dT[\d:]+(?:[+-][\d:]+)?)")
 
 GIT_TIMEOUT = 60
@@ -254,22 +282,87 @@ def merge_base(project_root):
     return None
 
 
-def wave_diff(project_root, base, skip):
+def harness_paths(project_root, label):
+    """What the harness writes about the wave, which is not the wave's work:
+    `.bmad/`, and the verify output, the patch and the evaluation records in
+    `docs/wave-<id>/`. A record in its own diff would change the hash it is
+    bound to."""
+    d = docs_dir(project_root, label).relative_to(project_root).as_posix()
+    return [".bmad/**", f"{d}/verify-output.txt", f"{d}/wave-diff.patch", f"{d}/evaluation-*.md"]
+
+
+def wave_diff(project_root, label, base):
     """Everything the wave changed since `base`, committed or not, as a patch.
 
     Untracked files are in it as additions: a diff that left them out would
-    hide every file the wave created and has not committed yet. `.bmad/` is
-    the harness's own state, not the wave's work, and stays out.
+    hide every file the wave created and has not committed yet. The harness's
+    own files stay out. These bytes are what a record is bound to, so dispatch
+    and the gate both take them from here.
     """
-    diff = _git(project_root, "diff", base, "--", ".", *[f":(exclude){s}" for s in skip])
-    untracked = _git(project_root, "ls-files", "--others", "--exclude-standard")
+    specs = ["."] + [f":(exclude,glob,icase){s}" for s in harness_paths(project_root, label)]
+    diff = _git(project_root, "diff", *DIFF_FLAGS, base, "--", *specs)
+    untracked = _git(project_root, "ls-files", "-z", "--others", "--exclude-standard",
+                     "--", *specs)
     if diff is None or untracked is None:
         return None
-    for name in untracked.splitlines():
-        if name and name not in skip and not name.startswith(".bmad/"):
-            # --no-index exits 1 when the two sides differ, which they always do.
-            diff += _run_git(project_root, "diff", "--no-index", "--", "/dev/null", name)[1]
+    for name in sorted(n for n in untracked.split("\0") if n):
+        # --no-index exits 1 when the two sides differ, which they always do.
+        diff += _run_git(project_root, "diff", "--no-index", *DIFF_FLAGS,
+                         "--", "/dev/null", name)[1]
     return diff
+
+
+def sha256(text):
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def file_sha256(path):
+    try:
+        return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+    except OSError:
+        return None
+
+
+def bound_diff(project_root, label):
+    """(patch, sha256 of it) for the wave built in `project_root`, from its
+    merge-base with main; (None, None) when git cannot produce it."""
+    base = merge_base(project_root)
+    patch = wave_diff(project_root, label, base) if base else None
+    return (patch, sha256(patch)) if patch is not None else (None, None)
+
+
+def header(text):
+    """The comment the hook writes above the evaluator's body, or ""."""
+    return text.split("-->", 1)[0] if text.startswith("<!--") else ""
+
+
+def recorded_diff(text):
+    """The sha256 of the diff a record graded, from its header, or None."""
+    m = DIFF_HASH.search(header(text))
+    return m.group(1) if m else None
+
+
+def artifact_home(path, checkouts):
+    """The first checkout holding `path` as a file, as a Path, or None."""
+    if not path or path.startswith("/") or ".." in Path(path).parts:
+        return None
+    for c in checkouts:
+        if (c / path).is_file():
+            return c / path
+    return None
+
+
+def named_artifacts(text, checkouts):
+    """{path: sha256} of every file an UPSTREAM_CAUSE report's Where and Fix
+    lines name that exists in one of `checkouts`, the first one found."""
+    found = {}
+    for line in UPSTREAM_NAMES.findall(text):
+        for token in PATH_TOKEN.findall(line):
+            token = token.rstrip(".")
+            home = artifact_home(token, checkouts)
+            if home is not None and token not in found:
+                found[token] = file_sha256(home)
+    return found
 
 
 # ------------------------------------------------- the evaluator definition
@@ -488,11 +581,13 @@ def written_at(path):
 def rule_base(state, label, priors):
     """How many of `priors` the third-pass rule no longer counts.
 
-    The count restarts after an UPSTREAM_CAUSE whose fix is on record: a
-    history line in the wave's lifecycle record, written by wave_status.py
-    after that evaluation, naming the artifact that was fixed. Without the
-    restart a wave re-entered against a corrected spec is armed at once, and
-    NEEDS_WORK can never be returned for it again.
+    The count restarts at a PASS, so step 10's re-check is not armed by the
+    passes before it (V2-23), and after an UPSTREAM_CAUSE whose fix is on
+    record: a history line in the wave's lifecycle record, written by
+    wave_status.py after that evaluation, naming an artifact the report named
+    whose bytes have changed since (V2-22). Without the restart a wave
+    re-entered against a corrected spec is armed at once, and NEEDS_WORK can
+    never be returned for it again.
     """
     record = wave_status.read_record(state, label) or {}
     fixes = []
@@ -500,13 +595,32 @@ def rule_base(state, label, priors):
         m = UPSTREAM_FIX.match(line)
         when = _when(m.group(1)) if m else None
         if when:
-            fixes.append(when)
+            fixes.append((when, m.group(2).strip("`'\"").removeprefix("./")))
     base = 0
     for n, path in enumerate(priors, 1):
         text = path.read_text(encoding="utf-8", errors="ignore")
-        if read_verdict(text) == UPSTREAM_CAUSE and any(f >= written_at(path) for f in fixes):
+        verdict = read_verdict(text)
+        if verdict == PASS:
+            base = n
+        elif verdict == UPSTREAM_CAUSE and fixed(path, text, fixes):
             base = n
     return base
+
+
+def fixed(path, text, fixes):
+    """Does a fix on record answer the UPSTREAM_CAUSE at `path`? Only one
+    recorded after it, naming an artifact its header hashed, that still exists
+    and no longer holds those bytes."""
+    named = dict((p, h) for h, p in ARTIFACT_HASH.findall(header(text)))
+    checkout = path.parents[2]
+    checkouts = list(dict.fromkeys([checkout, wave_status.state_root(checkout)]))
+    for when, artifact in fixes:
+        if when < written_at(path) or artifact not in named:
+            continue
+        home = artifact_home(artifact, checkouts)
+        if home is not None and file_sha256(home) != named[artifact]:
+            return True
+    return False
 
 
 def read_stamp(path):
@@ -539,11 +653,23 @@ def write_marker(path, marker):
 
 # ------------------------------------------------------------- the evidence
 
+def read_verify_stamp(path):
+    """The hashed stamp `verify` left beside wave.md, or None."""
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    return data if isinstance(data, dict) else None
+
+
 def verify(project_root, label_wanted):
     """Run the verify script and stamp what it printed."""
     label, why = resolve_label(project_root, label_wanted)
     if label is None:
         return 2, {"wave": label_wanted}, [f"Cannot verify: {why}."]
+    where = wave_status.locate(project_root, label)
+    if len(where.candidates) > 1:
+        return wave_status.where_refusal(where, label)
 
     if not (project_root / VERIFY_SCRIPT).is_file():
         return 3, {"wave": label}, [
@@ -569,6 +695,10 @@ def verify(project_root, label_wanted):
     path.write_text(
         f"# verify-stamp command={command} exit={p.returncode} head={head} at={now}\n"
         + p.stdout, encoding="utf-8")
+    # The tree as the run left it, since what it wrote is what dispatch sees.
+    write_marker(wave_status.wave_dir(where.base, label) / VERIFY_STAMP_FILE, {
+        "output_sha256": file_sha256(path), "diff_sha256": bound_diff(project_root, label)[1],
+        "head": head, "at": now})
 
     rel = str(path.relative_to(project_root))
     result = {"wave": label, "command": command, "verify_exit": p.returncode,
@@ -624,6 +754,16 @@ def dispatch(project_root, label_wanted, session_id):
     if stamp["head"] != head:
         return refuse(f"{rel(verify_path)} is stale: stamped at {stamp['head'][:12]},",
                       f"  and the worktree's HEAD is {head[:12]}.", rerun)
+    state = where.base
+    stamp_path = wave_status.wave_dir(state, label) / VERIFY_STAMP_FILE
+    hashed = read_verify_stamp(stamp_path)
+    if hashed is None:
+        return refuse(f"Wave {label} has no verify stamp at {stamp_path}: the output",
+                      "  was not written by this version's `verify`.", rerun)
+    output_sha256 = file_sha256(verify_path)
+    if hashed.get("output_sha256") != output_sha256:
+        return refuse(f"{rel(verify_path)} is not what verify wrote: its bytes differ from",
+                      f"  the hash in {stamp_path}. It was edited after the run.", rerun)
     base = merge_base(project_root)
     if base is None:
         return refuse(f"{project_root} has no merge-base with main or origin/main,",
@@ -632,15 +772,33 @@ def dispatch(project_root, label_wanted, session_id):
         return refuse("CLAUDE_CODE_SESSION_ID is not set, so this was not run by a",
                       "  Claude Code session's Bash tool. The evaluator hook matches a",
                       "  report to its dispatch by session, and would record nothing.")
-    diff = wave_diff(project_root, base, [rel(diff_path), rel(verify_path)])
+    diff = wave_diff(project_root, label, base)
     if diff is None:
         return refuse(f"git could not produce the wave's diff from {base[:12]}.")
-    diff_path.write_text(diff, encoding="utf-8")
+    diff_sha256 = sha256(diff)
+    if hashed.get("diff_sha256") != diff_sha256:
+        return refuse(f"Wave {label} has changed since verify ran: the diff from "
+                      f"{base[:12]} is not", "  the one the verify stamp names. The "
+                      "evaluator would read output from another tree.", rerun)
 
     priors = prior_evaluations(project_root, label)
+    rule_base_n = rule_base(state, label, priors)
+    if priors:
+        last = priors[-1].read_text(encoding="utf-8", errors="ignore")
+        last_verdict = read_verdict(last)
+        if (recorded_diff(last) == diff_sha256 and last_verdict in (NEEDS_WORK, UPSTREAM_CAUSE)
+                and rule_base_n < len(priors)):
+            return refuse(
+                f"Wave {label}'s latest evaluation ({rel(priors[-1])}) is {last_verdict},",
+                "  and the wave's diff is unchanged since it was graded: the same bytes",
+                "  would be graded again until the verdict changed.",
+                "  NEEDS_WORK: change the code to close the findings, then verify.",
+                "  UPSTREAM_CAUSE: fix the artifact the record names and put the fix on",
+                "  record (`wave_status.py set ... --reason \"upstream fix: <path>\"`).")
+    diff_path.write_text(diff, encoding="utf-8")
+
     pass_number = len(priors) + 1
-    state = where.base
-    rule_pass = pass_number - rule_base(state, label, priors)
+    rule_pass = pass_number - rule_base_n
     result = {
         "wave": label,
         "definition": str(EVALUATOR),
@@ -702,6 +860,7 @@ def dispatch(project_root, label_wanted, session_id):
     write_marker(wave_status.wave_dir(state, label) / PENDING_FILE, {
         "session_id": session_id, "wave": label, "pass_number": pass_number,
         "project_root": str(project_root), "rounds": 0,
+        "diff_sha256": diff_sha256, "output_sha256": output_sha256,
         "dispatched": datetime.now(timezone.utc).isoformat(timespec="seconds"),
     })
     notice += [
@@ -798,18 +957,35 @@ def record(event):
         return 0, "", [f"evaluator hook ({source}): wave {label} was dispatched as "
                        f"pass {n} and its records have changed since. Nothing "
                        "recorded. Dispatch again."]
+    # The evaluator read these files after dispatch hashed them; a report on
+    # anything else is not a verdict on the wave (V2-06).
+    d = docs_dir(root, label)
+    for name, key in (("wave-diff.patch", "diff_sha256"), ("verify-output.txt", "output_sha256")):
+        if not marker.get(key) or file_sha256(d / name) != marker[key]:
+            marker["refused"] = (f"{d / name} is not the file dispatch hashed, so the "
+                                 "report graded other evidence")
+            write_marker(marker_path, marker)
+            return 0, "", [f"evaluator hook ({source}): wave {label} pass {n} not "
+                           f"recorded: {marker['refused']}. Run verify and dispatch again."]
     now = datetime.now(timezone.utc).isoformat(timespec="seconds")
-    header = (
+    artifacts = ""
+    if read_verdict(text) == UPSTREAM_CAUSE:
+        checkouts = list(dict.fromkeys([root, wave_status.state_root(root)]))
+        artifacts = "".join(f"     artifact-sha256 {h} {p}\n"
+                            for p, h in named_artifacts(text, checkouts).items())
+    head = (
         f"<!-- Written by the evaluator hook ({source}) through\n"
         f"     bmad-dev-wave/scripts/evaluate_wave.py record at {now}.\n"
         f"     Wave {label}, evaluation pass {n}. Session {session_id},\n"
         f"     subagent {event.get('agent_id') or 'unknown'}.\n"
+        f"     diff-sha256 {marker['diff_sha256']}\n"
+        + artifacts +
         "     The body below is the evaluator subagent's own output, unedited. -->\n\n"
     )
     target.parent.mkdir(parents=True, exist_ok=True)
     try:
         with open(target, "x", encoding="utf-8") as f:
-            f.write(header + text.rstrip() + "\n")
+            f.write(head + text.rstrip() + "\n")
     except FileExistsError:
         return 0, "", []
     (marker_path.parent / SESSION_FILE).write_text(session_id + "\n", encoding="utf-8")
