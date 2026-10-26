@@ -150,6 +150,14 @@ class TestInstall(unittest.TestCase):
         code, out = self.validate(self.installed)
         self.assertNotIn("WARN", out)
 
+    def test_the_fork_root_reads_the_template_not_its_own_settings(self):
+        # The fork's settings.json registers its sessions' PR hook, not the wave hooks.
+        self.assertTrue((self.fork / ".claude" / "settings.json").is_file())
+        code, out = self.run_sh("--validate-only", "--skip-mcp-check")
+        self.assertEqual(code, 0, out)
+        self.assertIn("(registration: templates/settings.json.template)", out)
+        self.assertIn("Permission rules in templates/settings.json.template", out)
+
     def test_each_registration_mutation_fails(self):
         def comment_kept(s):
             entry = s["hooks"]["PreToolUse"].pop(0)
