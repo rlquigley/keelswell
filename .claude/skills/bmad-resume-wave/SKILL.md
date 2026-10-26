@@ -15,7 +15,7 @@ when_to_use: |
   or when /bmad-wrap surfaced an in-progress wave at session end and the next
   session needs to pick it up.
 metadata:
-  version: 1.5.0
+  version: 1.5.1
   when-not-to-use:
     - Wave has not yet been started (use /bmad-dev-wave from step 1)
     - Wave is already complete and merged (no recovery needed)
@@ -55,13 +55,16 @@ this skill's reading of the filesystem and not from the conversation:
         --project-root {project-root} --wave <id>
 
 Exit 0 proceeds and its JSON carries `status`, `stage` and `reentry_step`;
-`reentry_step` is the `--from-step` value. Exit 1, 2 or 3 is the refusal;
+`reentry_step` is the `--from-step` value. Exit 1, 2, 3 or 5 is the refusal;
 quote its stderr. There is no flag and no override.
 
   0  proceed
   1  the wave is blocked -- see below
   2  structural: no wave map, or the wave is not in it
   3  the record exists and its status is missing or unrecognized
+  5  a draft wave while an earlier epic is closure-pending (The Closure Gate
+     in /bmad-dev-wave): run /bmad-close-epic for it, or RQ commits a
+     `Closure deferral:` line to waves.md on main
 
 The vocabulary lives in that one script and the table is in /bmad-dev-wave,
 which owns it. Do not restate the status names here and do not re-derive the
@@ -151,6 +154,9 @@ a `done` wave's follow-up review pass back into a resumption.
   delete the record. Do not resume against a guess at what it said.
 
 ## Version history
+- 1.5.1 (2026-10-25, harness review v2 V2-13): the router's exit 5, a draft
+  wave while an earlier epic is closure-pending, is named as a refusal.
+  Nothing else changed.
 - 1.5.0 (2026-10-24, harness review v2 PR 2): untracked files under the
   wave's own `docs/wave-<id>/` do not make its worktree dirty, so a resume
   after NEEDS_WORK no longer pushes toward a cleanup the wave gate denies.

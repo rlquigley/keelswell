@@ -6,7 +6,8 @@ This is the mechanical half of /bmad-close-epic's preflight condition four
 unchanged; what changed is that the verdict is an exit code rather than a
 judgement the closing agent makes about its own work.
 
-A wave carries a review record when either of two reachable artifacts exists:
+A wave carries a review record when either of two artifacts is on the main
+line, origin/main's tree when that ref exists and main's otherwise:
 
   * docs/wave-<id>/review-party.md -- canonical, what bmad-dev-wave 1.1.0
     writes for every wave;
@@ -15,6 +16,23 @@ A wave carries a review record when either of two reachable artifacts exists:
 
 A finding that lives only in a commit message is not a record, which is the
 whole point: it cannot be cited by a later artifact and cannot be checked here.
+
+Read from git, not the working tree (V2-12 of docs/reviews/harness-review-v2.md).
+A file on disk, untracked or committed only on the closure branch, is not a
+record: the closing session could write one, and the gate let it. A record on
+main got there through a merge a human made. It must not be empty, and for a
+wave that landed on or after 2026-09-12, when bmad-dev-wave 1.5.0 made the
+front matter required, it must carry that front matter: title, wave (this
+wave's label), created, model and effort. Records from before keep their old
+shape, as the rule date keeps waves from before it.
+
+A wave still checked out is not cleaned up: while any checkout is on a wave's
+branch (wave_status.locate, the same matcher every wave script uses) the epic
+is refused. --preflight adds the checks that need the network, which
+/bmad-close-epic runs at step 1 and the wave-gate hook never does: no open
+pull request on a wave's branch, and no closure branch for the epic already
+(a branch named close-epic-<N> or epic-<N>-closure, other than the one this
+runs on).
 
 The rule is prospective from 2026-09-10. A wave that landed before then and
 carries no record is a pre-rule gap: reported, argued in the closure's own
@@ -35,13 +53,17 @@ matches the wrong one for waves whose cleanup branch shares the wave label.
 Every wave starts with no record and nothing but an existing file flips that.
 A wave this script cannot date is not assumed pre-rule; it blocks.
 
-  check_review_records.py --project-root P --epic 6
+  check_review_records.py --project-root P --epic 6 [--preflight]
 
 Exit codes:
   0  every wave of the epic carries a record, or lacks one lawfully (pre-rule)
   1  at least one wave landed on or after the rule date with no record
-  2  structural: no wave map, or the epic has no waves in it
+  2  structural: no wave map, the epic has no waves in it, or wave_status.py
+     is missing
   3  at least one wave with no record could not be dated
+  4  not cleaned up: a checkout is still on a wave's branch, or (--preflight)
+     a wave's pull request is open, a closure branch exists, or gh or git
+     could not say
 
 Stdout is JSON for the caller to quote. Stderr is the refusal, written to be
 acted on. Stdlib only.
@@ -55,9 +77,24 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+# bmad-dev-wave's status script, for its worktree and branch matcher. Same
+# relative layout in skills/ and in .claude/skills/.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / "bmad-dev-wave" / "scripts"))
+try:
+    import wave_status  # noqa: E402
+except ImportError:
+    wave_status = None
+
 # Settled-decisions register row 51. A wave that landed before this instant
 # and carries no record is a pre-rule gap, not a refusal.
 RULE_DATE = datetime(2026, 9, 10, tzinfo=timezone.utc)
+
+# bmad-dev-wave 1.5.0 made the review record's front matter required.
+FRONT_MATTER_DATE = datetime(2026, 9, 12, tzinfo=timezone.utc)
+FRONT_MATTER_KEYS = ("title", "wave", "created", "model", "effort")
+
+# The main line records are read from, first that exists.
+MAIN_REFS = ("origin/main", "main")
 
 WAVE_MAP = Path("_bmad-output") / "planning-artifacts" / "waves.md"
 
@@ -100,20 +137,67 @@ def epic_of(label: str) -> int:
     return int(WAVE_LABEL.match(label).group(1))
 
 
-def find_record(project_root: Path, label: str):
-    """The wave's review record, or None. Directories are lower-cased."""
-    wave_dir = project_root / "docs" / f"wave-{label.lower()}"
-    canonical = wave_dir / "review-party.md"
-    if canonical.is_file():
-        return str(canonical.relative_to(project_root))
-    api_surface = wave_dir / "api-surface.md"
-    if api_surface.is_file():
-        try:
-            if AMENDMENTS.search(api_surface.read_text(encoding="utf-8", errors="ignore")):
-                return str(api_surface.relative_to(project_root)) + " (Party-review amendments)"
-        except OSError:
-            pass
+def main_line(project_root: Path):
+    """The ref records are read from: origin/main when it exists, else main."""
+    for ref in MAIN_REFS:
+        if _git(project_root, "rev-parse", "--verify", "-q", f"{ref}^{{commit}}"):
+            return ref
     return None
+
+
+def front_matter(text: str):
+    """The leading `---` block's keys, or None when there is none."""
+    lines = text.splitlines()
+    if not lines or lines[0].strip() != "---":
+        return None
+    keys = {}
+    for line in lines[1:]:
+        if line.strip() == "---":
+            return keys
+        key, sep, value = line.partition(":")
+        if sep:
+            keys[key.strip().lower()] = value.strip().strip("'\"")
+    return None
+
+
+def record_problem(text: str, label: str, landed):
+    """Why a record on the main line does not count, or None when it does."""
+    if not text.strip():
+        return "is empty"
+    if landed is not None and landed < FRONT_MATTER_DATE:
+        return None
+    keys = front_matter(text)
+    if keys is None:
+        return ("has no front matter, which is required from "
+                f"{FRONT_MATTER_DATE.date().isoformat()}: {', '.join(FRONT_MATTER_KEYS)}")
+    missing = [k for k in FRONT_MATTER_KEYS if not keys.get(k)]
+    if missing:
+        return f"has front matter without {', '.join(missing)}"
+    if keys["wave"].lower() != label.lower():
+        return f"has front matter naming wave: {keys['wave']}, not {label}"
+    return None
+
+
+def find_record(project_root: Path, label: str, ref, landed):
+    """(the wave's review record, or None; why a file there does not count, or
+    None). Read from `ref`'s tree, never the working tree. Directories are
+    lower-cased."""
+    wave_dir = f"docs/wave-{label.lower()}"
+    canonical = f"{wave_dir}/review-party.md"
+    if ref is not None:
+        text = _git(project_root, "cat-file", "-p", f"{ref}:{canonical}")
+        if text is not None:
+            problem = record_problem(text, label, landed)
+            if problem is None:
+                return canonical, None
+            return None, f"{canonical} on {ref} {problem}"
+        api = _git(project_root, "cat-file", "-p", f"{ref}:{wave_dir}/api-surface.md")
+        if api is not None and AMENDMENTS.search(api):
+            return f"{wave_dir}/api-surface.md (Party-review amendments)", None
+    if (project_root / canonical).is_file():
+        return None, (f"{canonical} exists here but is not on {ref}" if ref else
+                      f"{canonical} exists here, and there is no origin/main or main to read")
+    return None, None
 
 
 def _git(project_root: Path, *args):
@@ -172,7 +256,70 @@ def landed_at(project_root: Path, label: str):
     return _committed_at(project_root, added)
 
 
-def check(project_root: Path, epic: int):
+def held(project_root: Path, labels):
+    """(label, checkouts) for every wave a checkout is still on the branch of."""
+    out = []
+    for label in labels:
+        where = wave_status.locate(project_root, label)
+        if where.candidates:
+            out.append((label, [str(c) for c in where.candidates]))
+    return out
+
+
+def closure_branch(epic: int):
+    return re.compile(rf"(?:^|/)(?:close-epic-{epic}|epic-{epic}-closure)(?:-|$)", re.I)
+
+
+def _here(path):
+    out = _git(path, "symbolic-ref", "--short", "-q", "HEAD")
+    return out.strip() if out else None
+
+
+def preflight(project_root: Path, epic: int, labels):
+    """Problems the network has to answer: an open pull request on a wave's
+    branch, or a closure branch for the epic that already exists. A check
+    that cannot run is a problem too."""
+    problems = []
+    suffixes = {label: wave_status.branch_suffix(project_root, label) for label in labels}
+    try:
+        p = subprocess.run(["gh", "pr", "list", "--state", "open", "--limit", "500",
+                            "--json", "number,headRefName"], cwd=str(project_root),
+                           capture_output=True, text=True, encoding="utf-8", timeout=60)
+        prs = json.loads(p.stdout or "[]") if p.returncode == 0 else None
+        why = (p.stderr.strip().splitlines() or [f"exit {p.returncode}"])[0]
+    except (OSError, subprocess.SubprocessError, ValueError) as e:
+        prs, why = None, str(e)
+    if prs is None:
+        problems.append(f"gh could not list open pull requests: {why}")
+    for pr in prs or []:
+        head = pr.get("headRefName") or ""
+        for label in labels:
+            if wave_status.wave_branch(head, label, suffixes[label]):
+                problems.append(f"pull request #{pr.get('number')} is open for wave {label}'s "
+                                f"branch {head}")
+
+    names = (_git(project_root, "branch", "--format=%(refname:short)") or "").split()
+    if _git(project_root, "remote", "get-url", "origin"):
+        remote = _git(project_root, "ls-remote", "--heads", "origin")
+        if remote is None:
+            problems.append("git could not list origin's branches")
+        names += [line.split("refs/heads/", 1)[1] for line in (remote or "").splitlines()
+                  if "refs/heads/" in line]
+    mine = {_here(project_root), _here(Path.cwd())}
+    pattern = closure_branch(epic)
+    for name in sorted(set(names)):
+        if pattern.search(name) and name not in mine:
+            problems.append(f"closure branch already exists: {name}")
+    return problems
+
+
+def check(project_root: Path, epic: int, network=False):
+    if wave_status is None:
+        return 2, {"epic": epic, "error": "no_wave_status"}, [
+            "REFUSE: bmad-dev-wave's scripts/wave_status.py is missing beside this skill,",
+            "  so whether a wave is still checked out cannot be read. Restore it",
+            "  (./install.sh --validate-only names it).",
+        ]
     wave_map = project_root / WAVE_MAP
     if not wave_map.is_file():
         return 2, {"epic": epic, "error": "no_wave_map", "expected": str(WAVE_MAP)}, [
@@ -188,21 +335,26 @@ def check(project_root: Path, epic: int):
             "  Either the epic id is a typo or the decomposition is wrong.",
         ]
 
+    ref = main_line(project_root)
     waves = []
     for label in labels:
-        record = find_record(project_root, label)
+        landed = landed_at(project_root, label)
+        record, problem = find_record(project_root, label, ref, landed)
         if record is not None:
             waves.append({"wave": label, "status": "OK", "record": record})
             continue
-        landed = landed_at(project_root, label)
+        entry = {"wave": label, "record": None,
+                 "landed": landed.isoformat() if landed else None}
+        if problem:
+            entry["problem"] = problem
         if landed is None:
-            waves.append({"wave": label, "status": "UNDATABLE", "record": None, "landed": None})
+            waves.append(dict(entry, status="UNDATABLE"))
         elif landed < RULE_DATE:
-            waves.append({"wave": label, "status": "PRE-RULE-GAP", "record": None,
-                          "landed": landed.isoformat()})
+            waves.append(dict(entry, status="PRE-RULE-GAP"))
         else:
-            waves.append({"wave": label, "status": "MISSING", "record": None,
-                          "landed": landed.isoformat()})
+            waves.append(dict(entry, status="MISSING"))
+    checked_out = held(project_root, labels)
+    blockers = preflight(project_root, epic, labels) if network else []
 
     missing = [w for w in waves if w["status"] == "MISSING"]
     undatable = [w for w in waves if w["status"] == "UNDATABLE"]
@@ -215,6 +367,9 @@ def check(project_root: Path, epic: int):
         "missing": [w["wave"] for w in missing],
         "undatable": [w["wave"] for w in undatable],
         "pre_rule_gaps": [w["wave"] for w in gaps],
+        "main_line": ref,
+        "checked_out": {label: paths for label, paths in checked_out},
+        "preflight": blockers if network else None,
     }
 
     lines = []
@@ -223,15 +378,19 @@ def check(project_root: Path, epic: int):
                      f"{RULE_DATE.date().isoformat()} with no review record.")
         for w in missing:
             lines += [
-                f"  wave {w['wave']} landed {w['landed']} and has neither:",
+                f"  wave {w['wave']} landed {w['landed']} and has neither, on {ref or 'main'}:",
                 f"    docs/wave-{w['wave'].lower()}/review-party.md",
                 f"    a \"Party-review amendments\" section in "
                 f"docs/wave-{w['wave'].lower()}/api-surface.md",
             ]
+            if w.get("problem"):
+                lines.append(f"    ({w['problem']})")
         lines += [
             "  There is no flag for this. The remedy is to write the record, which",
-            "  means the adversarial review has to have happened. A finding that",
-            "  lives only in a commit message does not count.",
+            "  means the adversarial review has to have happened, and land it on main",
+            "  through a pull request. A file only in the working tree or on the",
+            "  closure branch does not count, and neither does a finding that lives",
+            "  only in a commit message.",
         ]
     if undatable:
         lines.append(f"REFUSE: epic {epic} has {len(undatable)} wave(s) with no review record "
@@ -244,6 +403,14 @@ def check(project_root: Path, epic: int):
             ]
         lines.append("  If the wave has not run, it is not the review record that blocks "
                      "closure; run the wave.")
+    if checked_out or blockers:
+        lines.append(f"REFUSE: epic {epic} is not cleaned up.")
+        for label, paths in checked_out:
+            lines += [f"  wave {label}: a checkout is still on its branch:"] + [
+                f"    {p}" for p in paths]
+        lines += [f"  {b}" for b in blockers]
+        lines.append("  Run /bmad-merge-wave for each wave named, or remove a stale worktree or "
+                     "branch by hand, then retry.")
     if gaps:
         lines.append(f"Pre-rule gaps (not a refusal): {', '.join(w['wave'] for w in gaps)}.")
         for w in gaps:
@@ -254,6 +421,8 @@ def check(project_root: Path, epic: int):
         return 1, result, lines
     if undatable:
         return 3, result, lines
+    if checked_out or blockers:
+        return 4, result, lines
     if not lines:
         lines.append(f"Epic {epic}: all {len(waves)} wave(s) carry a review record.")
     return 0, result, lines
@@ -263,9 +432,11 @@ def main():
     ap = argparse.ArgumentParser(description="Check every wave of an epic for a review record.")
     ap.add_argument("--project-root", default=".", help="project root (default: cwd)")
     ap.add_argument("--epic", required=True, type=int, help="epic number")
+    ap.add_argument("--preflight", action="store_true",
+                    help="also ask gh and origin: no open pull request, no closure branch")
     args = ap.parse_args()
 
-    code, result, lines = check(Path(args.project_root).resolve(), args.epic)
+    code, result, lines = check(Path(args.project_root).resolve(), args.epic, args.preflight)
     result["exit_code"] = code
     _write(sys.stdout, json.dumps(result, indent=2) + "\n")
     _write(sys.stderr, "\n".join(lines) + "\n")

@@ -97,7 +97,11 @@ class Project:
         d.mkdir(parents=True, exist_ok=True)
         (d / "test-design.md").write_text("design\n")
         if record:
-            (d / "review-party.md").write_text("# Party review\n")
+            # The front matter bmad-close-epic 1.5.0 requires from 2026-09-12.
+            (d / "review-party.md").write_text(
+                f'---\ntitle: "Wave {wave} party-mode adversarial review"\nwave: {wave}\n'
+                "created: 2026-09-12\nmodel: claude-opus-5-5\neffort: high\n---\n\n"
+                "# Party review\n")
         git(self.root, "add", "-A")
         git(self.root, "commit", "-q", "-m", f"wave {wave}", when=POST_RULE)
 
@@ -226,6 +230,104 @@ class TestClosure(Base):
         code, _, err = self.p.pre("Write", file_path="_bmad-output/epic-closure/epic-9/SUMMARY.md")
         self.assertEqual(code, 2)
         self.assertIn("exited 2", err)
+
+
+class TestClosureShapes(Base):
+    """V2-11: the closure rule reads Bash through the parse. Epic 7's gate fails
+    (7A landed with no record), so every write that reaches epic-7/ is denied,
+    however it is spelled, and a read of it is not."""
+
+    def setUp(self):
+        super().setUp()
+        self.p.land("7A", record=False)
+        closure = self.p.root / "_bmad-output" / "epic-closure" / "epic-7"
+        closure.mkdir(parents=True)
+        (closure / "SUMMARY.md").write_text("# Summary\n")
+
+    def denied(self, command, cwd=None):
+        code, _, err = self.p.pre("Bash", command=command, cwd=cwd)
+        self.assertEqual(code, 2, f"{command!r} was allowed")
+        self.assertIn("DENIED (closure)", err)
+        return err
+
+    def test_write_shapes_are_denied(self):
+        for command in (
+                "cd _bmad-output/epic-closure && mkdir -p epic-7",
+                "cd _bmad-output && echo x > epic-closure/epic-7/SUMMARY.md",
+                "D=_bmad-output/epic-closure; mkdir -p $D/epic-7",
+                'D=_bmad-output/epic-closure; echo x > "${D}/epic-7/trace.md"',
+                "export D=_bmad-output/epic-closure; mkdir -p $D/epic-7",
+                "mkdir -p _bmad-output/epic-closure/epic-{7,}",
+                "mkdir -p ./_bmad-output//epic-closure/./epic-7",
+                "touch _bmad-output/epic-closure/../epic-closure/epic-7/x.md",
+                "cp -r /tmp/epic-7 _bmad-output/epic-closure/",
+                "rsync -a /tmp/epic-7/ _bmad-output/epic-closure/epic-7/",
+                "ln -s _bmad-output/epic-closure cl && mkdir -p cl/epic-7",
+                "python3 -c \"import os; os.makedirs('_bmad-output/epic-' + 'closure/epic-7')\"",
+                "python3 - <<'EOF'\nimport os\nos.makedirs('_bmad-output/' + 'epic-closure/epic-7')\nEOF",
+                "find _bmad-output/epic-closure -name SUMMARY.md -delete",
+                "sed -i '' 's/x/y/' _bmad-output/epic-closure/epic-7/SUMMARY.md",
+                "find _bmad-output/epic-closure/epic-7 -name '*.md' -exec rm {} +",
+                "export D=_bmad-output/epic-closure; cd $D && mkdir -p epic-7",
+                "git -C _bmad-output/epic-closure/epic-7 checkout -- .",
+                "git -C _bmad-output/epic-closure/epic-7 reset -q --hard",
+                "mkdir -p '_bmad-output/epic-closure/epic-7",  # does not parse
+                "bash -c 'mkdir -p _bmad-output/epic-closure/epic-7'"):
+            with self.subTest(command):
+                self.denied(command)
+
+    def test_a_write_through_an_existing_symlink_is_denied(self):
+        (self.p.root / "cl").symlink_to(self.p.root / "_bmad-output" / "epic-closure")
+        self.denied("mkdir -p cl/epic-7/more")
+        self.denied("echo x > cl/epic-7/SUMMARY.md")
+
+    def test_a_write_from_inside_the_closure_directory_is_denied(self):
+        self.denied("echo x > SUMMARY.md",
+                    cwd=self.p.root / "_bmad-output" / "epic-closure" / "epic-7")
+
+    def test_interpreter_code_run_inside_the_closure_directory_is_denied(self):
+        self.denied("python3 -c \"open('notes.md', 'w').write('x')\"",
+                    cwd=self.p.root / "_bmad-output" / "epic-closure" / "epic-7")
+
+    def test_an_unpack_into_the_closure_directory_is_denied(self):
+        self.denied("tar -xf /tmp/closure.tar -C _bmad-output/epic-closure/epic-7")
+        archive = self.p.base / "closure.tar"
+        member = self.p.base / "SUMMARY.md"
+        member.write_text("x\n")
+        with tarfile.open(archive, "w") as t:
+            t.add(member, arcname="_bmad-output/epic-closure/epic-7/SUMMARY.md")
+        self.denied(f"tar -xf {archive}")
+
+    def test_an_unresolved_variable_elsewhere_is_allowed(self):
+        code, _, err = self.p.pre("Bash", command='echo x > "$TMPDIR/gate-note"')
+        self.assertEqual(code, 0, err)
+
+    def test_a_write_that_names_no_epic_is_denied(self):
+        err = self.denied("mkdir -p _bmad-output/epic-closure")
+        self.assertIn("cannot tell which epic", err)
+        code, _, err = self.p.pre("Write", file_path="_bmad-output/epic-closure/README.md",
+                                  content="x")
+        self.assertEqual(code, 2, err)
+        self.assertIn("cannot tell which epic", err)
+
+    def test_reads_are_allowed(self):
+        for command in (
+                "ls _bmad-output/epic-closure/epic-7",
+                "ls -la _bmad-output/epic-closure/",
+                "cat _bmad-output/epic-closure/epic-7/SUMMARY.md",
+                "grep -rn Summary _bmad-output/epic-closure",
+                "find _bmad-output/epic-closure -name '*.md'",
+                "cd _bmad-output/epic-closure/epic-7 && ls",
+                "git log --oneline -- _bmad-output/epic-closure/epic-7",
+                'git commit -m "Closure notes for _bmad-output/epic-closure/epic-7"'):
+            with self.subTest(command):
+                code, _, err = self.p.pre("Bash", command=command)
+                self.assertEqual(code, 0, err)
+
+    def test_other_epics_are_not_gated_by_epic_7(self):
+        self.p.land("8A", record=True)
+        code, _, err = self.p.pre("Bash", command="cd _bmad-output/epic-closure && mkdir -p epic-8")
+        self.assertEqual(code, 0, err)
 
 
 class TestVerdict(Base):

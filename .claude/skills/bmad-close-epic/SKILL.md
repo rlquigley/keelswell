@@ -19,7 +19,7 @@ allowed-tools:
   - Bash
   - Write
 metadata:
-  version: 1.4.1
+  version: 1.5.0
   inputs:
     - >-
       epic-id (positional, required; integer matching the leading digits of a
@@ -43,9 +43,10 @@ metadata:
 1. Preflight: waves.md lists at least one wave for the epic; every wave of the
    epic is merged AND cleaned up; every story of the epic has landed; and
    every wave of the epic carries a review record. Any failure: refuse --
-   partial closures produce misleading records. The fourth condition is not
-   yours to judge: run the gate script below and obey its exit code. What
-   counts as proof for the second and third conditions is further below.
+   partial closures produce misleading records. The fourth condition, and
+   the worktree, open-pull-request and closure-branch halves of the second,
+   are not yours to judge: run the gate script below with `--preflight` and
+   obey its exit code. What counts as proof for the rest is further below.
 2. Create the docs-only closure branch off main. No production code changes
    are permitted on it.
 3. Run the four sub-skills in order -- code-review, testarch-trace,
@@ -68,6 +69,10 @@ metadata:
 **A wave is merged and cleaned up** when its pull request reads merged, no pull
 request against the repository is open for its branch, and no worktree in
 `git worktree list` carries its branch. Live state, checked at invocation.
+The script checks the last two (exit 4): the worktree on every run, the
+hook's included, and the open pull request under `--preflight`, matching
+branches the way every wave script does, by the waves.md suffix after any
+prefix and before any harness hash.
 
 Not an archived checkpoint file. An archive is a proxy for those facts and a
 weaker one, since it is a file on disk that says cleanup happened rather than
@@ -93,16 +98,24 @@ The fourth preflight condition is decided by a script, not by you:
     python3 {skill-root}/scripts/check_review_records.py \
         --project-root {project-root} --epic <N>
 
-Exit 0 proceeds. Exit 1, 2 or 3 is the refusal; quote its stderr, which names
-the wave and the remedy. There is no flag and no override. Do not re-derive
+At step 1 add `--preflight`, which also asks gh for open pull requests and
+origin for the closure branch. The hook runs it without, so a tool call
+never waits on the network.
+
+Exit 0 proceeds. Exit 1, 2, 3 or 4 is the refusal; quote its stderr, which
+names the wave and the remedy. There is no flag and no override. Do not re-derive
 the verdict by reading files yourself, and do not proceed on a non-zero exit
 because the gap looks defensible -- arguing the exception is exactly the step
 this gate exists to remove.
 
   0  every wave carries a record, or lacks one lawfully (pre-rule)
   1  a wave landed on or after the rule date with no record
-  2  structural: no wave map, or the epic has no waves in it
+  2  structural: no wave map, the epic has no waves in it, or bmad-dev-wave's
+     wave_status.py is missing
   3  a wave with no record could not be dated
+  4  not cleaned up: a checkout is still on a wave's branch, or, under
+     --preflight, a wave's pull request is open, a closure branch already
+     exists, or gh or origin could not answer
 
 The same script also runs from the PreToolUse hook the moment anything is
 written under `_bmad-output/epic-closure/epic-<N>/` (Phase 4 of
@@ -111,12 +124,23 @@ closure whose gate fails cannot be written, whether or not step 1 ran the
 script; the hook's stderr carries the same refusal.
 
 **A wave carries a review record** when `docs/wave-<id>/review-party.md`
-exists, or when `docs/wave-<id>/api-surface.md` carries a "Party-review
-amendments" section (the wave directory is lower-cased: wave 6A is
-`docs/wave-6a/`). The first is canonical and is what /bmad-dev-wave 1.1.0
-writes; the second is the recognized alternative waves 2B, 5C and 5D used,
-and it is a real reachable record, so it counts. A record whose findings live
-only in a commit message does not count, which is the whole point.
+is on the main line, or when `docs/wave-<id>/api-surface.md` there carries a
+"Party-review amendments" section (the wave directory is lower-cased: wave
+6A is `docs/wave-6a/`). The first is canonical and is what /bmad-dev-wave
+1.1.0 writes; the second is the recognized alternative waves 2B, 5C and 5D
+used, and it is a real reachable record, so it counts. A record whose
+findings live only in a commit message does not count, which is the whole
+point.
+
+The main line is origin/main's tree when that ref exists, else main's; the
+working tree is never read. A file written now, untracked or committed only
+on the closure branch, is not a record: a human's merge put the others
+there. A record must not be empty, and for a wave that landed on or after
+2026-09-12, when /bmad-dev-wave 1.5.0 made it required, it must carry the
+front matter that skill names: `title`, `wave` (this wave's label),
+`created`, `model` and `effort`. Records from before keep their shape. A
+missing record is still written late, by a pull request that lands it on
+main once the review has happened.
 
 Required by settled-decisions register row 51 (RQ, 2026-09-10). The evidence
 that earned it: waves 4A, 4B, 5A and 5B produced no such file, and in both
@@ -171,15 +195,21 @@ the four passes have run: the gate is what the status attests to.
 
 Ruled by RQ in chat, 2026-08-24, at the Epic 1 closure.
 
+## Not covered by code
+Two rules here are still yours to keep; nothing checks them:
+- the closure branch is docs-only: no production code changes on it;
+- no story is set `done` before the four passes have run.
+
 ## Idempotency
 Re-invocation against the same epic and git state reproduces the same
 verdicts (modulo bounded sub-skill non-determinism) and overwrites the same
 five files on the same branch.
 
 ## Refusals
-- Some wave not cleaned up: name it, and name which check failed (pull request
-  unmerged, pull request open, or worktree still carrying the branch); run
-  /bmad-merge-wave first.
+- Some wave not cleaned up: the gate script exits 4 and names the wave and
+  which check failed (worktree still carrying the branch, or pull request
+  open); an unmerged wave cannot be dated (exit 3). Run /bmad-merge-wave
+  first, or remove a stale worktree by hand.
 - Some wave landed on or after 2026-09-10 with no review record: the gate
   script exits 1 and names the wave and both accepted locations. Quote it.
   There is no flag; the remedy is to write the record, which means the review
@@ -190,11 +220,20 @@ five files on the same branch.
   is not what blocks you.
 - Epic has zero waves: refuse (planning error or typo). The gate script exits
   2 for this and for a missing wave map.
-- Closure branch already exists: refuse; delete or rename it explicitly.
+- Closure branch already exists (a branch named `close-epic-<N>` or
+  `epic-<N>-closure` other than the one this runs on): the script exits 4
+  under --preflight; delete or rename it explicitly.
 - Main diverged since the waves merged: refuse; reconcile main first. Local
   main merely behind origin is not divergence: fast-forward and continue.
 
 ## Version history
+- 1.5.0 (2026-10-25, harness review v2 V2-12): a review record counts only
+  from the main line's tree (origin/main, else main), never the working
+  tree; it must not be empty, and from 2026-09-12 it must carry dev-wave's
+  front matter. The script refuses, exit 4, while a checkout is on a wave's
+  branch, and `--preflight` adds the open-pull-request and closure-branch
+  checks, which step 1 runs and the hook does not. The docs-only branch and
+  the done-after-the-passes rule stay prose, under Not covered by code.
 - 1.4.1 (2026-10-01, R4 of docs/reviews/harness-engineering-review-v1.md):
   frontmatter only. `when-to-use` is `when_to_use`, the field Claude
   Code reads, so it now reaches the skill listing; `version`, `inputs` and

@@ -85,6 +85,9 @@ Exit codes (route, set, adopt, mark and pend):
      its status is missing or unrecognized; or the wave's state cannot be
      placed (two copies disagree, two worktrees match); nothing is written
   4  set only: TRANSITIONS does not allow this move; nothing is written
+  5  route only: the wave is a draft and an earlier epic is closure-pending
+     (CLOSURE-PENDING below); the wave does not open. Not a block: nothing
+     is written but a first route's backfilled draft record
 
 WHERE IT LIVES. `locate` answers it once for every script (V2-07 and V2-08
 of the harness review v2). The project root is the main checkout, which git's
@@ -116,6 +119,23 @@ exit 3 until a human merges the two (2026-10-25).
 questions file's bytes there, and `--clear` removes it once the answers are
 recorded. wave_gate.py's SessionEnd rule blocks a wave whose directory, in
 any checkout, still holds it.
+
+CLOSURE-PENDING. `route` refuses a draft wave, exit 5, while an earlier epic
+is closure-pending (V2-13 of the harness review v2; register row 51). An
+epic is pending when every one of its waves has landed on the main line
+(origin/main when that ref exists, else main: the commit that added the
+wave's `docs/wave-<id>/` is an ancestor of it) and the epic's
+`_bmad-output/epic-closure/epic-<N>/` there is missing, or was last changed
+by a commit that does not contain one of those waves: a wave that merged
+after its epic closed (ffbapp's 5E). An addendum to the closure covers it.
+An epic with a wave still to land is mid-flight, not pending, which keeps a
+ruled out-of-order placement like ffbapp's 6A legal. The one override is a
+line in waves.md on the main line, never the working tree:
+
+    Closure deferral: epic <N> -- <YYYY-MM-DD> -- <reason>
+
+It covers the waves that landed on or before its date. A wave past draft
+routes as before: the refusal stops a wave opening, not one in flight.
 
 `show` is read-only: it never writes, never backfills, and exits 0 whenever it
 could read the wave map, so a dashboard can render a corrupt or blocked wave
@@ -193,6 +213,16 @@ MARKER_FILE = re.compile(r"^step-(\d+(?:\.\d+)?)(?:\.[A-Za-z0-9_-]+)?\.done$")
 MARKER_KEY = re.compile(r"^(\d+(?:_\d+)?)[_-]")
 
 RECORD_NAME = "wave.md"
+
+# Where /bmad-close-epic writes an epic's closure, and the main line read for
+# it, first that exists.
+CLOSURE_DIR = Path("_bmad-output") / "epic-closure"
+MAIN_REFS = ("origin/main", "main")
+CLOSURE_PENDING = 5
+# The one override: a line in waves.md on the main line.
+DEFERRAL = re.compile(
+    r"^\s*(?:[-*]\s+)?Closure deferral: epic (\d+) -- (\d{4}-\d{2}-\d{2}) -- (\S.*?)\s*$")
+DEFERRAL_WORDS = re.compile(r"closure deferral", re.I)
 # Step 4.5's open questions; wave_gate.py's SessionEnd rule blocks the wave
 # of any directory still holding it.
 PENDING = "step-4.5.pending"
@@ -683,6 +713,119 @@ def docs_landed(project_root, label):
     return False
 
 
+def main_line(project_root):
+    """origin/main when it exists, else main, else None."""
+    for ref in MAIN_REFS:
+        if _git_ok(project_root, "rev-parse", "--verify", "-q", f"{ref}^{{commit}}"):
+            return ref
+    return None
+
+
+def _docs_added(project_root, label):
+    out = _git(project_root, "log", "--diff-filter=A", "--format=%H", "--reverse",
+               "--", f"docs/wave-{label.lower()}/")
+    return next((line.strip() for line in (out or "").splitlines() if line.strip()), None)
+
+
+def _landed_day(project_root, added, ref):
+    """The day `added` reached `ref`: the oldest merge on the ancestry path
+    that brought it in, else its own commit (a squash or rebase)."""
+    merges = (_git(project_root, "rev-list", "--ancestry-path", "--merges",
+                   f"{added}..{ref}") or "").split()
+    out = _git(project_root, "log", "-1", "--format=%cs", merges[-1] if merges else added)
+    return (out or "").strip()
+
+
+def deferrals(project_root, ref):
+    """({epic: latest deferral date}, [lines that say Closure deferral and do
+    not parse]) from waves.md on `ref`."""
+    text = _git(project_root, "show", f"{ref}:{WAVE_MAP.as_posix()}") or ""
+    found, unparsed = {}, []
+    for line in text.splitlines():
+        m = DEFERRAL.match(line)
+        if m:
+            epic, day = int(m.group(1)), m.group(2)
+            found[epic] = max(found.get(epic, day), day)
+        elif DEFERRAL_WORDS.search(line):
+            unparsed.append(line.strip())
+    return found, unparsed
+
+
+def closure_pending(project_root, label):
+    """([pending epic], [unparsed deferral lines]) for the epics before
+    `label`'s. Each pending epic: {epic, waves, closure, late}, where closure is
+    the commit that last changed its closure directory (None when there is
+    none) and late the waves that commit does not contain."""
+    ref = main_line(project_root)
+    labels = wave_map_labels(project_root) or []
+    if ref is None:
+        return [], []
+    epic = int(WAVE_LABEL.match(label).group(1))
+    by_epic = collections.defaultdict(list)
+    for w in labels:
+        by_epic[int(WAVE_LABEL.match(w).group(1))].append(w)
+    deferred, unparsed = deferrals(project_root, ref)
+    pending = []
+    for e in sorted(k for k in by_epic if k < epic):
+        added = {w: _docs_added(project_root, w) for w in by_epic[e]}
+        if any(a is None or not _git_ok(project_root, "merge-base", "--is-ancestor", a, ref)
+               for a in added.values()):
+            continue  # a wave still to land: mid-flight, not pending
+        closure = (_git(project_root, "log", "-1", "--format=%H", ref, "--",
+                        f"{CLOSURE_DIR.as_posix()}/epic-{e}/") or "").strip() or None
+        late = list(by_epic[e]) if closure is None else [
+            w for w, a in added.items()
+            if not _git_ok(project_root, "merge-base", "--is-ancestor", a, closure)]
+        if not late:
+            continue
+        if e in deferred and all(_landed_day(project_root, added[w], ref) <= deferred[e]
+                                 for w in late):
+            continue
+        closed_on = (_git(project_root, "log", "-1", "--format=%cs", closure) or "").strip() \
+            if closure else None
+        pending.append({"epic": e, "waves": by_epic[e], "closure": closure, "closed_on": closed_on,
+                        "late": [] if closure is None else late,
+                        "landed": {w: _landed_day(project_root, added[w], ref) for w in late},
+                        "deferred_to": deferred.get(e), "main_line": ref})
+    return pending, unparsed
+
+
+def pending_refusal(label, pending, unparsed):
+    epics = ", ".join(str(p["epic"]) for p in pending)
+    lines = [f"REFUSE: wave {label} (epic {WAVE_LABEL.match(label).group(1)}) cannot open: "
+             f"epic {epics} {'is' if len(pending) == 1 else 'are'} closure-pending."]
+    for p in pending:
+        where = f"{CLOSURE_DIR.as_posix()}/epic-{p['epic']}/"
+        if p["closure"] is None:
+            lines += [f"  epic {p['epic']}: every wave has landed on {p['main_line']} "
+                      f"({', '.join(p['waves'])}) and {where} is not there."]
+        else:
+            lines += [f"  epic {p['epic']}: wave {', '.join(p['late'])} landed after the closure "
+                      "was last changed.",
+                      f"    closure: {where} last changed in {p['closure'][:7]} "
+                      f"({p['closed_on']})"]
+        lines += [f"    {w}: docs/wave-{w.lower()}/ landed on {day}"
+                  for w, day in p["landed"].items()]
+        if p["deferred_to"]:
+            lines.append(f"    the deferral dated {p['deferred_to']} does not cover a wave that "
+                         "landed after it.")
+    first = pending[0]["epic"]
+    lines += [
+        f"  Close it: /bmad-close-epic {first}"
+        + (" (an addendum covering the late waves)." if pending[0]["closure"] else "."),
+        "  Or, as a founder act, commit this line to "
+        f"{WAVE_MAP.as_posix()} on main:",
+        f"    Closure deferral: epic {first} -- <YYYY-MM-DD> -- <reason>",
+        "  A deferral covers the waves that landed on or before its date. There is",
+        "  no flag; the line is the one override.",
+    ]
+    if unparsed:
+        lines.append("  These lines in waves.md say Closure deferral and do not parse:")
+        lines += [f"    {u}" for u in unparsed]
+    return CLOSURE_PENDING, {"wave": label, "error": "closure_pending", "pending": pending,
+                             "unparsed_deferrals": unparsed}, lines
+
+
 def has_branch_or_worktree(project_root, label):
     """Whether anything on disk says this wave was ever dispatched.
 
@@ -827,6 +970,11 @@ def route(project_root, label):
             "  A human clears it: edit `status:` in the record to another valid",
             "  status, or delete the record file to start the wave over.",
         ]
+
+    if status == DRAFT:
+        pending, unparsed = closure_pending(root, label)
+        if pending:
+            return pending_refusal(label, pending, unparsed)
 
     stage, _ = STAGES[status]
     step = reentry_step(project_root, label, status)
