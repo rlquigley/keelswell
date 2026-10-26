@@ -135,7 +135,8 @@ All notable changes to Keelswell. Format: Keep a Changelog; versioning: semver.
   refused until epic 5 is handled.
   **What was measured.** 42 new tests (bmad-dev-wave 427 per tree, from 405:
   9 gate tests holding 39 command shapes and 13 route tests; close-epic 32,
-  from 12; tools 29; `install.sh --validate-only --skip-mcp-check` green;
+  from 12; tools 43 with #63 merged in; `install.sh --validate-only
+  --skip-mcp-check` green;
   skills/ and .claude/skills/ identical). Against 3bcd100's three scripts
   the new tests fail 47 times: 24 gate failures (every V2-11 shape, and
   `ls`, `cat`, `cd ... && ls`, `git log` and a commit message naming the
